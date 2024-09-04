@@ -109,7 +109,7 @@ foreach ($user in $licensedUsersList) {
                 }
                 # If the user is not part of any group assignation for that sku, add them to the list
                 if (-not $isInGroup) {
-                    $usersWithSkuNotInGroup = [PSCustomObject]@{
+                    $usersWithSkuNotInGroupObj = [PSCustomObject]@{
                         SkuID = $skuMap.SkuId
                         SkuPartName = $skuMap.SkuDisplayName
                         SkuLicenseName = $skuMap.SkuLicenseName
@@ -117,7 +117,7 @@ foreach ($user in $licensedUsersList) {
                         UserPrincipalName = $user.UserPrincipalName
                         UserDisplayName = $user.DisplayName
                     }
-                    $usersNotInherited.Add($usersWithSkuNotInGroup)
+                    $usersNotInherited.Add($usersWithSkuNotInGroupObj)
                 }
             }
         }
