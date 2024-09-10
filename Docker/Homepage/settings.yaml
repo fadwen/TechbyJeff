@@ -1,0 +1,21 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/settings
+
+
+headerStyle: clean
+layout:
+  - Services:
+      style: row
+      columns: 4
+  - Homelab:
+      style: row
+      columns: 5
+
+hideVersion: true
+background: 
+  image: https://images.hdqwalls.com/wallpapers/son-goku-dragon-ball-super-dark-5k-zd.jpg
+  opacity: 35
+#slate, gray, zinc, neutral, stone, amber, yellow, lime, green, emerald, teal, cyan, sky, blue, indigo, violet, purple, fuchsia, pink, rose, red, white
+color: stone 
+theme: dark # dark or light

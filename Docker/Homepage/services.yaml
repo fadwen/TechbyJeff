@@ -1,0 +1,42 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/services
+# icon url https://github.com/walkxcode/dashboard-icons/blob/main/ICONS.md
+
+- Services:
+    - PiHole:
+        icon: pi-hole.png
+        href: https://pihole.<magicdns>.ts.net
+        ping: 192.1.1.1
+        weight: 2
+        widget:
+            type: pihole
+            url: http://100.1.1.1
+            key: {{HOMEPAGE_VAR_PI_API_KEY}}
+    - WAN:
+        icon: webtools.png
+        widget:
+          type: customapi
+          url: https://ipinfo.io/json
+          refreshInterval: 100000 # optional - in milliseconds, defaults to 10s
+          method: GET
+          mappings:
+            - field: 'org'
+              format: text
+              remap:
+                - value: /^AS\d+\s/
+                  to: ''
+            - field: 'ip'
+              format: text
+- Homelab:
+    - Proxmox:
+          icon: proxmox.png
+          href: https://pve.<magicdns>.ts.net
+    - NAS:
+          icon: synology.png
+          href: https://nas.<magicdns>.ts.net/
+          ping: 192.1.1.1    
+    - iDRAC:
+          icon: idrac.png
+          href: https://192.1.1.1/ui/#/login
+          ping: 192.1.1.1

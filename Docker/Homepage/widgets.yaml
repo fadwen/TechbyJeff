@@ -1,0 +1,28 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/service-widgets
+- datetime:
+    text_size: x1
+    format:
+        dateStyle: long
+        timeStyle: short
+        hourCycle: h23
+# https://open-meteo.com/en/docs
+- openmeteo:
+    latitude: <yourlatitude>
+    longitude: <yourlongitude>
+    timezone: America/Los_Angeles # optional
+    units: imperial # metric or imperial
+    cache: 5 # Time in minutes to cache API responses, to stay within limits
+# https://github.com/nicolargo/glances
+- glances:
+    url: http://100.1.1.1:61208
+    cpu: true
+    mem: true
+    cputemp: true
+    uptime: true
+    disk: 
+      - /volume1
+      - /volume2
+      - /volume3
+    expanded: true
