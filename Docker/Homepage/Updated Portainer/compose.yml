@@ -24,6 +24,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${APPDATA}/portainer:/data
+    env_file: ./.env
     labels:
       - homepage.group=Services
       - homepage.name=Portainer

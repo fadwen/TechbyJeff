@@ -22,8 +22,6 @@ services:
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
     container_name: homepage
-    environment:
-      - HOMEPAGE_VAR_PI_API_KEY=${HOMEPAGE_VAR_PI_API_KEY}
     volumes:
       - ${APPDATA}/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock
