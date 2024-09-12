@@ -1,3 +1,4 @@
+name: portainer
 services:
   ts-portainer:
     image: tailscale/tailscale:latest
