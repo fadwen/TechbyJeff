@@ -387,5 +387,5 @@ These scripts are provided under the MIT License. See the LICENSE file for detai
 
 ---
 
-*Last Updated: December 2024*
+*Last Updated: May 2025*
 *Version: 2.0*
