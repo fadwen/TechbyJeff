@@ -1,0 +1,72 @@
+{
+    "widgets": [
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "metrics": [
+                    [ "AWS/SSM-RunCommand", "CommandsSucceeded", { "stat": "Sum" } ],
+                    [ ".", "CommandsFailed", { "stat": "Sum" } ]
+                ],
+                "period": 300,
+                "region": "us-east-1",
+                "title": "DSC Deployment Status"
+            }
+        },
+        {
+            "type": "log",
+            "x": 12,
+            "y": 0,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "query": "SOURCE '/aws/systemsmanager/ssm-errors' | fields @timestamp, @message\n| filter @message like /ERROR/ or @message like /failed/\n| parse @message /(?<instance>i-[a-z0-9]+)/\n| parse @message /ERROR\\s+(?<error_summary>.{1,100})/\n| sort @timestamp desc\n| limit 10",
+                "region": "us-east-1",
+                "title": "SSM Agent Errors",
+                "view": "table"
+            }
+        },
+        {
+            "type": "log",
+            "x": 0,
+            "y": 6,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "query": "SOURCE '/aws/systemsmanager/dsc-files' | fields @timestamp, @message\n| parse @message /\\[(?<level>\\w+)\\]/\n| parse @message /Server Role: (?<role>\\w+)/\n| parse @message /(?<summary>[^\\n]{1,80})/\n| sort @timestamp desc\n| limit 15",
+                "region": "us-east-1",
+                "title": "DSC Execution Details",
+                "view": "table"
+            }
+        },
+        {
+            "type": "log",
+            "x": 12,
+            "y": 6,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "query": "SOURCE '/aws/systemsmanager/dsc-files' | fields @timestamp, @message, @logStream\n| filter @message like /ERROR/ or @message like /failed/ or @message like /Starting/ or @message like /Completed/\n| parse @logStream /(?<instance_id>i-[a-z0-9]+)/\n| sort @timestamp desc\n| limit 10",
+                "region": "us-east-1",
+                "title": "Critical Events by Instance (DSC Files)",
+                "view": "table"
+            }
+        },
+        {
+            "type": "log",
+            "x": 0,
+            "y": 12,
+            "width": 12,
+            "height": 6,
+            "properties": {
+                "query": "SOURCE '/aws/systemsmanager/ssm-errors' | fields @timestamp, @message, @logStream\n| filter @message like /ERROR/ or @message like /failed/\n| parse @logStream /(?<instance_id>i-[a-z0-9]+)/\n| sort @timestamp desc\n| limit 10",
+                "region": "us-east-1",
+                "title": "Critical Events by Instance (SSM Errors)",
+                "view": "table"
+            }
+        }
+    ]
+}

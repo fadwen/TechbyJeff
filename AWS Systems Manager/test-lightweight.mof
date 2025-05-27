@@ -1,0 +1,51 @@
+/*
+@TargetNode='localhost'
+@GeneratedBy=TestUser
+@GenerationDate=01/01/2024 12:00:00
+@GenerationHost=TestHost
+*/
+
+instance of MSFT_RoleResource as $MSFT_RoleResource1ref
+{
+ResourceID = "[WindowsFeature]TelnetClient";
+Ensure = "Absent";
+Name = "Telnet-Client";
+ModuleName = "PSDesiredStateConfiguration";
+ModuleVersion = "1.0";
+ConfigurationName = "TestLightweightConfiguration";
+};
+
+instance of MSFT_RegistryResource as $MSFT_RegistryResource1ref
+{
+ResourceID = "[Registry]TestRegKey";
+ValueName = "DSCTestValue";
+ValueType = "String";
+Key = "HKEY_LOCAL_MACHINE\\SOFTWARE\\DSCTest";
+ValueData = {"TestConfiguration"};
+Ensure = "Present";
+ModuleName = "PSDesiredStateConfiguration";
+ModuleVersion = "1.0";
+ConfigurationName = "TestLightweightConfiguration";
+};
+
+instance of MSFT_ServiceResource as $MSFT_ServiceResource1ref
+{
+ResourceID = "[Service]Spooler";
+Name = "Spooler";
+State = "Running";
+StartupType = "Automatic";
+ModuleName = "PSDesiredStateConfiguration";
+ModuleVersion = "1.0";
+ConfigurationName = "TestLightweightConfiguration";
+};
+
+instance of OMI_ConfigurationDocument
+{
+Version="2.0.0";
+MinimumCompatibleVersion = "1.0.0";
+CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+Author="TestUser";
+GenerationDate="01/01/2024 12:00:00";
+GenerationHost="TestHost";
+Name="TestLightweightConfiguration";
+};

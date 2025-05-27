@@ -1,0 +1,15 @@
+{
+  "InstanceId": "i-001234567890abcdef0",
+  "OperationType": "Compliance Check",
+  "Duration": 58.57,
+  "BaselineCPU": 4.28,
+  "PeakCPU": 5.93,
+  "CPUImpact": 1.65,
+  "BaselineMemoryMB": 146.08,
+  "MemoryUsedMB": 53.51,
+  "TotalResources": 361,
+  "ComplianceRate": 97.78,
+  "ResourcesPerSecond": 6.16,
+  "Status": "Success",
+  "Timestamp": "2025-05-26T19:46:43.638555-07:00"
+}
