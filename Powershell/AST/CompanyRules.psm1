@@ -1,22 +1,83 @@
+<#
+.SYNOPSIS
+    Custom PSScriptAnalyzer module for enforcing company-specific PowerShell coding standards.
+
+.DESCRIPTION
+    This PowerShell module contains custom PSScriptAnalyzer rules that enforce company-specific
+    coding standards and best practices. The module validates PowerShell code against:
+
+    - Function naming conventions requiring approved verbs with "Company" suffix
+    - Variable naming standards (PascalCase for parameters, camelCase for local variables)
+    - Mandatory comment-based help for public functions
+    - Code quality and consistency standards
+
+    The rules are designed to integrate with PSScriptAnalyzer and can be used in CI/CD
+    pipelines, development environments, and code review processes to maintain consistent
+    code quality across the organization.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    Usage: Import this module and run PSScriptAnalyzer with custom rules:
+    Import-Module .\CompanyRules.psm1
+    Invoke-ScriptAnalyzer -Path script.ps1 -CustomRulePath .\CompanyRules.psm1
+
+    The module exports the Measure-CompanyStandards function which implements all rules.
+#>
+
 # CompanyRules.psm1 - Custom PSScriptAnalyzer Rules for Company Standards
 
 function Measure-CompanyStandards {
     <#
     .SYNOPSIS
-        Validates PowerShell code against company-specific standards.
+        Custom PSScriptAnalyzer rule that validates PowerShell code against company standards.
 
     .DESCRIPTION
-        This custom PSScriptAnalyzer rule checks for:
-        - Function naming conventions (must start with approved verbs + "Company")
-        - Variable naming standards (PascalCase for parameters, camelCase for local vars)
-        - Mandatory comment-based help for public functions
+        This function implements a comprehensive set of company-specific coding standards
+        for PowerShell development. It analyzes the Abstract Syntax Tree (AST) of PowerShell
+        code to validate:
+
+        1. Function naming conventions - Functions must start with approved PowerShell verbs
+           followed by "-Company" (e.g., Get-CompanyUser, Set-CompanyConfig)
+        2. Comment-based help requirements - Public functions must include .SYNOPSIS
+        3. Parameter naming standards - Parameters must use PascalCase naming
+        4. Variable naming conventions - Local variables should use camelCase
+
+        The function returns diagnostic records that integrate with PSScriptAnalyzer
+        reporting and can be used in automated code quality checks.
 
     .PARAMETER ScriptBlockAst
-        The AST (Abstract Syntax Tree) of the script to analyze.
+        The Abstract Syntax Tree (AST) of the PowerShell script to analyze.
+        This parameter is automatically provided by PSScriptAnalyzer when the rule is invoked.
 
     .OUTPUTS
-        [Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
-        Returns diagnostic records for any violations found.
+        Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord[]
+        Returns an array of diagnostic records for any coding standard violations found.
+        Each record includes the violation description, location, severity, and rule name.
+
+    .EXAMPLE
+        PS> Invoke-ScriptAnalyzer -Path "MyScript.ps1" -CustomRulePath ".\CompanyRules.psm1"
+
+        Runs PSScriptAnalyzer with this custom rule against MyScript.ps1.
+
+    .EXAMPLE
+        PS> $ast = [System.Management.Automation.Language.Parser]::ParseFile("script.ps1", [ref]$null, [ref]$null)
+        PS> Measure-CompanyStandards -ScriptBlockAst $ast
+
+        Directly invokes the rule against a parsed AST for testing purposes.
+
+    .NOTES
+        Author: Jeffrey Stuhr
+        Last Updated: 2025-05-29
+        Version: 1.0
+
+        Approved verbs for function naming: Get, Set, New, Remove, Test, Start, Stop,
+        Restart, Add, Clear, Copy, Move, Update, Import, Export
+
+        This rule integrates with PSScriptAnalyzer and follows the standard diagnostic
+        record format for consistent reporting across different analysis tools.
     #>
 
     [CmdletBinding()]

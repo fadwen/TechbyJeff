@@ -1,3 +1,67 @@
+<#
+.SYNOPSIS
+    Identifies unused variables and functions in PowerShell scripts to help with code cleanup.
+
+.DESCRIPTION
+    This script analyzes PowerShell code using Abstract Syntax Tree (AST) parsing to identify
+    unused variables and functions that can be safely removed. It helps maintain clean,
+    efficient code by finding:
+
+    - Variables that are assigned but never referenced
+    - Functions that are defined but never called
+    - Statistics about code usage patterns
+    - Parse errors that might affect analysis accuracy
+
+    The analysis excludes PowerShell automatic variables and common system variables to
+    avoid false positives. Results include detailed reports with line numbers for easy
+    location of unused code elements.
+
+.PARAMETER ScriptPath
+    Specifies the path to a PowerShell script file to analyze for unused code.
+    The file must exist and be readable.
+
+.PARAMETER ScriptContent
+    Specifies the PowerShell script content as a string to analyze directly.
+    Useful for analyzing code that hasn't been saved to a file yet.
+
+.PARAMETER AnalyzeSelf
+    Switch parameter that analyzes the current script file itself.
+    Helpful for understanding unused code in this analysis tool.
+
+.EXAMPLE
+    PS> .\Find-UnusedCode.ps1 -ScriptPath "C:\Scripts\MyScript.ps1"
+
+    Analyzes the specified script file and displays unused code report.
+
+.EXAMPLE
+    PS> $analysis = Find-UnusedCode -ScriptContent $codeString
+    PS> Show-UnusedCodeReport -Analysis $analysis
+
+    Analyzes code from a string variable and displays the detailed report.
+
+.EXAMPLE
+    PS> Find-UnusedCode -AnalyzeSelf | Show-UnusedCodeReport
+
+    Analyzes this script itself and shows any unused code elements.
+
+.EXAMPLE
+    PS> Get-Content "script.ps1" -Raw | Find-UnusedCode -ScriptContent $_ | Show-UnusedCodeReport
+
+    Reads a script file and pipes its content for analysis.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    The script excludes these automatic variables from unused analysis:
+    - PowerShell automatic variables ($_, $args, $input, etc.)
+    - Error and preference variables
+    - Variables shorter than 3 characters (often used as counters)
+
+    Parse errors are reported but don't prevent analysis from continuing.
+#>
+
 function Find-UnusedCode {
     param(
         [Parameter(ParameterSetName = 'File')]

@@ -1,3 +1,47 @@
+<#
+.SYNOPSIS
+    Tests the custom PSScriptAnalyzer company rules with sample code to verify their functionality.
+
+.DESCRIPTION
+    This script provides comprehensive testing for the custom PSScriptAnalyzer rules defined
+    in CompanyRules.psm1. It demonstrates how the custom rules work by running them against
+    sample code that contains various coding standard violations.
+
+    The script validates:
+    - Function naming convention violations
+    - Missing comment-based help in public functions
+    - Parameter naming standard violations
+    - Variable naming convention violations
+
+    It shows how violations are detected and reported, making it useful for understanding
+    the custom rule behavior and for debugging rule logic during development.
+
+.EXAMPLE
+    PS> .\Test-CompanyRules.ps1
+
+    Runs the test function which loads the custom rules module and tests it against
+    sample code containing various violations.
+
+.EXAMPLE
+    PS> Test-CompanyRule
+
+    Directly calls the test function to demonstrate custom rule functionality.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    This script requires:
+    - CompanyRules.psm1 module to be in the same directory
+    - PowerShell 5.0 or higher for AST parsing capabilities
+
+    The test demonstrates violations such as:
+    - Functions not following Verb-Company naming pattern
+    - Missing .SYNOPSIS in public functions
+    - Incorrect parameter and variable casing
+#>
+
 function Test-CompanyRule {
     <#
     .SYNOPSIS

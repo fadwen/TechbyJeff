@@ -1,3 +1,58 @@
+<#
+.SYNOPSIS
+    Finds matching braces in PowerShell code using Abstract Syntax Tree (AST) parsing.
+
+.DESCRIPTION
+    This script analyzes PowerShell code to locate matching opening and closing braces
+    using the AST parsing capabilities. It provides accurate brace matching by leveraging
+    PowerShell's built-in parser rather than simple character counting, ensuring proper
+    handling of braces within strings, comments, and nested structures.
+
+    The script can identify:
+    - Opening braces and their corresponding closing braces
+    - Closing braces and their corresponding opening braces
+    - The type of code block (ScriptBlock, Hashtable, etc.)
+    - Position information for precise location
+
+    This functionality is useful for code editors, syntax highlighting, and automated
+    code analysis tools that need to understand PowerShell code structure.
+
+.PARAMETER Code
+    The PowerShell code as a string to analyze for brace matching.
+
+.PARAMETER Position
+    The character position within the code where a brace is located.
+    The function will find the matching brace for the brace at this position.
+
+.EXAMPLE
+    PS> $code = 'Get-Process | Where-Object { $_.CPU -gt 100 }'
+    PS> Find-MatchingBrace -Code $code -Position 31
+
+    Finds the matching brace for the opening brace at position 31 in the sample code.
+
+.EXAMPLE
+    PS> Find-MatchingBrace -Code $sampleCode -Position 45
+
+    Finds the matching opening brace for a closing brace at position 45.
+
+.EXAMPLE
+    PS> .\Find-MatchingBrace.ps1
+
+    Runs the script with built-in sample code to demonstrate brace matching functionality.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    This script uses PowerShell's AST parsing which is available in PowerShell 3.0+.
+    The brace matching algorithm uses a stack-based approach to properly pair
+    opening and closing braces in the correct scope.
+
+    The script includes helper functions for visualization and debugging of
+    brace positions within the analyzed code.
+#>
+
 function Find-MatchingBrace {
     param(
         [string]$Code,

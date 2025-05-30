@@ -1,3 +1,69 @@
+<#
+.SYNOPSIS
+    Analyzes PowerShell scripts to map function dependencies and identify critical components.
+
+.DESCRIPTION
+    This script provides comprehensive dependency analysis for PowerShell scripts by parsing
+    the Abstract Syntax Tree (AST) to identify function relationships. It maps which functions
+    call other functions, identifies critical functions used by many others, finds isolated
+    functions with no dependencies, and generates detailed reports.
+
+    The script can analyze files from disk, script content provided as strings, or analyze
+    itself. Results include dependency maps, reverse dependency tracking, complexity metrics,
+    and optional CSV export functionality.
+
+.PARAMETER ScriptPath
+    Specifies the path to a PowerShell script file to analyze.
+    Must be a valid file path that exists on the system.
+
+.PARAMETER ScriptContent
+    Specifies the PowerShell script content as a string to analyze directly.
+    Used when you want to analyze code without saving it to a file first.
+
+.PARAMETER AnalyzeSelf
+    Switch parameter that causes the script to analyze itself.
+    Useful for understanding the dependency structure of this analysis tool.
+
+.PARAMETER ExportPath
+    Optional path where detailed analysis results will be exported as a CSV file.
+    If not specified, results are only displayed in the console.
+
+.EXAMPLE
+    PS> .\Show-DependencyMap.ps1 -ScriptPath "C:\Scripts\MyScript.ps1"
+
+    Analyzes the specified script file and displays dependency information in the console.
+
+.EXAMPLE
+    PS> $analysis = Show-DependencyMap -ScriptPath "C:\Scripts\MyScript.ps1"
+    PS> Show-DependencyReport -Analysis $analysis -ExportPath "C:\Reports\Dependencies.csv"
+
+    Analyzes a script file and exports detailed results to a CSV file.
+
+.EXAMPLE
+    PS> Show-DependencyMap -ScriptContent $scriptVariable | Show-DependencyReport
+
+    Analyzes script content from a variable and displays the dependency report.
+
+.EXAMPLE
+    PS> Show-DependencyMap -AnalyzeSelf | Show-DependencyReport
+
+    Analyzes this script file itself to show its internal function dependencies.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    Dependencies: PowerShell 5.0 or higher for AST parsing capabilities
+
+    The script identifies:
+    - Function dependency relationships
+    - Critical functions (heavily used by others)
+    - Isolated functions (no dependencies, not used by others)
+    - Complex functions (many dependencies)
+    - Potential refactoring opportunities
+#>
+
 function Show-DependencyMap {
     param(
         [Parameter(ParameterSetName = 'File')]

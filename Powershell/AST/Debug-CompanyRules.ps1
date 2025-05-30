@@ -1,3 +1,52 @@
+<#
+.SYNOPSIS
+    Debugs and validates the custom PSScriptAnalyzer company rules for proper functionality.
+
+.DESCRIPTION
+    This script provides comprehensive debugging and validation for the custom PSScriptAnalyzer
+    rules defined in CompanyRules.psm1. It performs systematic testing to ensure the custom
+    rules are working correctly and can identify coding standard violations.
+
+    The debugging process includes:
+    - Module loading verification
+    - Function availability testing
+    - AST parsing validation
+    - Custom rule execution testing
+    - PSScriptAnalyzer integration testing
+    - Error handling and reporting
+
+    This tool is essential for developers working on custom PSScriptAnalyzer rules,
+    providing detailed feedback about rule behavior and helping identify issues
+    in rule logic or integration.
+
+.EXAMPLE
+    PS> .\Debug-CompanyRules.ps1
+
+    Runs the complete debugging suite to validate custom company rules functionality.
+
+.EXAMPLE
+    PS> Test-CompanyRuleDebug
+
+    Directly calls the debugging function to test custom rule behavior.
+
+.NOTES
+    Author: Jeffrey Stuhr
+    Last Updated: 2025-05-29
+    Version: 1.0
+
+    This script requires:
+    - CompanyRules.psm1 module in the same directory
+    - PSScriptAnalyzer module (optional, for full integration testing)
+    - PowerShell 5.0 or higher
+
+    The debug output includes detailed information about:
+    - Module loading status
+    - Function discovery results
+    - AST parsing success/failure
+    - Rule violation detection
+    - Integration test results
+#>
+
 # Debug-CompanyRules.ps1 - Test and debug the custom rules
 
 function Test-CompanyRuleDebug {
