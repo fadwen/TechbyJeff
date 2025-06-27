@@ -72,6 +72,31 @@
     @("LegacyApp", "TestService")
     @("CriticalService", "PartnerIntegration", "BackupAccount")
 
+.PARAMETER Force
+    [System.Management.Automation.SwitchParameter] (Optional, No Pipeline Support)
+
+    When specified, bypasses all user prompts for fully automated execution.
+    Automatically proceeds with changes (when not in WhatIf mode) and skips
+    post-execution verification prompts.
+
+    Business Context: Essential for automation scenarios including scheduled
+    tasks, CI/CD pipelines, and unattended security remediation workflows.
+    Enables integration with enterprise automation frameworks and reduces
+    manual intervention requirements.
+
+    Automation Use Cases:
+    - Scheduled maintenance windows with predetermined approval
+    - Automated security compliance remediation
+    - Integration with configuration management systems
+    - Bulk processing across multiple environments
+
+    Safety Considerations:
+    - Should only be used after thorough testing with -WhatIf parameter
+    - Requires proper change management approval for production use
+    - Consider logging and monitoring for automated executions
+
+    Examples: -Force, -Force:$true
+
 .EXAMPLE
     PS> .\Convert-RC4toAES.ps1 -WhatIf
 
@@ -94,6 +119,22 @@
     DESCRIPTION: Preview all objects including defaults, with no exclusions
     OUTPUT: Shows all RC4-only objects that would be updated
     USE CASE: Comprehensive security assessment without exclusions
+    DURATION: 2-5 minutes for analysis
+
+.EXAMPLE
+    PS> .\Convert-RC4toAES.ps1 -Force
+
+    DESCRIPTION: Automated execution without user prompts
+    OUTPUT: Proceeds automatically with RC4 to AES conversion
+    USE CASE: Scheduled maintenance or CI/CD pipeline integration
+    DURATION: 5-15 minutes depending on number of objects
+
+.EXAMPLE
+    PS> .\Convert-RC4toAES.ps1 -Force -ExcludedDisplayNames @("CriticalLegacyApp") -WhatIf
+
+    DESCRIPTION: Automated preview mode with custom exclusions
+    OUTPUT: Shows what would be changed in automation scenario
+    USE CASE: Testing automation configuration before deployment
     DURATION: 2-5 minutes for analysis
 
 .INPUTS
@@ -140,7 +181,10 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNull()]
-    [string[]]$ExcludedDisplayNames = @("ServiceAccount01", "LegacyApp-Service", "SpecialKerberosAccount")
+    [string[]]$ExcludedDisplayNames = @("ServiceAccount01", "LegacyApp-Service", "SpecialKerberosAccount"),
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Force
 )
 
 # Import required modules with error handling
@@ -305,15 +349,21 @@ try {
 
     # Require explicit user confirmation before making changes in execution mode
     # This provides additional safety against accidental modifications
+    # Skip prompts when Force parameter is specified for automation scenarios
     if (-not $WhatIf) {
-        Write-Log "`nDo you want to proceed with upgrading RC4 to RC4+AES encryption? (Y/N): " "Cyan" -NoNewline
-        $confirm = Read-Host
-        Write-Log "User response: $confirm" "Gray"
+        if ($Force) {
+            Write-Log "Force parameter specified - proceeding with automatic execution" "Yellow"
+            Write-Log "Bypassing user confirmation for automation compatibility" "Gray"
+        } else {
+            Write-Log "`nDo you want to proceed with upgrading RC4 to RC4+AES encryption? (Y/N): " "Cyan" -NoNewline
+            $confirm = Read-Host
+            Write-Log "User response: $confirm" "Gray"
 
-        if ($confirm -notmatch "^[Yy]$") {
-            Write-Log "Operation cancelled by user." "Yellow"
-            Write-Log "=== Script completed - Cancelled by user ===" "Magenta"
-            exit 0
+            if ($confirm -notmatch "^[Yy]$") {
+                Write-Log "Operation cancelled by user." "Yellow"
+                Write-Log "=== Script completed - Cancelled by user ===" "Magenta"
+                exit 0
+            }
         }
     } else {
         # Provide clear guidance for WhatIf mode users
@@ -423,62 +473,68 @@ catch {
 
 # Optional verification process to confirm changes were applied correctly
 # This provides additional confidence in the modification results
+# Skip verification prompts when Force parameter is specified for automation
 if (-not $WhatIf) {
-    Write-Log "`nWould you like to verify the changes? (Y/N): " "Cyan" -NoNewline
-    $verify = Read-Host
-    Write-Log "User verification response: $verify" "Gray"
+    if ($Force) {
+        Write-Log "`nForce parameter specified - skipping interactive verification" "Yellow"
+        Write-Log "For automation scenarios, consider separate validation scripts" "Gray"
+    } else {
+        Write-Log "`nWould you like to verify the changes? (Y/N): " "Cyan" -NoNewline
+        $verify = Read-Host
+        Write-Log "User verification response: $verify" "Gray"
 
-    if ($verify -match "^[Yy]$") {
-        Write-Log "`nVerifying changes..." "Yellow"
+        if ($verify -match "^[Yy]$") {
+            Write-Log "`nVerifying changes..." "Yellow"
 
-        # Validate encryption type changes on sample of modified objects
-        # Checks first 5 objects to balance verification coverage with performance
-        Write-Log "Checking updated objects for RC4+AES support..." "Yellow"
+            # Validate encryption type changes on sample of modified objects
+            # Checks first 5 objects to balance verification coverage with performance
+            Write-Log "Checking updated objects for RC4+AES support..." "Yellow"
 
-        $verifyCount = [Math]::Min(5, $rc4Objects.Count)
-        for ($i = 0; $i -lt $verifyCount; $i++) {
-            $object = $rc4Objects[$i]
-            try {
-                # Re-query object from AD to get current encryption type configuration
-                $updatedObject = Get-ADObject -Identity $object.DistinguishedName -Properties 'msds-supportedencryptiontypes'
-                $encTypes = $updatedObject.'msds-supportedencryptiontypes'
-                $displayInfo = if ($object.DisplayName) { "$($object.DisplayName) ($($object.Name))" } else { $object.Name }
+            $verifyCount = [Math]::Min(5, $rc4Objects.Count)
+            for ($i = 0; $i -lt $verifyCount; $i++) {
+                $object = $rc4Objects[$i]
+                try {
+                    # Re-query object from AD to get current encryption type configuration
+                    $updatedObject = Get-ADObject -Identity $object.DistinguishedName -Properties 'msds-supportedencryptiontypes'
+                    $encTypes = $updatedObject.'msds-supportedencryptiontypes'
+                    $displayInfo = if ($object.DisplayName) { "$($object.DisplayName) ($($object.Name))" } else { $object.Name }
 
-                # Verify encryption type was set to expected value (28 = RC4+AES128+AES256)
-                if ($encTypes -eq 28) {
-                    Write-Log "  ✓ $displayInfo - Encryption types: $encTypes (RC4+AES)" "Green"
-                } else {
-                    Write-Log "  ✗ $displayInfo - Encryption types: $encTypes (Unexpected value)" "Red"
+                    # Verify encryption type was set to expected value (28 = RC4+AES128+AES256)
+                    if ($encTypes -eq 28) {
+                        Write-Log "  ✓ $displayInfo - Encryption types: $encTypes (RC4+AES)" "Green"
+                    } else {
+                        Write-Log "  ✗ $displayInfo - Encryption types: $encTypes (Unexpected value)" "Red"
+                    }
+                }
+                catch {
+                    $errorMsg = "Failed to verify $($object.Name): $($_.Exception.Message)"
+                    Write-Log "  ✗ $errorMsg" "Red"
                 }
             }
-            catch {
-                $errorMsg = "Failed to verify $($object.Name): $($_.Exception.Message)"
-                Write-Log "  ✗ $errorMsg" "Red"
+
+            if ($rc4Objects.Count -gt 5) {
+                Write-Log "  ... (showing first 5 objects only)" "Gray"
             }
-        }
 
-        if ($rc4Objects.Count -gt 5) {
-            Write-Log "  ... (showing first 5 objects only)" "Gray"
-        }
+            # Perform comprehensive scan to identify any remaining RC4-only objects
+            # This helps identify any objects that may have been missed or failed to update
+            Write-Log "Checking for remaining RC4-only objects..." "Yellow"
+            $remainingRC4 = Get-ADObject -Filter $filter -Properties Name, 'msds-supportedencryptiontypes' | Where-Object { $_.DisplayName -notin $exclusions }
 
-        # Perform comprehensive scan to identify any remaining RC4-only objects
-        # This helps identify any objects that may have been missed or failed to update
-        Write-Log "Checking for remaining RC4-only objects..." "Yellow"
-        $remainingRC4 = Get-ADObject -Filter $filter -Properties Name, 'msds-supportedencryptiontypes' | Where-Object { $_.DisplayName -notin $exclusions }
-
-        if ($remainingRC4.Count -eq 0) {
-            Write-Log "`nSUCCESS: No objects found with RC4-only encryption!" "Green"
-        } else {
-            $remainingCount = $remainingRC4.Count
-            Write-Log "`nWARNING: $remainingCount objects still have RC4-only encryption:" "Yellow"
-            $showCount = [Math]::Min(10, $remainingRC4.Count)
-            for ($i = 0; $i -lt $showCount; $i++) {
-                $objName = $remainingRC4[$i].Name
-                Write-Log "  - $objName" "White"
-            }
-            if ($remainingRC4.Count -gt 10) {
-                $additionalCount = $remainingRC4.Count - 10
-                Write-Log "  ... and $additionalCount more" "Gray"
+            if ($remainingRC4.Count -eq 0) {
+                Write-Log "`nSUCCESS: No objects found with RC4-only encryption!" "Green"
+            } else {
+                $remainingCount = $remainingRC4.Count
+                Write-Log "`nWARNING: $remainingCount objects still have RC4-only encryption:" "Yellow"
+                $showCount = [Math]::Min(10, $remainingRC4.Count)
+                for ($i = 0; $i -lt $showCount; $i++) {
+                    $objName = $remainingRC4[$i].Name
+                    Write-Log "  - $objName" "White"
+                }
+                if ($remainingRC4.Count -gt 10) {
+                    $additionalCount = $remainingRC4.Count - 10
+                    Write-Log "  ... and $additionalCount more" "Gray"
+                }
             }
         }
     }
