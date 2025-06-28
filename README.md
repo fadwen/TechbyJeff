@@ -3,7 +3,7 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Jeffrey_Stuhr-0077B5?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/jeffrey-stuhr-034214aa/)
 [![BlueSky](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpublic.api.bsky.app%2Fxrpc%2Fapp.bsky.actor.getProfile%2F%3Factor%3Dtechbyjeff.net&query=%24.followersCount&style=social&logo=bluesky&label=Follow%20on%20BSky)](https://bsky.app/profile/techbyjeff.net)
 [![Blog](https://img.shields.io/badge/Read_My_Blog-TechbyJeff-lightgrey?style=flat-square&logo=ghost)](https://techbyjeff.net)
-[![Last Updated](https://img.shields.io/github/last-commit/TechbyJeff/TechbyJeff?style=flat-square&logo=github&label=Last%20Updated)](https://github.com/TechbyJeff/TechbyJeff/)
+[![Last Updated](https://img.shields.io/github/last-commit/fadwen/TechbyJeff?style=flat-square&logo=github&label=Last%20Updated)](https://github.com/fadwen/TechbyJeff/)
 
 ## ⚠️ Important Disclaimer
 
