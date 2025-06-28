@@ -325,7 +325,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Jeffrey Stuhr**
 - Blog: [https://www.techbyjeff.net](https://www.techbyjeff.net)
 - LinkedIn: [jeffrey-stuhr-034214aa](https://www.linkedin.com/in/jeffrey-stuhr-034214aa/)
-- GitHub: [@TechbyJeff](https://github.com/TechbyJeff)
+- GitHub: [@Fadwen](https://github.com/fadwen)
 
 ## 🔄 Version History
 
