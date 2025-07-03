@@ -216,6 +216,9 @@ function Find-OrphanedSIDsInObject {
 
                 Write-ScriptLog "Completed processing $objectDN - Processed: $($processingStats.ProcessedSIDs), Orphaned found: $($processingStats.OrphanedSIDsFound)" -Level Debug -Component 'SIDProcessing' -CorrelationId $CorrelationId
 
+                # Clean up access rules reference to help with memory management
+                $accessRules = $null
+
                 # Return results for this object
                 return $results.ToArray()
             }
@@ -374,6 +377,10 @@ function Get-ObjectAccessRule {
                     $securityDescriptor.Access | Where-Object { -not $_.IsInherited }
                 }
                 Write-ScriptLog "Successfully retrieved fresh security descriptor for $objectDN" -Level Debug -Component 'SIDProcessing' -CorrelationId $CorrelationId
+
+                # Clean up security descriptor reference
+                $securityDescriptor = $null
+
                 return $accessRules
             } else {
                 throw "No security descriptor available after fresh query"

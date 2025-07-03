@@ -208,10 +208,11 @@
     Prevents memory exhaustion in large-scale environments.
 
     MEMORY MANAGEMENT:
-    - Automatic garbage collection at 80% threshold
-    - Processing suspension at 90% threshold
-    - Emergency cleanup at 95% threshold
-    - Configurable monitoring and alerting
+    - Memory checks every 25 operations (reduced from 50 for better control)
+    - Aggressive garbage collection when threshold exceeded
+    - Memory pressure techniques for improved cleanup
+    - Additional cleanup every 100 operations during large processing
+    - Non-blocking warnings when memory remains high after cleanup
 
     BUSINESS CONTEXT:
     Critical for large-scale enterprise environments where memory management
@@ -221,12 +222,42 @@
     - Standard workstations: 1024-2048 MB
     - Server environments: 2048-4096 MB
     - High-capacity systems: 4096-8192 MB
+    - For >10K objects: Consider 2048MB+ for optimal balance
     - Monitor actual usage and adjust based on environment size
 
     PERFORMANCE IMPACT:
-    - Lower values: More frequent cleanup, slower processing
-    - Higher values: Less cleanup overhead, higher memory usage
-    - Optimal setting depends on available system memory
+    - Lower values: More frequent cleanup, slower processing, better memory control
+    - Higher values: Less cleanup overhead, higher memory usage, faster processing
+    - Memory cleanup now less disruptive with improved algorithms
+    - Optimal setting depends on available system memory and dataset size
+
+.PARAMETER PreserveTempFiles
+    [Switch] (Optional, Default: $false)
+
+    Preserves temporary result files created during streaming operations.
+    Useful for debugging, analysis, or maintaining detailed audit trails.
+
+    STREAMING ARCHITECTURE:
+    Results are streamed to temporary files in batches to minimize memory usage.
+    By default, these temporary files are cleaned up automatically after export.
+
+    BUSINESS CONTEXT:
+    - Debugging: Enables analysis of intermediate results and processing patterns
+    - Audit Requirements: Maintains detailed trail of discovery operations
+    - Performance Analysis: Allows examination of batch processing efficiency
+    - Recovery: Enables data recovery if export process fails
+
+    STORAGE CONSIDERATIONS:
+    - Temporary files are created in the system temp directory
+    - File size depends on number of orphaned SIDs found
+    - Each batch file contains up to 50 results in JSON format
+    - Total storage requirement scales with environment size
+
+    SECURITY CONSIDERATIONS:
+    - Temporary files contain sensitive security information
+    - Ensure appropriate permissions on temp directory location
+    - Consider organizational data retention policies
+    - Files are automatically cleaned if not preserved
 
 .PARAMETER LogPath
     [String] (Optional, Validated, Default: ".\Logs\Find-UnknownSIDs_YYYYMMDD_HHMMSS.log")
@@ -507,6 +538,9 @@ param(
     [Parameter()]
     [ValidateRange(100, 16384)]
     [int]$MaxMemoryUsageMB = 1024,
+
+    [Parameter()]
+    [switch]$PreserveTempFiles,
 
     [Parameter()]
     [ValidateScript({
@@ -919,6 +953,17 @@ end {
             if ($script:MemoryManager) {
                 $script:MemoryManager.Dispose()
                 Write-Verbose "Memory manager disposed successfully"
+            }
+
+            if ($script:StreamingResults) {
+                $script:StreamingResults.Dispose()
+                Write-Verbose "Streaming results manager disposed successfully"
+
+                # Optionally clean up temporary files if not preserving results
+                if (-not $PreserveTempFiles) {
+                    $script:StreamingResults.Cleanup()
+                    Write-Verbose "Temporary result files cleaned up"
+                }
             }
         }
         catch {

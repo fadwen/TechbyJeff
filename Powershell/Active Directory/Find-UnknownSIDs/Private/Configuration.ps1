@@ -189,7 +189,7 @@ function Export-ConfigurationTemplate {
                 'title' = 'Find-UnknownSIDs Configuration'
                 'description' = 'Configuration file for Find-UnknownSIDs PowerShell script'
                 'BatchSize' = 100
-                'MemoryCheckInterval' = 50
+                'MemoryCheckInterval' = 25
                 'EnableDetailedLogging' = $false
                 'LogLevel' = 'Information'
                 'LogFilePath' = 'C:\Logs\Find-UnknownSIDs.log'

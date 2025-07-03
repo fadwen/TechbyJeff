@@ -369,9 +369,23 @@ function Invoke-MainProcessingLogic {
     begin {
         Write-ScriptLog "Starting main processing logic" -Level Information -Component 'MainProcessing' -CorrelationId $CorrelationId
 
-        # Initialize processing variables
-        $script:AllResults = @()
+        # Ensure StreamingResultsManager class is available
+        if (-not ([System.Management.Automation.PSTypeName]'StreamingResultsManager').Type) {
+            $streamingClassPath = Join-Path $PSScriptRoot "..\Classes\StreamingResultsManager.ps1"
+            if (Test-Path $streamingClassPath) {
+                . $streamingClassPath
+                Write-ScriptLog "Loaded StreamingResultsManager class directly" -Level Debug -Component 'MainProcessing' -CorrelationId $CorrelationId
+            } else {
+                throw "StreamingResultsManager class file not found: $streamingClassPath"
+            }
+        }
+
+        # Initialize streaming results manager instead of in-memory arrays
+        $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "Find-UnknownSIDs-$CorrelationId"
+        $script:StreamingResults = [StreamingResultsManager]::new($tempDir, 50) # Batch size of 50
         $script:RemovalResults = @()
+
+        Write-ScriptLog "Initialized streaming results manager with temp directory: $tempDir" -Level Debug -Component 'MainProcessing' -CorrelationId $CorrelationId
     }
 
     process {
@@ -437,9 +451,24 @@ function Invoke-MainProcessingLogic {
 
                         $orphanedResults = Find-OrphanedSIDsInObject -ADObject $_ -IncludeInherited:$IncludeInherited
 
+                        # Additional memory management for large operations
+                        if ($processedCount % 100 -eq 0) {
+                            # Force garbage collection more frequently during large operations
+                            [System.GC]::Collect()
+
+                            # Log current memory usage for monitoring
+                            $currentMemoryMB = $script:StreamingResults.GetCurrentMemoryUsage()
+                            Write-Verbose "Memory usage at $processedCount objects: $currentMemoryMB MB"
+                        }
+
                         if ($orphanedResults -and $orphanedResults.Count -gt 0) {
                             $script:Statistics.OrphanedSIDsFound += $orphanedResults.Count
                             $orphanedFoundCount += $orphanedResults.Count
+
+                            # Stream results to disk instead of accumulating in memory
+                            foreach ($orphanedResult in $orphanedResults) {
+                                $script:StreamingResults.AddResult($orphanedResult)
+                            }
 
                             if ($Remove) {
                                 # Apply ShouldProcess only to actual removal operations
@@ -498,6 +527,10 @@ function Invoke-MainProcessingLogic {
 
                                 if ($orphanedResults -and $orphanedResults.Count -gt 0) {
                                     $script:Statistics.OrphanedSIDsFound += $orphanedResults.Count
+                                    # Stream retry results to disk as well
+                                    foreach ($orphanedResult in $orphanedResults) {
+                                        $script:StreamingResults.AddResult($orphanedResult)
+                                    }
                                     return $orphanedResults
                                 }
                             }
@@ -511,7 +544,8 @@ function Invoke-MainProcessingLogic {
                     }
                 }
 
-                $script:AllResults += $results | Where-Object { $_ }
+                # No longer accumulate all results in memory - they're streamed to disk
+                # $script:AllResults += $results | Where-Object { $_ }
 
                 # Show completion summary for this search base
                 Write-Host "Completed $searchPath - Objects: $($objectArray.Count), Orphaned SIDs: $orphanedFoundCount" -ForegroundColor Green
@@ -520,7 +554,10 @@ function Invoke-MainProcessingLogic {
             # Complete statistics
             $script:Statistics.Complete()
 
-            # Generate processing summary
+            # Get summary from streaming results manager
+            $streamingSummary = $script:StreamingResults.GetSummary()
+
+            # Generate processing summary with streaming results
             $processingResults = @{
                 TotalObjectsProcessed = $script:Statistics.ProcessedObjects
                 OrphanedSIDsFound = $script:Statistics.OrphanedSIDsFound
@@ -528,9 +565,11 @@ function Invoke-MainProcessingLogic {
                 ProcessingDuration = $script:Statistics.Duration
                 ObjectsPerSecond = $script:Statistics.ObjectsPerSecond
                 PeakMemoryUsageMB = $script:MemoryManager.GetPeakMemoryUsage()
-                AllResults = $script:AllResults
+                StreamingSummary = $streamingSummary
                 RemovalResults = $script:RemovalResults
                 CorrelationId = $CorrelationId
+                # Store reference to streaming manager for later access
+                StreamingManager = $script:StreamingResults
             }
 
             Write-ScriptLog "Main processing completed successfully" -Level Information -Component 'MainProcessing' -Color Green -CorrelationId $CorrelationId
@@ -660,14 +699,17 @@ function Write-ProcessingSummary {
             }
 
             # Export results to CSV if path provided
-            if (($ProcessingResults.AllResults -and $ProcessingResults.AllResults.Count -gt 0) -or
-                ($ProcessingResults.RestoreResults -and $ProcessingResults.RestoreResults.Count -gt 0)) {
+            # Check if we have streaming results or restore results
+            $hasStreamingResults = $ProcessingResults.StreamingManager -and $ProcessingResults.StreamingManager.Summary.TotalResults -gt 0
+            $hasRestoreResults = $ProcessingResults.RestoreResults -and $ProcessingResults.RestoreResults.Count -gt 0
 
+            if ($hasStreamingResults -or $hasRestoreResults) {
                 if ($OutputPath) {
                     try {
-                        if ($ProcessingResults.AllResults) {
-                            $ProcessingResults.AllResults | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
-                        } elseif ($ProcessingResults.RestoreResults) {
+                        if ($hasStreamingResults) {
+                            # Use StreamingManager's efficient CSV export
+                            $ProcessingResults.StreamingManager.ExportToCsv($OutputPath)
+                        } elseif ($hasRestoreResults) {
                             $ProcessingResults.RestoreResults | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
                         }
                         Write-ScriptLog "Results exported to: $OutputPath" -Level Information -Component 'Summary' -Color Green -CorrelationId $CorrelationId

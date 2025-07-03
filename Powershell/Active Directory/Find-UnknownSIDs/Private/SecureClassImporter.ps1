@@ -170,7 +170,7 @@ function Import-ProjectClassesSecure {
                 RequiredTypes = @('MemoryManager')
                 Dependencies = @('System.IDisposable')
                 Description = 'Memory management and garbage collection with resource disposal'
-                ExpectedHash = '3BCC993DDA93F6B712ED95632335C0D64C9B8528180FCE7C0AF2820FD17F2F35'
+                ExpectedHash = 'D13BE55169A9BF00C962B84FC69F19B446CFFE09A8E2C28D5F31E677261ECE04'
                 LastVerified = '2025-07-02'
             }
             'ProcessingStatistics.ps1' = @{
@@ -215,8 +215,14 @@ function Import-ProjectClassesSecure {
                 ExpectedHash = 'E24F00E560C0901F51FDC7955EB8B76F1BD00D5E9856034E7C44634F138D473B'
                 LastVerified = '2025-07-02'
             }
+            'StreamingResultsManager.ps1' = @{
+                RequiredTypes = @('StreamingResultsManager')
+                Dependencies = @()
+                Description = 'Auto-generated entry for StreamingResultsManager class'
+                ExpectedHash = '422BF7D46FF731B616D0C420B3CE6AE7DD2AF35556AF638B836CBC50D179FA28'
+                LastVerified = '2025-07-03'
+            }
         }
-
         $loadedClasses = @()
         $failedClasses = @()
         $integrityResults = @()
