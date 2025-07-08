@@ -188,7 +188,7 @@
 
     MEMORY MANAGEMENT:
     - Memory checks every 25 operations (reduced from 50 for better control)
-    - Aggressive garbage collection when threshold exceeded
+    - Garbage collection when threshold exceeded
     - Memory pressure techniques for improved cleanup
     - Additional cleanup every 100 operations during large processing
     - Non-blocking warnings when memory remains high after cleanup
@@ -614,35 +614,46 @@ begin {
         # Import all private modules quietly
         Write-Information "[INFO] [Main] [$CorrelationId] Loading security-validated components..." -InformationAction Continue
 
-        # Import secure class loader first
-        Write-Verbose "DEBUG: CorrelationId before SecureClassImporter: $CorrelationId"
-        $secureClassImporterPath = Join-Path $PSScriptRoot "Private\SecureClassImporter.ps1"
-        if (Test-Path $secureClassImporterPath) {
-            try {
-                . $secureClassImporterPath
-                Write-Verbose "Imported SecureClassImporter"
+        # Import ClassManagement functions first (Import-SecureClasses depends on them)
+        Write-Verbose "DEBUG: CorrelationId before loading ClassManagement functions: $CorrelationId"
+        $classManagementPath = Join-Path $PSScriptRoot "Private\ClassManagement"
+        $classManagementFunctions = @(
+            'Get-ApprovedClassList.ps1',
+            'Resolve-ClassPath.ps1',
+            'Test-ClassInstantiation.ps1',
+            'Get-ClassValidationResult.ps1',
+            'Import-SecureClasses.ps1'
+        )
+
+        foreach ($functionFile in $classManagementFunctions) {
+            $functionPath = Join-Path $classManagementPath $functionFile
+            if (Test-Path $functionPath) {
+                try {
+                    . $functionPath
+                    Write-Verbose "Imported ClassManagement function: $functionFile"
+                }
+                catch {
+                    Write-Error "Failed to import ClassManagement function $functionFile : $($_.Exception.Message)"
+                    throw "Critical dependency failure: $functionFile"
+                }
             }
-            catch {
-                Write-Error "Failed to import SecureClassImporter: $($_.Exception.Message)"
-                throw "Critical dependency failure: SecureClassImporter"
+            else {
+                Write-Error "ClassManagement function not found: $functionPath"
+                throw "Missing critical dependency: $functionFile"
             }
-        }
-        else {
-            Write-Error "SecureClassImporter not found: $secureClassImporterPath"
-            throw "Missing critical dependency: SecureClassImporter.ps1"
         }
 
-        # Import logging module first as it's needed by other components
+        # Import modular logging system first as it's needed by other components
         Write-Verbose "DEBUG: CorrelationId before logging module: $CorrelationId"
         # Save the original CorrelationId before any module imports that might overwrite it
         $originalCorrelationId = $script:CorrelationId
-        $loggingModulePath = Join-Path $PSScriptRoot "Private\Logging.ps1"
-        if (Test-Path $loggingModulePath) {
+        $loggingSystemPath = Join-Path $PSScriptRoot "Private\Core\Import-LoggingSystem.ps1"
+        if (Test-Path $loggingSystemPath) {
             try {
-                . $loggingModulePath
+                . $loggingSystemPath
 
                 # Set basic logging parameters IMMEDIATELY after module import, before any Write-StructuredLog calls
-                # The logging module has been dot-sourced, so its script variables are in this scope
+                # The logging system has been dot-sourced, so its script variables are in this scope
                 Write-Verbose "DEBUG: SuppressConsoleOutput parameter bound: $($PSBoundParameters.ContainsKey('SuppressConsoleOutput'))"
                 Write-Verbose "DEBUG: SuppressConsoleOutput parameter value: $($SuppressConsoleOutput)"
                 Write-Verbose "DEBUG: SuppressConsoleOutput IsPresent: $($SuppressConsoleOutput.IsPresent)"
@@ -664,66 +675,56 @@ begin {
                     # Otherwise keep the default 'Information' level
                 }
 
-                Write-StructuredLog "Imported Logging.ps1" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
+                Write-StructuredLog "Imported modular logging system" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
             }
             catch {
-                Write-Error "Failed to import Logging module: $($_.Exception.Message)"
-                throw "Critical dependency failure: Logging.ps1"
+                Write-Error "Failed to import modular logging system: $($_.Exception.Message)"
+                throw "Critical dependency failure: Import-LoggingSystem.ps1"
             }
         }
         else {
-            Write-Error "Logging module not found: $loggingModulePath"
-            throw "Missing critical dependency: Logging.ps1"
+            Write-Error "Modular logging system not found: $loggingSystemPath"
+            throw "Missing critical dependency: Import-LoggingSystem.ps1"
         }
 
         # Import all project classes securely with centralized hash validation
-        Write-StructuredLog "Loading classes with security validation and hash verification..." -Level Debug -Component 'Main' -CorrelationId $CorrelationId
-        $classesPath = Join-Path $PSScriptRoot "Classes"
+        Write-StructuredLog "Loading classes with security validation..." -Level Debug -Component 'Main' -CorrelationId $CorrelationId
 
         try {
-            # Use SecureClassImporter for validation, then load classes in script scope
-            Write-StructuredLog "Loading classes with security validation and hash verification..." -Level Debug -Component 'Main' -CorrelationId $CorrelationId
+            # Define the classes we need
+            $requiredClasses = @(
+                'MemoryManager',
+                'OrphanedSIDResult',
+                'ProcessingStatistics',
+                'RemovalOperationResult',
+                'RestoreOperationResult',
+                'ScriptConfiguration',
+                'SecurityValidationResult',
+                'SIDAnalysisResult',
+                'StreamingResultsManager'
+            )
 
-            # First, validate integrity using SecureClassImporter without loading
-            $validationResult = Import-ProjectClassesSecure -ClassesPath $classesPath -ValidateIntegrity -ValidationOnly -CorrelationId $CorrelationId
+            # Use Import-SecureClasses for secure validation and get paths to load
+            $classLoadingResult = Import-SecureClasses -ClassNames $requiredClasses
 
-            if (-not $validationResult.Success) {
-                $errorMessage = "Class validation failed. Failed classes: $($validationResult.FailedCount), Security violations: $($validationResult.SecurityViolationCount)"
+            if (-not $classLoadingResult.Success) {
+                $errorMessage = "Class validation failed. Failed classes: $($classLoadingResult.FailedClasses.Count)"
                 Write-StructuredLog $errorMessage -Level Error -Component 'Main' -CorrelationId $CorrelationId
                 throw $errorMessage
             }
 
-            Write-StructuredLog "Class integrity validation completed successfully" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
-
-            # Now load classes in script scope using only the validated class list
-            $resolvedClassesPath = Resolve-Path -Path $classesPath -ErrorAction Stop
-            $loadedClasses = @()
-
-            # Load each validated class in script scope
-            foreach ($className in $validationResult.LoadedClasses) {
+            # Load the validated class files at script level for proper scoping
+            foreach ($classPath in $classLoadingResult.PathsToLoad) {
                 try {
-                    $classPath = Join-Path $resolvedClassesPath.Path $className
-
-                    Write-StructuredLog "Loading validated class: $className" -Level Debug -Component 'ClassLoader' -CorrelationId $CorrelationId
-
-                    # Load the class file directly at script scope using dot-sourcing
-                    # (Security validation already completed by SecureClassImporter)
+                    Write-Verbose "Loading class from: $classPath"
                     . $classPath
-
-                    $loadedClasses += $className
-                    Write-StructuredLog "Successfully loaded class: $className" -Level Debug -Component 'ClassLoader' -CorrelationId $CorrelationId
-
-                }
-                catch {
-                    $errorMessage = "Failed to load validated class $className : $($_.Exception.Message)"
-                    Write-StructuredLog $errorMessage -Level Error -Component 'ClassLoader' -CorrelationId $CorrelationId
-                    throw $errorMessage
+                } catch {
+                    Write-Error "Failed to load class from $classPath : $($_.Exception.Message)"
+                    throw "Critical class loading failure"
                 }
             }
 
-            Write-StructuredLog "All $($loadedClasses.Count) classes loaded securely with hash validation" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
-            Write-StructuredLog "Successfully loaded classes: $($loadedClasses -join ', ')" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
-            Write-StructuredLog "Successfully imported $($loadedClasses.Count) classes with integrity validation" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
+            Write-StructuredLog "Class loading completed successfully. Loaded: $($classLoadingResult.ValidatedClasses.Count)" -Level Debug -Component 'Main' -CorrelationId $CorrelationId
         }
         catch {
             Write-Error "Secure class loading failed: $($_.Exception.Message)"
@@ -731,53 +732,53 @@ begin {
             throw "Critical class import failure"
         }
 
-        # Import remaining private modules (SecureClassImporter and Logging already loaded)
+        # Import remaining private modules (Import-SecureClasses and Logging already loaded)
         $privateModulesPath = Join-Path $PSScriptRoot "Private"
         $requiredModules = @(
-            'Initialize-MemoryManager.ps1',
-            'Get-MemoryStatistics.ps1',
-            'Invoke-MemoryMonitoring.ps1',
-            'Invoke-GarbageCollection.ps1',
-            'Invoke-ResourceDisposal.ps1',
-            'Get-SafeFileName.ps1',
-            'Test-DirectoryAccess.ps1',
-            'Test-ValidDistinguishedName.ps1',
-            'Retry\Invoke-OperationWithRetry.ps1',
+            'System\Initialize-MemoryManager.ps1',
+            'System\Get-MemoryStatistics.ps1',
+            'System\Invoke-MemoryMonitoring.ps1',
+            'System\Invoke-GarbageCollection.ps1',
+            'System\Invoke-ResourceDisposal.ps1',
+            'FileSystem\Get-SafeFileName.ps1',
+            'FileSystem\Test-DirectoryAccess.ps1',
+            'ActiveDirectory\Test-ValidDistinguishedName.ps1',
+            'Operations\Invoke-OperationWithRetry.ps1',
             'Logging\Write-ADOperationSecurityLog.ps1',
-            'Operations\Invoke-ADOperationWithRetry.ps1',
-            'Operations\Get-ADObjectFromSearchBase.ps1',
-            'Operations\Get-ADObjectsSequential.ps1',
-            'Test-SIDFormat.ps1',
-            'Get-SIDAnalysis.ps1',
-            'Test-SIDSecurity.ps1',
-            'Test-OrphanedSID.ps1',
-            'Get-SecurityDescriptor.ps1',
-            'Resolve-SIDIdentity.ps1',
-            'New-SIDResult.ps1',
-            'Invoke-SIDProcessing.ps1',
-            'New-ACLBackup.ps1',
-            'Test-BackupIntegrity.ps1',
-            'Get-BackupMetadata.ps1',
-            'Find-BackupFile.ps1',
+            'ActiveDirectory\Invoke-ADOperationWithRetry.ps1',
+            'ActiveDirectory\Get-ADObjectFromSearchBase.ps1',
+            'ActiveDirectory\Get-ADObjectsSequential.ps1',
+            'SID\Test-SIDFormat.ps1',
+            'SID\Get-SIDAnalysis.ps1',
+            'SID\Test-SIDSecurity.ps1',
+            'SID\Test-OrphanedSID.ps1',
+            'Security\Get-SecurityDescriptor.ps1',
+            'SID\Resolve-SIDIdentity.ps1',
+            'SID\New-SIDResult.ps1',
+            'SID\Invoke-SIDProcessing.ps1',
+            'Backup\New-ACLBackup.ps1',
+            'Backup\Test-BackupIntegrity.ps1',
+            'Backup\Get-BackupMetadata.ps1',
+            'Backup\Find-BackupFile.ps1',
             'Security\Invoke-SecurityValidation.ps1',
             'ACL\Get-ACLForRemoval.ps1',
             'ACL\Invoke-SIDRemoval.ps1',
             'ACL\Set-ModifiedACL.ps1',
-            'Verification\Invoke-RemovalVerification.ps1',
-            'RemovalLogging\Write-RemovalSecurityLog.ps1',
+            'Security\Invoke-RemovalVerification.ps1',
+            'Logging\Write-RemovalSecurityLog.ps1',
             'Operations\Invoke-RemovalWorkflow.ps1',
-            'Remove-OrphanedSID.ps1',
-            'Initialize-ScriptExecution.ps1',
-            'Invoke-MainProcessingLogic.ps1',
-            'Start-OrchestrationWorkflow.ps1',
-            'Write-ProcessingSummary.ps1'
+            'Core\Remove-OrphanedSID.ps1',
+            'Core\Initialize-ScriptExecution.ps1',
+            'Core\Invoke-MainProcessingLogic.ps1',
+            'Core\Start-OrchestrationWorkflow.ps1',
+            'Reporting\Write-ProcessingSummary.ps1'
         )
 
         # Load modular restore operation components
         $restoreModules = @(
-            'Restore\Test-BackupValidation.ps1',
-            'Restore\Restore-ACLOperation.ps1',
-            'Restore\Invoke-RestoreWorkflow.ps1'
+            'Backup\Test-BackupValidation.ps1',
+            'Backup\Restore-ACLOperation.ps1',
+            'Backup\Invoke-RestoreWorkflow.ps1'
         )
 
         # Load main modules

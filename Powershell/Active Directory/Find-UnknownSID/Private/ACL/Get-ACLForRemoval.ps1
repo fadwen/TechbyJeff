@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -46,7 +46,7 @@ function Get-ACLForRemoval {
         - Comprehensive logging with correlation tracking
         - Optimized for removal operation workflows
 
-    .PARAMETER ObjectDN
+    .PARAMETER ObjectDistinguishedName
         Distinguished name of the Active Directory object to retrieve ACL from.
         Object must exist and be accessible with current credentials.
 
@@ -55,14 +55,14 @@ function Get-ACLForRemoval {
         across logs and audit trails. Generated automatically if not provided.
 
     .EXAMPLE
-        PS> $acl = Get-ACLForRemoval -ObjectDN "CN=TestUser,CN=Users,DC=contoso,DC=com"
+        PS> $acl = Get-ACLForRemoval -ObjectDistinguishedName "CN=TestUser,CN=Users,DC=contoso,DC=com"
 
         DESCRIPTION: Retrieves ACL from a user object
         OUTPUT: System.DirectoryServices.ActiveDirectorySecurity object
         USE CASE: Basic ACL retrieval for removal operations
 
     .EXAMPLE
-        PS> $acl = Get-ACLForRemoval -ObjectDN $dn -CorrelationId $correlationId
+        PS> $acl = Get-ACLForRemoval -ObjectDistinguishedName $dn -CorrelationId $correlationId
         if ($acl) {
             Write-Output "Retrieved ACL with $($acl.Access.Count) access rules"
         }
@@ -103,36 +103,53 @@ function Get-ACLForRemoval {
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$ObjectDN,
+        [string]$ObjectDistinguishedName,
 
         [Parameter()]
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
 
     try {
-        Write-StructuredLog "Starting ACL retrieval for $ObjectDN" -Level Debug -Component 'ACLRetrieval' -CorrelationId $CorrelationId
+        Write-StructuredLog "Starting ACL retrieval for $ObjectDistinguishedName" -Level Debug -CorrelationId $CorrelationId
 
-        # Validate ObjectDN parameter
-        if ([string]::IsNullOrWhiteSpace($ObjectDN.Trim())) {
-            throw "ObjectDN parameter cannot be empty or whitespace"
+        # Validate ObjectDistinguishedName parameter
+        if ([string]::IsNullOrWhiteSpace($ObjectDistinguishedName.Trim())) {
+            throw "ObjectDistinguishedName parameter cannot be empty or whitespace"
+        }
+
+        # Security validation - detect path traversal attempts
+        if ($ObjectDistinguishedName -match '\.\.') {
+            throw "Path traversal detected in ObjectDistinguishedName: $ObjectDistinguishedName"
+        }
+
+        # Validate ObjectDistinguishedName format (basic validation for AD DN format)
+        if ($ObjectDistinguishedName -match '^[A-Za-z]:\\' -and $ObjectDistinguishedName -notmatch '^CN=|^OU=|^DC=') {
+            throw "Invalid ObjectDistinguishedName format. Expected AD Distinguished Name, got filesystem path: $ObjectDistinguishedName"
+        }
+
+        # Check if target object exists
+        if (-not (Test-ValidDistinguishedName -DistinguishedName $ObjectDistinguishedName -CorrelationId $CorrelationId)) {
+            throw "Target path not found: $ObjectDistinguishedName"
         }
 
         # Retrieve ACL with retry logic for reliability
         $acl = Invoke-ADOperationWithRetry -ScriptBlock {
-            Get-Acl -Path "AD:\$($ObjectDN.Trim())" -ErrorAction Stop
-        } -MaxRetries 3 -OperationName 'Get-ACL' -ObjectContext $ObjectDN
+            Get-Acl -Path "AD:\$($ObjectDistinguishedName.Trim())" -ErrorAction Stop
+        } -MaxRetries 3 -OperationName 'Get-ACL' -ObjectContext $ObjectDistinguishedName
 
         if (-not $acl) {
-            throw "Failed to retrieve ACL for $ObjectDN"
+            throw "Failed to retrieve ACL for $ObjectDistinguishedName"
         }
 
-        Write-StructuredLog "Successfully retrieved ACL for $ObjectDN (Access rules: $($acl.Access.Count))" -Level Verbose -Component 'ACLRetrieval' -CorrelationId $CorrelationId
+        Write-StructuredLog "Successfully retrieved ACL for $ObjectDistinguishedName (Access rules: $($acl.Access.Count))" -Level Verbose -CorrelationId $CorrelationId
         return $acl
     }
     catch {
-        Write-StructuredLog "Failed to retrieve ACL for $ObjectDN : $($_.Exception.Message)" -Level Error -Component 'ACLRetrieval' -CorrelationId $CorrelationId
+        Write-StructuredLog "Failed to retrieve ACL for $ObjectDistinguishedName : $($_.Exception.Message)" -Level Error -CorrelationId $CorrelationId
         throw
     }
 }
 
-Write-StructuredLog "ACL retrieval module loaded successfully" -Level Debug -Component 'ACLRetrieval' -CorrelationId $([System.Guid]::NewGuid().ToString())
+Write-StructuredLog "ACL retrieval module loaded successfully" -Level Debug -CorrelationId $([System.Guid]::NewGuid().ToString())
+
+

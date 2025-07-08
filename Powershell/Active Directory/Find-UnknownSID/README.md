@@ -541,6 +541,33 @@ foreach ($ou in $ous) {
 - **GDPR Considerations**: Privacy-aware logging and data handling
 - **PCI DSS**: Secure credential and sensitive data management
 
+### 🛡️ Compliance & Security Features
+
+**Enterprise-Grade Security Logging**: Comprehensive audit trail system that ensures all security events are captured for regulatory compliance:
+
+- **Compliance-Grade Logging**: Security audit events are **always written to log files** regardless of log level configuration
+- **Audit Trail Integrity**: AD operation attempts/successes/failures logged with full security context
+- **Regulatory Support**: SOX, HIPAA, GDPR, and PCI DSS compliance through complete security event logging
+- **Tamper Resistance**: Security logs cannot be accidentally filtered out by operational log level changes
+- **Emergency Fallback**: Multiple fallback mechanisms ensure security events are captured even during logging failures
+- **Correlation Tracking**: Full correlation ID tracking for security event traceability across operations
+
+```powershell
+# Example: Security logs appear regardless of restrictive log level
+.\Find-UnknownSID.ps1 -SearchBase "DC=domain,DC=com" -LogLevel Error
+
+# Security audit entries will appear in log file even with Error level
+# Regular Information logs will be filtered, but security Information logs always appear
+```
+
+**Benefits for Compliance Teams**:
+- Complete audit trail for all AD access operations
+- Security events never hidden behind debug flags or log levels
+- Standard security event formatting for compliance reporting
+- Emergency logging ensures events captured during system issues
+
+See [Security Logging Compliance](./Documentation/Security-Logging-Compliance.md) for detailed implementation.
+
 ## 📚 Documentation
 
 ### Available Documentation

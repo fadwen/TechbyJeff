@@ -1,0 +1,135 @@
+﻿# TestBootstrapper.ps1 - Ensures all functions are available for testing
+
+# Get the main project root (Tests\Infrastructure -> Tests -> Find-UnknownSID)
+$ProjectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+
+# Load ActiveDirectoryMockFramework first to provide stub functions
+$mockFrameworkPath = Join-Path $PSScriptRoot "Mocks\ActiveDirectoryMockFramework.ps1"
+if (Test-Path $mockFrameworkPath) {
+    . $mockFrameworkPath
+    Write-Verbose "ActiveDirectoryMockFramework loaded"
+}
+
+# Load critical logging functions first to ensure dependencies are met
+$loggingRoot = Join-Path $ProjectRoot "Private\Logging"
+if (Test-Path $loggingRoot) {
+    Get-ChildItem $loggingRoot -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
+        try {
+            Write-Verbose "Loading logging function: $($_.Name)"
+            . $_.FullName
+        } catch {
+            Write-Warning "Failed to load logging function $($_.FullName): $($_.Exception.Message)"
+        }
+    }
+}
+
+# Load all private functions (skip Logging since it's already loaded)
+$PrivateRoot = Join-Path $ProjectRoot "Private"
+if (Test-Path $PrivateRoot) {
+    Get-ChildItem $PrivateRoot -Recurse -Filter "*.ps1" | Where-Object { $_.Directory.Name -ne 'Logging' } | ForEach-Object {
+        try {
+            Write-Verbose "Loading private function: $($_.Name)"
+            . $_.FullName
+        } catch {
+            Write-Warning "Failed to load $($_.FullName): $($_.Exception.Message)"
+        }
+    }
+}
+
+# Load all classes first (order matters)
+$ClassesRoot = Join-Path $ProjectRoot "Classes"
+if (Test-Path $ClassesRoot) {
+    Get-ChildItem $ClassesRoot -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
+        try {
+            Write-Verbose "Loading class: $($_.Name)"
+            . $_.FullName
+        } catch {
+            Write-Warning "Failed to load class $($_.FullName): $($_.Exception.Message)"
+        }
+    }
+}
+
+# Create mock Find-UnknownSID module for tests that require it
+if (-not (Get-Module Find-UnknownSID -ErrorAction SilentlyContinue)) {
+    $null = New-Module -Name "Find-UnknownSID" -ScriptBlock {
+        # Placeholder module for testing - export all test functions
+        function Test-ModuleLoaded { return $true }
+        
+        # Export common functions that tests expect to mock
+        function Write-Verbose { param($Message) }
+        function Write-Information { param($MessageData) }
+        function Write-Warning { param($Message) }
+        function Write-Host { param($Object) }
+        function Test-Path { param($Path) return $true }
+        function New-Item { param($Path, $ItemType) return @{ FullName = $Path } }
+        function Out-File { param($FilePath, $InputObject) }
+        function Get-ADUser { param($Identity) return @{ Name = 'MockUser'; SamAccountName = 'mockuser' } }
+        function Get-ADGroup { param($Identity) return @{ Name = 'MockGroup'; SamAccountName = 'mockgroup' } }
+        
+        Export-ModuleMember -Function *
+    }
+    Write-Verbose "Mock Find-UnknownSID module created"
+}
+
+# Initialize-TestEnvironment function
+function Initialize-TestEnvironment {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot,
+
+        [Parameter()]
+        [switch]$SuppressConsoleOutput
+    )
+
+    try {
+        $correlationId = [System.Guid]::NewGuid().ToString()
+
+        # Check critical functions
+        $criticalFunctions = @(
+            'Write-StructuredLogEntry',
+            'Format-LogMessage',
+            'Get-StringHash',
+            'Test-BackupIntegrity',
+            'Validate-BackupSignature'
+        )
+
+        $criticalFunctionStatus = @{}
+        foreach ($func in $criticalFunctions) {
+            $criticalFunctionStatus[$func] = (Get-Command $func -ErrorAction SilentlyContinue) -ne $null
+        }
+
+        # Set global test environment variables
+        $global:TestEnvironment = [PSCustomObject]@{
+            CorrelationId = $correlationId
+            ProjectRoot = $ProjectRoot
+            CriticalFunctionStatus = $criticalFunctionStatus
+            LoadedAliases = @()
+            InitializedAt = Get-Date
+        }
+
+        if (-not $SuppressConsoleOutput) {
+            Write-Host "Test environment initialized with CorrelationId: $correlationId" -ForegroundColor Green
+        }
+
+        return $true
+    } catch {
+        Write-Error "Failed to initialize test environment: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# Get-TestEnvironmentStatus function
+function Get-TestEnvironmentStatus {
+    if ($global:TestEnvironment) {
+        return $global:TestEnvironment
+    } else {
+        return [PSCustomObject]@{
+            CorrelationId = "Not initialized"
+            CriticalFunctionStatus = @{}
+            LoadedAliases = @()
+        }
+    }
+}
+
+Write-Verbose "Test module loading complete"

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -139,7 +139,7 @@ function Invoke-RemovalWorkflow {
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$ObjectDN,
+        [string]$ObjectDistinguishedName,
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
@@ -157,28 +157,28 @@ function Invoke-RemovalWorkflow {
 
     # Initialize result object
     $result = [RemovalOperationResult]::new()
-    $result.ObjectDN = $ObjectDN
+    $result.ObjectDN = $ObjectDistinguishedName
     $result.CorrelationId = $CorrelationId
     $result.IntendedRemovals = $OrphanedSIDs.Count
 
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
-        Write-StructuredLog "Starting SID removal workflow for $ObjectDN (SIDs: $($OrphanedSIDs.Count), WhatIf: $WhatIfMode)" -Level Verbose -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+        Write-StructuredLog "Starting SID removal workflow for $ObjectDistinguishedName (SIDs: $($OrphanedSIDs.Count), WhatIf: $WhatIfMode)" -Level Verbose -CorrelationId $CorrelationId
 
         # Phase 1: Parameter Validation
-        Write-StructuredLog "Phase 1: Parameter validation" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-        if ([string]::IsNullOrWhiteSpace($ObjectDN.Trim())) {
+        Write-StructuredLog "Phase 1: Parameter validation" -Level Debug -CorrelationId $CorrelationId
+        if ([string]::IsNullOrWhiteSpace($ObjectDistinguishedName.Trim())) {
             throw "ObjectDN parameter cannot be empty or whitespace"
         }
 
         # Phase 2: ACL Retrieval
-        Write-StructuredLog "Phase 2: ACL retrieval" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-        $acl = Get-ACLForRemoval -ObjectDN $ObjectDN -CorrelationId $CorrelationId
+        Write-StructuredLog "Phase 2: ACL retrieval" -Level Debug -CorrelationId $CorrelationId
+        $acl = Get-ACLForRemoval -ObjectDistinguishedName $ObjectDistinguishedName -CorrelationId $CorrelationId
 
         # Phase 3: Security Validation
-        Write-StructuredLog "Phase 3: Security validation" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-        $securityValidation = Invoke-SecurityValidation -OrphanedSIDs $OrphanedSIDs -ObjectDN $ObjectDN -CorrelationId $CorrelationId
+        Write-StructuredLog "Phase 3: Security validation" -Level Debug -CorrelationId $CorrelationId
+        $securityValidation = Invoke-SecurityValidation -OrphanedSIDs $OrphanedSIDs -ObjectDN $ObjectDistinguishedName -CorrelationId $CorrelationId
 
         $result.SecurityValidation = $securityValidation
         $result.BlockedSIDs = $securityValidation.BlockedSIDs
@@ -186,22 +186,22 @@ function Invoke-RemovalWorkflow {
         if (-not $securityValidation.IsValid) {
             $result.ErrorMessage = "Security validation failed: $($securityValidation.Issues -join '; ')"
             $result.Success = $false
-            Write-StructuredLog "SECURITY BLOCK: $($result.ErrorMessage)" -Level Error -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+            Write-StructuredLog "SECURITY BLOCK: $($result.ErrorMessage)" -Level Error -CorrelationId $CorrelationId
             return $result
         }
 
         # Phase 4: Backup Creation (if requested and not WhatIf mode)
         if (-not $WhatIfMode -and $BackupPath) {
-            Write-StructuredLog "Phase 4: Backup creation" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-            $backupSuccess = New-ACLBackup -ObjectDN $ObjectDN -ACL $acl -BackupPath $BackupPath -CorrelationId $CorrelationId
+            Write-StructuredLog "Phase 4: Backup creation" -Level Debug -CorrelationId $CorrelationId
+            $backupSuccess = New-ACLBackup -ObjectDN $ObjectDistinguishedName -ACL $acl -BackupPath $BackupPath -CorrelationId $CorrelationId
             if (-not $backupSuccess) {
                 throw "Failed to create ACL backup - aborting removal operation"
             }
         }
 
         # Phase 5: SID Removal Processing
-        Write-StructuredLog "Phase 5: SID removal processing" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-        $removalResults = Invoke-SIDRemoval -ACL $acl -AllowedSIDs $securityValidation.AllowedSIDs -ObjectDN $ObjectDN -WhatIfMode:$WhatIfMode -CorrelationId $CorrelationId
+        Write-StructuredLog "Phase 5: SID removal processing" -Level Debug -CorrelationId $CorrelationId
+        $removalResults = Invoke-SIDRemoval -ACL $acl -AllowedSIDs $securityValidation.AllowedSIDs -ObjectDN $ObjectDistinguishedName -WhatIfMode:$WhatIfMode -CorrelationId $CorrelationId
 
         $result.RemovedSIDs = $removalResults.RemovedSIDs
         $result.FailedSIDs = $removalResults.FailedSIDs
@@ -211,7 +211,7 @@ function Invoke-RemovalWorkflow {
         # Phase 6: Security Audit Logging
         Write-RemovalSecurityLog -SecurityEventType 'PrivilegeUse' -Message "ACL modification operation initiated" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
             Operation = 'RemoveOrphanedSIDs'
-            TargetObjectDN = $ObjectDN
+            TargetObjectDN = $ObjectDistinguishedName
             SIDsToRemove = $removalResults.RemovedSIDs.Count
             SIDsFailedRemoval = $removalResults.FailedSIDs.Count
             WhatIfMode = $WhatIfMode
@@ -225,16 +225,16 @@ function Invoke-RemovalWorkflow {
 
         # Phase 7: ACL Application (if not WhatIf mode and changes exist)
         if (-not $WhatIfMode -and $removalResults.RemovedSIDs.Count -gt 0) {
-            Write-StructuredLog "Phase 7: ACL application" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+            Write-StructuredLog "Phase 7: ACL application" -Level Debug -CorrelationId $CorrelationId
 
-            if ($PSCmdlet.ShouldProcess($ObjectDN, "Apply SID removal changes")) {
-                $applicationSuccess = Set-ModifiedACL -ACL $removalResults.ModifiedACL -ObjectDN $ObjectDN -CorrelationId $CorrelationId
+            if ($PSCmdlet.ShouldProcess($ObjectDistinguishedName, "Apply SID removal changes")) {
+                $applicationSuccess = Set-ModifiedACL -ACL $removalResults.ModifiedACL -ObjectDN $ObjectDistinguishedName -CorrelationId $CorrelationId
 
                 if ($applicationSuccess) {
                     # Log successful operation
                     Write-RemovalSecurityLog -SecurityEventType 'PrivilegeUse' -Message "ACL modification operation completed successfully" -Outcome 'Success' -CorrelationId $CorrelationId -SecurityContext @{
                         Operation = 'RemoveOrphanedSIDs'
-                        TargetObjectDN = $ObjectDN
+                        TargetObjectDN = $ObjectDistinguishedName
                         SIDsRemoved = $removalResults.RemovedSIDs
                         ActualRemovals = $result.ActualRemovals
                         BackupPath = $BackupPath
@@ -242,15 +242,15 @@ function Invoke-RemovalWorkflow {
                     }
 
                     # Phase 8: Verification
-                    Write-StructuredLog "Phase 8: Operation verification" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
-                    $verificationResult = Invoke-RemovalVerification -ObjectDN $ObjectDN -AllowedSIDs $securityValidation.AllowedSIDs -CorrelationId $CorrelationId
+                    Write-StructuredLog "Phase 8: Operation verification" -Level Debug -CorrelationId $CorrelationId
+                    $verificationResult = Invoke-RemovalVerification -ObjectDN $ObjectDistinguishedName -AllowedSIDs $securityValidation.AllowedSIDs -CorrelationId $CorrelationId
                     $result.Success = $verificationResult.Success
 
                     if (-not $verificationResult.Success) {
                         $result.ErrorMessage = $verificationResult.ErrorMessage
                         Write-RemovalSecurityLog -SecurityEventType 'PrivilegeUse' -Message "ACL modification verification failed" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
                             Operation = 'RemoveOrphanedSIDs'
-                            TargetObjectDN = $ObjectDN
+                            TargetObjectDN = $ObjectDistinguishedName
                             VerificationError = $verificationResult.ErrorMessage
                             RemainingOrphanedSIDs = $verificationResult.RemainingOrphanedSIDs
                         }
@@ -260,7 +260,7 @@ function Invoke-RemovalWorkflow {
                     $result.ErrorMessage = "Failed to apply ACL changes"
                     Write-RemovalSecurityLog -SecurityEventType 'PrivilegeUse' -Message "ACL modification application failed" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
                         Operation = 'RemoveOrphanedSIDs'
-                        TargetObjectDN = $ObjectDN
+                        TargetObjectDN = $ObjectDistinguishedName
                         Error = 'ACLApplicationFailure'
                         IntendedRemovals = $result.IntendedRemovals
                     }
@@ -268,24 +268,24 @@ function Invoke-RemovalWorkflow {
             }
         } elseif ($WhatIfMode) {
             $result.Success = $true
-            Write-StructuredLog "WhatIf mode: No changes applied" -Level Verbose -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+            Write-StructuredLog "WhatIf mode: No changes applied" -Level Verbose -CorrelationId $CorrelationId
         } else {
             $result.Success = $true  # No changes needed
-            Write-StructuredLog "No SIDs required removal" -Level Verbose -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+            Write-StructuredLog "No SIDs required removal" -Level Verbose -CorrelationId $CorrelationId
         }
 
-        Write-StructuredLog "SID removal workflow completed for $ObjectDN - Success: $($result.Success), Removed: $($result.ActualRemovals), Failed: $($result.FailedRemovals)" -Level Verbose -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+        Write-StructuredLog "SID removal workflow completed for $ObjectDistinguishedName - Success: $($result.Success), Removed: $($result.ActualRemovals), Failed: $($result.FailedRemovals)" -Level Verbose -CorrelationId $CorrelationId
         return $result
     }
     catch {
         $result.Success = $false
         $result.ErrorMessage = "Workflow failed: $($_.Exception.Message)"
-        Write-StructuredLog "SID removal workflow failed for $ObjectDN : $($_.Exception.Message)" -Level Error -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+        Write-StructuredLog "SID removal workflow failed for $ObjectDistinguishedName : $($_.Exception.Message)" -Level Error -CorrelationId $CorrelationId
 
         # Log workflow failure for security audit
         Write-RemovalSecurityLog -SecurityEventType 'PrivilegeUse' -Message "SID removal workflow failed" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
             Operation = 'RemoveOrphanedSIDs'
-            TargetObjectDN = $ObjectDN
+            TargetObjectDN = $ObjectDistinguishedName
             Error = $_.Exception.Message
             IntendedRemovals = $result.IntendedRemovals
         }
@@ -295,8 +295,10 @@ function Invoke-RemovalWorkflow {
     finally {
         $stopwatch.Stop()
         $result.ProcessingTime = $stopwatch.Elapsed
-        Write-StructuredLog "Workflow processing time: $($result.ProcessingTime.TotalMilliseconds)ms" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $CorrelationId
+        Write-StructuredLog "Workflow processing time: $($result.ProcessingTime.TotalMilliseconds)ms" -Level Debug -CorrelationId $CorrelationId
     }
 }
 
-Write-StructuredLog "Removal workflow orchestration module loaded successfully" -Level Debug -Component 'RemovalWorkflow' -CorrelationId $([System.Guid]::NewGuid().ToString())
+Write-StructuredLog "Removal workflow orchestration module loaded successfully" -Level Debug -CorrelationId $([System.Guid]::NewGuid().ToString())
+
+

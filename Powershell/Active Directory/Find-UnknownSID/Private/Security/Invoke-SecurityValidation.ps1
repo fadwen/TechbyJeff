@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -129,7 +129,7 @@ function Invoke-SecurityValidation {
 
     process {
         try {
-            Write-StructuredLog "Starting security validation for $($OrphanedSIDs.Count) SIDs (Object: $ObjectDN)" -Level Debug -Component 'SecurityValidation' -CorrelationId $CorrelationId
+            Write-StructuredLog "Starting security validation for $($OrphanedSIDs.Count) SIDs (Object: $ObjectDN)" -Level Debug -CorrelationId $CorrelationId
 
             $validation = [SecurityValidationResult]::new()
             $allowedSIDs = [System.Collections.Generic.List[string]]::new()
@@ -137,7 +137,7 @@ function Invoke-SecurityValidation {
             $issues = [System.Collections.Generic.List[string]]::new()
 
             foreach ($sid in $OrphanedSIDs) {
-                Write-StructuredLog "Validating SID for removal: $sid" -Level Debug -Component 'SecurityValidation' -CorrelationId $CorrelationId
+                Write-StructuredLog "Validating SID for removal: $sid" -Level Debug -CorrelationId $CorrelationId
 
                 # Use SIDValidation module for comprehensive security testing
                 $sidValidation = Test-SIDSecurity -SIDString $sid -ObjectDN $ObjectDN -ValidationLevel 'Standard'
@@ -146,7 +146,7 @@ function Invoke-SecurityValidation {
                     $blockedSIDs.Add($sid)
                     $issues.AddRange($sidValidation.Issues)
                     $validation.RiskLevel = "Critical"
-                    Write-StructuredLog "SID blocked from removal: $sid (Validation failed)" -Level Warning -Component 'SecurityValidation' -CorrelationId $CorrelationId
+                    Write-StructuredLog "SID blocked from removal: $sid (Validation failed)" -Level Warning -CorrelationId $CorrelationId
                     continue
                 }
 
@@ -164,11 +164,11 @@ function Invoke-SecurityValidation {
             $validation.BlockedSIDs = $blockedSIDs.ToArray()
             $validation.AllowedSIDs = $allowedSIDs.ToArray()
 
-            Write-StructuredLog "Security validation completed - Valid: $($validation.IsValid), Allowed: $($allowedSIDs.Count), Blocked: $($blockedSIDs.Count)" -Level Verbose -Component 'SecurityValidation' -CorrelationId $CorrelationId
+            Write-StructuredLog "Security validation completed - Valid: $($validation.IsValid), Allowed: $($allowedSIDs.Count), Blocked: $($blockedSIDs.Count)" -Level Verbose -CorrelationId $CorrelationId
             return $validation
         }
         catch {
-            Write-StructuredLog "Error in security validation: $($_.Exception.Message)" -Level Error -Component 'SecurityValidation' -CorrelationId $CorrelationId
+            Write-StructuredLog "Error in security validation: $($_.Exception.Message)" -Level Error -CorrelationId $CorrelationId
 
             $validation = [SecurityValidationResult]::new()
             $validation.IsValid = $false
@@ -179,4 +179,5 @@ function Invoke-SecurityValidation {
     }
 }
 
-Write-StructuredLog "Security validation module loaded successfully" -Level Debug -Component 'SecurityValidation' -CorrelationId $([System.Guid]::NewGuid().ToString())
+Write-StructuredLog "Security validation module loaded successfully" -Level Debug -CorrelationId $([System.Guid]::NewGuid().ToString())
+

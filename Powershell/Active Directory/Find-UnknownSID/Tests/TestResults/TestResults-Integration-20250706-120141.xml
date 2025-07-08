@@ -1,0 +1,591 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="71" errors="0" failures="71" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2025-07-06" time="12:01:41">
+  <environment clr-version="4.0.30319.42000" user-domain="mylab" cwd="C:\temp\Find-UnknownSID" platform="Microsoft Windows Server 2022 Standard Evaluation|C:\Windows|\Device\Harddisk0\Partition3" machine-name="WIN-5CFD2T5K7AL" nunit-version="2.5.8.0" os-version="10.0.20348" user="administrator" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Failure" success="False" time="1.8371" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="C:\temp\Find-UnknownSID\Tests\Integration\ActiveDirectory-Integration.Tests.ps1" executed="True" result="Failure" success="False" time="0.6185" asserts="0" description="C:\temp\Find-UnknownSID\Tests\Integration\ActiveDirectory-Integration.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Active Directory Connectivity Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration">
+            <results>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.Domain Controller Connection" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.Domain Controller Connection">
+                <results>
+                  <test-case description="Should establish connection to current domain" name="Active Directory Connectivity Integration.Domain Controller Connection.Should establish connection to current domain" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate domain controller accessibility" name="Active Directory Connectivity Integration.Domain Controller Connection.Should validate domain controller accessibility" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle connection timeouts gracefully" name="Active Directory Connectivity Integration.Domain Controller Connection.Should handle connection timeouts gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.Safe AD Query Operations" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.Safe AD Query Operations">
+                <results>
+                  <test-case description="Should query built-in users safely" name="Active Directory Connectivity Integration.Safe AD Query Operations.Should query built-in users safely" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle invalid user queries gracefully" name="Active Directory Connectivity Integration.Safe AD Query Operations.Should handle invalid user queries gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should query organizational units safely" name="Active Directory Connectivity Integration.Safe AD Query Operations.Should query organizational units safely" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should query security groups safely" name="Active Directory Connectivity Integration.Safe AD Query Operations.Should query security groups safely" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.SID Resolution Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.SID Resolution Integration">
+                <results>
+                  <test-case description="Should resolve known SIDs to AD objects" name="Active Directory Connectivity Integration.SID Resolution Integration.Should resolve known SIDs to AD objects" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle orphaned SID detection safely" name="Active Directory Connectivity Integration.SID Resolution Integration.Should handle orphaned SID detection safely" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate SID format before resolution" name="Active Directory Connectivity Integration.SID Resolution Integration.Should validate SID format before resolution" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.AD Query Performance" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.AD Query Performance">
+                <results>
+                  <test-case description="Should complete domain queries within acceptable time" name="Active Directory Connectivity Integration.AD Query Performance.Should complete domain queries within acceptable time" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle batch user queries efficiently" name="Active Directory Connectivity Integration.AD Query Performance.Should handle batch user queries efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.Error Handling and Recovery" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.Error Handling and Recovery">
+                <results>
+                  <test-case description="Should handle network connectivity issues" name="Active Directory Connectivity Integration.Error Handling and Recovery.Should handle network connectivity issues" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle authentication failures gracefully" name="Active Directory Connectivity Integration.Error Handling and Recovery.Should handle authentication failures gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should maintain correlation ID tracking in error scenarios" name="Active Directory Connectivity Integration.Error Handling and Recovery.Should maintain correlation ID tracking in error scenarios" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Active Directory Connectivity Integration.Safe AD Modification Testing" executed="True" result="Failure" success="False" time="0" asserts="0" description="Active Directory Connectivity Integration.Safe AD Modification Testing">
+                <results>
+                  <test-case description="Should mock dangerous AD modifications safely" name="Active Directory Connectivity Integration.Safe AD Modification Testing.Should mock dangerous AD modifications safely" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate modification parameters before execution" name="Active Directory Connectivity Integration.Safe AD Modification Testing.Should validate modification parameters before execution" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should implement proper backup before modifications" name="Active Directory Connectivity Integration.Safe AD Modification Testing.Should implement proper backup before modifications" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="AD Integration Infrastructure" executed="True" result="Failure" success="False" time="0" asserts="0" description="AD Integration Infrastructure">
+            <results>
+              <test-suite type="TestFixture" name="AD Integration Infrastructure.Module Dependencies" executed="True" result="Failure" success="False" time="0" asserts="0" description="AD Integration Infrastructure.Module Dependencies">
+                <results>
+                  <test-case description="Should have ActiveDirectory module available or provide clear guidance" name="AD Integration Infrastructure.Module Dependencies.Should have ActiveDirectory module available or provide clear guidance" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle missing AD module gracefully" name="AD Integration Infrastructure.Module Dependencies.Should handle missing AD module gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="AD Integration Infrastructure.Test Data Validation" executed="True" result="Failure" success="False" time="0" asserts="0" description="AD Integration Infrastructure.Test Data Validation">
+                <results>
+                  <test-case description="Should use only safe test identities" name="AD Integration Infrastructure.Test Data Validation.Should use only safe test identities" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should have proper mock implementations for dangerous operations" name="AD Integration Infrastructure.Test Data Validation.Should have proper mock implementations for dangerous operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\temp\Find-UnknownSID\Tests\Integration\Batch-Operations.Tests.ps1" executed="True" result="Failure" success="False" time="0.3045" asserts="0" description="C:\temp\Find-UnknownSID\Tests\Integration\Batch-Operations.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Batch-Operations Integration Tests" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests">
+            <results>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Batch SID Processing Workflows" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Batch SID Processing Workflows">
+                <results>
+                  <test-case description="Should process large batch of SIDs efficiently" name="Batch-Operations Integration Tests.Batch SID Processing Workflows.Should process large batch of SIDs efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle batch processing with error recovery" name="Batch-Operations Integration Tests.Batch SID Processing Workflows.Should handle batch processing with error recovery" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should maintain data integrity across batch operations" name="Batch-Operations Integration Tests.Batch SID Processing Workflows.Should maintain data integrity across batch operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Large Dataset Operations" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Large Dataset Operations">
+                <results>
+                  <test-case description="Should handle enterprise-scale dataset processing" name="Batch-Operations Integration Tests.Large Dataset Operations.Should handle enterprise-scale dataset processing" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should manage memory efficiently during large operations" name="Batch-Operations Integration Tests.Large Dataset Operations.Should manage memory efficiently during large operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Concurrent Processing Safety" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Concurrent Processing Safety">
+                <results>
+                  <test-case description="Should safely handle concurrent batch operations" name="Batch-Operations Integration Tests.Concurrent Processing Safety.Should safely handle concurrent batch operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should maintain thread safety in shared resource access" name="Batch-Operations Integration Tests.Concurrent Processing Safety.Should maintain thread safety in shared resource access" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Error Recovery and Rollback" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Error Recovery and Rollback">
+                <results>
+                  <test-case description="Should implement comprehensive batch rollback on failure" name="Batch-Operations Integration Tests.Error Recovery and Rollback.Should implement comprehensive batch rollback on failure" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle partial batch failures gracefully" name="Batch-Operations Integration Tests.Error Recovery and Rollback.Should handle partial batch failures gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Performance Optimization" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Performance Optimization">
+                <results>
+                  <test-case description="Should optimize batch processing performance" name="Batch-Operations Integration Tests.Performance Optimization.Should optimize batch processing performance" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should demonstrate linear scaling performance" name="Batch-Operations Integration Tests.Performance Optimization.Should demonstrate linear scaling performance" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Batch-Operations Integration Tests.Resource Management" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch-Operations Integration Tests.Resource Management">
+                <results>
+                  <test-case description="Should properly manage system resources during batch operations" name="Batch-Operations Integration Tests.Resource Management.Should properly manage system resources during batch operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Batch Operations Performance Benchmarks" executed="True" result="Failure" success="False" time="0" asserts="0" description="Batch Operations Performance Benchmarks">
+            <results>
+              <test-case description="Should meet enterprise performance benchmarks" name="Batch Operations Performance Benchmarks.Should meet enterprise performance benchmarks" time="0" asserts="0" success="False" result="Failure" executed="True">
+                <failure>
+                  <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                  <stack-trace />
+                </failure>
+              </test-case>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\temp\Find-UnknownSID\Tests\Integration\FileSystem-Integration.Tests.ps1" executed="True" result="Failure" success="False" time="0.4931" asserts="0" description="C:\temp\Find-UnknownSID\Tests\Integration\FileSystem-Integration.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="File System ACL Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration">
+            <results>
+              <test-suite type="TestFixture" name="File System ACL Integration.ACL Reading and Analysis" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration.ACL Reading and Analysis">
+                <results>
+                  <test-case description="Should read ACLs from test files successfully" name="File System ACL Integration.ACL Reading and Analysis.Should read ACLs from test files successfully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should read ACLs from test folders successfully" name="File System ACL Integration.ACL Reading and Analysis.Should read ACLs from test folders successfully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should identify ACL entries with orphaned SIDs" name="File System ACL Integration.ACL Reading and Analysis.Should identify ACL entries with orphaned SIDs" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle ACL reading errors gracefully" name="File System ACL Integration.ACL Reading and Analysis.Should handle ACL reading errors gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="File System ACL Integration.Safe ACL Modification Workflow" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration.Safe ACL Modification Workflow">
+                <results>
+                  <test-case description="Should create backup before ACL modifications" name="File System ACL Integration.Safe ACL Modification Workflow.Should create backup before ACL modifications" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should modify ACLs safely in test environment" name="File System ACL Integration.Safe ACL Modification Workflow.Should modify ACLs safely in test environment" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate ACL modifications" name="File System ACL Integration.Safe ACL Modification Workflow.Should validate ACL modifications" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle ACL modification failures" name="File System ACL Integration.Safe ACL Modification Workflow.Should handle ACL modification failures" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="File System ACL Integration.Batch File Processing" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration.Batch File Processing">
+                <results>
+                  <test-case description="Should process multiple files efficiently" name="File System ACL Integration.Batch File Processing.Should process multiple files efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should maintain operation consistency across files" name="File System ACL Integration.Batch File Processing.Should maintain operation consistency across files" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle mixed success/failure scenarios" name="File System ACL Integration.Batch File Processing.Should handle mixed success/failure scenarios" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="File System ACL Integration.File System Security Validation" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration.File System Security Validation">
+                <results>
+                  <test-case description="Should validate file path security" name="File System ACL Integration.File System Security Validation.Should validate file path security" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate file permissions before modification" name="File System ACL Integration.File System Security Validation.Should validate file permissions before modification" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should enforce safe file operation limits" name="File System ACL Integration.File System Security Validation.Should enforce safe file operation limits" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="File System ACL Integration.Backup and Recovery Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System ACL Integration.Backup and Recovery Integration">
+                <results>
+                  <test-case description="Should create comprehensive file backups" name="File System ACL Integration.Backup and Recovery Integration.Should create comprehensive file backups" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should validate backup integrity" name="File System ACL Integration.Backup and Recovery Integration.Should validate backup integrity" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should support backup restoration" name="File System ACL Integration.Backup and Recovery Integration.Should support backup restoration" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="File System Performance Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System Performance Integration">
+            <results>
+              <test-suite type="TestFixture" name="File System Performance Integration.Large File Set Processing" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System Performance Integration.Large File Set Processing">
+                <results>
+                  <test-case description="Should process large file sets efficiently" name="File System Performance Integration.Large File Set Processing.Should process large file sets efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle concurrent file access efficiently" name="File System Performance Integration.Large File Set Processing.Should handle concurrent file access efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="File System Integration Infrastructure" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System Integration Infrastructure">
+            <results>
+              <test-suite type="TestFixture" name="File System Integration Infrastructure.Test Environment Validation" executed="True" result="Failure" success="False" time="0" asserts="0" description="File System Integration Infrastructure.Test Environment Validation">
+                <results>
+                  <test-case description="Should have proper test directory structure" name="File System Integration Infrastructure.Test Environment Validation.Should have proper test directory structure" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should have test files with proper content" name="File System Integration Infrastructure.Test Environment Validation.Should have test files with proper content" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should have proper mock implementations" name="File System Integration Infrastructure.Test Environment Validation.Should have proper mock implementations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\temp\Find-UnknownSID\Tests\Integration\Integration.Tests.ps1" executed="True" result="Failure" success="False" time="0.4208" asserts="0" description="C:\temp\Find-UnknownSID\Tests\Integration\Integration.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Full SID Removal Workflow Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="Full SID Removal Workflow Integration">
+            <results>
+              <test-suite type="TestFixture" name="Full SID Removal Workflow Integration.End-to-End Processing" executed="True" result="Failure" success="False" time="0" asserts="0" description="Full SID Removal Workflow Integration.End-to-End Processing">
+                <results>
+                  <test-case description="Should complete basic SID validation workflow" name="Full SID Removal Workflow Integration.End-to-End Processing.Should complete basic SID validation workflow" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should process multiple SIDs efficiently" name="Full SID Removal Workflow Integration.End-to-End Processing.Should process multiple SIDs efficiently" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should handle workflow orchestration" name="Full SID Removal Workflow Integration.End-to-End Processing.Should handle workflow orchestration" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Full SID Removal Workflow Integration.Cross-Module Data Flow" executed="True" result="Failure" success="False" time="0" asserts="0" description="Full SID Removal Workflow Integration.Cross-Module Data Flow">
+                <results>
+                  <test-case description="Should maintain data integrity across modules" name="Full SID Removal Workflow Integration.Cross-Module Data Flow.Should maintain data integrity across modules" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should track correlation IDs across all operations" name="Full SID Removal Workflow Integration.Cross-Module Data Flow.Should track correlation IDs across all operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Full SID Removal Workflow Integration.Error Recovery and Rollback" executed="True" result="Failure" success="False" time="0" asserts="0" description="Full SID Removal Workflow Integration.Error Recovery and Rollback">
+                <results>
+                  <test-case description="Should handle validation failures gracefully" name="Full SID Removal Workflow Integration.Error Recovery and Rollback.Should handle validation failures gracefully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should maintain system state during errors" name="Full SID Removal Workflow Integration.Error Recovery and Rollback.Should maintain system state during errors" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should provide detailed error information" name="Full SID Removal Workflow Integration.Error Recovery and Rollback.Should provide detailed error information" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Full SID Removal Workflow Integration.Integration Test Infrastructure" executed="True" result="Failure" success="False" time="0" asserts="0" description="Full SID Removal Workflow Integration.Integration Test Infrastructure">
+                <results>
+                  <test-case description="Should have proper test helpers available" name="Full SID Removal Workflow Integration.Integration Test Infrastructure.Should have proper test helpers available" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should support correlation ID tracking" name="Full SID Removal Workflow Integration.Integration Test Infrastructure.Should support correlation ID tracking" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should provide mock data generators" name="Full SID Removal Workflow Integration.Integration Test Infrastructure.Should provide mock data generators" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Basic Module Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="Basic Module Integration">
+            <results>
+              <test-suite type="TestFixture" name="Basic Module Integration.Core Module Integration" executed="True" result="Failure" success="False" time="0" asserts="0" description="Basic Module Integration.Core Module Integration">
+                <results>
+                  <test-case description="Should import all required modules successfully" name="Basic Module Integration.Core Module Integration.Should import all required modules successfully" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should have consistent function naming" name="Basic Module Integration.Core Module Integration.Should have consistent function naming" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                  <test-case description="Should support pipeline operations" name="Basic Module Integration.Core Module Integration.Should support pipeline operations" time="0" asserts="0" success="False" result="Failure" executed="True">
+                    <failure>
+                      <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                      <stack-trace />
+                    </failure>
+                  </test-case>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>
