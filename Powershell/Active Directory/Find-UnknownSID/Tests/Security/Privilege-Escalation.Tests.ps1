@@ -102,6 +102,37 @@ BeforeAll {
         Write-Warning "SECURITY BLOCK: Set-ExecutionPolicy attempt blocked"
         throw "Security violation: Unauthorized policy modification attempt"
     } -ModuleName Find-UnknownSID -ParameterFilter { $ExecutionPolicy -eq "Unrestricted" }
+
+    # 🛡️ CRITICAL SECURITY MOCK - Prevent any dangerous file system operations
+    Mock Remove-Item { 
+        param($Path, [switch]$Recurse, [switch]$Force)
+        # Block any system paths or dangerous operations
+        if ($Path -match '^C:\\|^\\\\|^/|System32|Windows') {
+            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for dangerous path. Path: $Path"
+            throw "Security violation: Dangerous file deletion blocked - $Path"
+        }
+        Write-Verbose "Mock Remove-Item called safely for test path: $Path"
+    }
+
+    # 🛡️ CRITICAL SECURITY MOCK - Block any dangerous process operations
+    Mock Stop-Process {
+        param($Name, [switch]$Force)
+        if ($Name -match 'lsass|winlogon|csrss|System') {
+            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            throw "Security violation: Critical process termination blocked - $Name"
+        }
+        Write-Verbose "Mock Stop-Process called safely for test process: $Name"
+    }
+
+    # 🛡️ MISSING CRITICAL MOCK - Add Start-Process protection
+    Mock Start-Process { 
+        param($FilePath, $ArgumentList, [switch]$PassThru)
+        if ($FilePath -match 'calc|cmd|powershell|notepad|regedit|net\.exe') {
+            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+            throw "Security violation: Dangerous process execution blocked - $FilePath"
+        }
+        Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
+    }
 }
 
 Describe "Privilege Escalation Prevention" -Tag "Security", "PrivilegeEscalation", "Critical" {

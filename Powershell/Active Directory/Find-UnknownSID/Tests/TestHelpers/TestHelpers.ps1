@@ -2,7 +2,29 @@
 
 <#
 .SYNOPSIS
-    Enterprise test helper utilities and bootstrapper for Find-UnknownSID test suite
+# Load only essential private functions needed for testing (avoid recursive loading that can hang)
+$PrivateRoot = Join-Path $ProjectRoot "Private"
+if (Test-Path $PrivateRoot) {
+    # Load only core functions needed for Operations tests to prevent hanging
+    $essentialFunctions = @(
+        "Operations\Invoke-OperationWithRetry.ps1",
+        "Operations\Invoke-RemovalWorkflow.ps1",
+        "Core\Test-ValidDistinguishedName.ps1",
+        "Utilities\Write-StructuredLog.ps1"
+    )
+    
+    foreach ($functionPath in $essentialFunctions) {
+        $fullPath = Join-Path $PrivateRoot $functionPath
+        if (Test-Path $fullPath) {
+            try {
+                Write-Verbose "Loading essential function: $functionPath"
+                . $fullPath        } catch {
+            $errorMessage = $_.Exception.Message
+            Write-Warning "Failed to load essential function $fullPath`: $errorMessage"
+        }
+        }
+    }
+}se test helper utilities and bootstrapper for Find-UnknownSID test suite
 
 .DESCRIPTION
     Provides comprehensive test utilities, mock data generation, environment initialization,
@@ -628,12 +650,23 @@ function Import-TestModule {
     }
 
     if ($PrivatePath -and (Test-Path $PrivatePath)) {
-        Get-ChildItem -Path $PrivatePath -Recurse -Filter '*.ps1' | ForEach-Object {
-            try {
-                . $_.FullName
-            }
-            catch {
-                Write-Warning "Failed to import $($_.Name): $($_.Exception.Message)"
+        # Load only essential functions to prevent hanging
+        $essentialFunctions = @(
+            "Operations\Invoke-OperationWithRetry.ps1",
+            "Operations\Invoke-RemovalWorkflow.ps1",
+            "Core\Test-ValidDistinguishedName.ps1",
+            "Utilities\Write-StructuredLog.ps1"
+        )
+        
+        foreach ($functionPath in $essentialFunctions) {
+            $fullPath = Join-Path $PrivatePath $functionPath
+            if (Test-Path $fullPath) {
+                try {
+                    . $fullPath
+                } catch {
+                    $errorMessage = $_.Exception.Message
+                    Write-Warning "Failed to import $functionPath`: $errorMessage"
+                }
             }
         }
     }

@@ -73,6 +73,22 @@ BeforeAll {
     # Mock additional security-related functions
     Mock Remove-Item { } -ParameterFilter { $Path -and $Recurse }
     Mock Start-Process { } -ParameterFilter { $FilePath }
+
+    # 🛡️ MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
+    Mock Invoke-Expression { 
+        param($Command)
+        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        throw "Security violation: Dangerous code execution blocked - $Command"
+    }
+
+    Mock Stop-Process {
+        param($Name, $Id, [switch]$Force)
+        if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
+            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            throw "Security violation: Critical process termination blocked - $Name"
+        }
+        Write-Verbose "Mock Stop-Process called safely for test process: $Name"
+    }
 }
 
 Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
