@@ -155,6 +155,31 @@ function Test-SIDSecurity {
             $validation.IsValid = $true
             $validation.RiskLevel = "Low"
 
+            # Check for malicious input patterns first (highest priority)
+            $maliciousPatterns = @('|', '&', ';', 'net user', 'cmd', 'powershell', 'invoke-', 'start-process', '<script', '<', '>', '$(', '`$(')
+            foreach ($pattern in $maliciousPatterns) {
+                if ($SIDString -like "*$pattern*") {
+                    $validation.IsValid = $false
+                    $validation.RiskLevel = "Critical"
+                    $validation.Issues += "Critical security risk detected - potentially malicious input pattern: $pattern"
+                    $validation.BlockedSIDs += $SIDString
+
+                    Write-StructuredLog "Malicious input pattern detected in SID: $SIDString" -Level Error -Component 'SIDSecurity' -CorrelationId $CorrelationId
+
+                    Write-SecurityLog -SecurityEventType 'SecurityViolation' -Message "Malicious input pattern detected in SID validation" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
+                        SIDString = $SIDString
+                        ValidationLevel = $ValidationLevel
+                        BlockedReason = 'MaliciousInputPattern'
+                        DetectedPattern = $pattern
+                        RiskLevel = 'Critical'
+                        SecurityThreat = $true
+                        ObjectDN = $ObjectDN
+                    }
+
+                    return $validation
+                }
+            }
+
             # Check if SID is in protected list
             if ($script:Config -and $script:Config.ProtectedSIDs -contains $SIDString) {
                 $validation.IsValid = $false
@@ -172,6 +197,9 @@ function Test-SIDSecurity {
                     RiskLevel = 'Critical'
                     ObjectDN = $ObjectDN
                 }
+
+                # Early return for protected SIDs - they override all other logic
+                return $validation
             }
 
             # Check well-known SIDs using the Test-SIDFormat module
@@ -193,11 +221,37 @@ function Test-SIDSecurity {
                         SystemSecurityImpact = $true
                         ObjectDN = $ObjectDN
                     }
+
+                    # Early return for well-known SIDs in Standard/Strict validation
+                    return $validation
                 }
             }
 
             # Perform SID analysis for additional risk assessment using Get-SIDAnalysis module
             $sidAnalysis = Get-SIDAnalysis -SIDString $SIDString -CorrelationId $CorrelationId
+
+            # Handle malicious input patterns with immediate blocking
+            if ($sidAnalysis.RiskLevel -eq 'Critical') {
+                $validation.IsValid = $false
+                $validation.RiskLevel = "Critical"
+                $validation.Issues += "Critical security risk detected - potentially malicious input"
+                $validation.BlockedSIDs += $SIDString
+
+                Write-StructuredLog "Critical risk SID $SIDString blocked for security" -Level Error -Component 'SIDSecurity' -CorrelationId $CorrelationId
+
+                # Log critical security blocking
+                Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Critical risk SID validation blocked - security threat detected" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
+                    SIDString = $SIDString
+                    ValidationLevel = $ValidationLevel
+                    BlockedReason = 'CriticalSecurityRisk'
+                    RiskLevel = 'Critical'
+                    SecurityThreat = $true
+                    ObjectDN = $ObjectDN
+                }
+
+                # Early return for critical security risks
+                return $validation
+            }
 
             # Risk-based validation
             switch ($sidAnalysis.RiskLevel) {
@@ -375,7 +429,8 @@ function Get-SIDRiskAssessment {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
-        [Parameter(Mandatory, ValueFromPipeline)]
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
         [string[]]$SIDList,
 
         [Parameter()]
@@ -388,6 +443,35 @@ function Get-SIDRiskAssessment {
     process {
         try {
             Write-StructuredLog "Starting risk assessment for $($SIDList.Count) SIDs" -Level Verbose -Component 'SIDSecurity' -CorrelationId $CorrelationId
+
+            # Handle empty SID list
+            if ($SIDList.Count -eq 0) {
+                Write-StructuredLog "Empty SID list provided - returning safe assessment" -Level Debug -Component 'SIDSecurity' -CorrelationId $CorrelationId
+
+                $assessment = [PSCustomObject]@{
+                    PSTypeName = 'SIDRiskAssessment'
+                    AssessmentId = $CorrelationId
+                    AssessedAt = Get-Date
+                    TotalSIDs = 0
+                    OverallRisk = "Low"
+                    RiskBreakdown = @{ Low = 0; Medium = 0; High = 0; Critical = 0 }
+                    BlockedSIDs = @()
+                    AllowedSIDs = @()
+                    RequiresApproval = @()
+                    Recommendations = @("No SIDs to assess - operation is safe")
+                    ObjectContext = $ObjectContext
+                    SafeForAutomation = $true
+                }
+
+                Write-SecurityLog -SecurityEventType 'RiskAssessment' -Message "Empty SID list risk assessment completed" -Outcome 'Success' -CorrelationId $CorrelationId -SecurityContext @{
+                    TotalSIDs = 0
+                    OverallRisk = 'Low'
+                    SafeForAutomation = $true
+                    ObjectContext = $ObjectContext
+                }
+
+                return $assessment
+            }
 
             # Initialize risk counters
             $riskCounts = @{

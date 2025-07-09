@@ -938,15 +938,16 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             # Verify configuration is being used
             $securitySettings.RequireElevatedConfirmation | Should Be $true
             $securitySettings.AllowWellKnownSIDRemoval | Should Be $false
-            $securitySettings.ComplianceFrameworks | Should Contain 'SOX'
+            $securitySettings.ComplianceFrameworks | Should Not BeNullOrEmpty
+            $securitySettings.ComplianceFrameworks -contains 'SOX' | Should Be $true
         }
 
         It "Should integrate with enterprise compliance frameworks" {
             $complianceFrameworks = $script:Config.SecurityValidation.ComplianceFrameworks
             
-            $complianceFrameworks | Should Contain 'SOX'
-            $complianceFrameworks | Should Contain 'HIPAA'
-            $complianceFrameworks | Should Contain 'PCI-DSS'
+            $complianceFrameworks -contains 'SOX' | Should Be $true
+            $complianceFrameworks -contains 'HIPAA' | Should Be $true
+            $complianceFrameworks -contains 'PCI-DSS' | Should Be $true
         }
     }
 
