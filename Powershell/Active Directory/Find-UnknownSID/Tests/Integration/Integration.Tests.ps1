@@ -26,44 +26,35 @@
     - For workflow problems: .\Troubleshooting\Workflows\End-to-End-Troubleshooting.md
 #>
 
-BeforeAll {
-    # Import full module for integration testing
-    $script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
-    Import-Module $script:ModulePath -Force
-
-    # Import test helpers for reusable utilities
-    $script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
-    . $script:TestHelpersPath
-
-    # Set up integration test environment
-    $script:TestDomain = "test.local"
-    $script:TestOU = "OU=TestOrganization,DC=test,DC=local"
-    $script:CorrelationId = [System.Guid]::NewGuid().ToString()
-
-    # Create safe test data for integration testing
-    $script:TestSIDs = New-TestData -DataType 'SID' -Count 10 -CorrelationId $script:CorrelationId
-    $script:TestADObjects = New-TestData -DataType 'ADObject' -Count 5 -CorrelationId $script:CorrelationId
-
-    # Mock external dependencies for safe integration testing
-    Mock Write-Verbose { } -ModuleName Find-UnknownSID
-    Mock Write-Information { } -ModuleName Find-UnknownSID
-    Mock Write-Warning { } -ModuleName Find-UnknownSID
-
-    # Mock AD operations for safe testing
-    Mock Get-ADObject {
-        return $script:TestADObjects[0]
-    } -ModuleName Find-UnknownSID
-
-    Mock Get-ADUser {
-        return @{ Name = 'TestUser'; SamAccountName = 'testuser'; ObjectGUID = [System.Guid]::NewGuid() }
-    } -ModuleName Find-UnknownSID
-
-    # Mock file system operations
-    Mock Test-Path { return $true } -ModuleName Find-UnknownSID
-    Mock New-Item { return @{ FullName = Join-Path $TestDrive 'MockBackup.xml' } } -ModuleName Find-UnknownSID
-    Mock Export-Clixml { } -ModuleName Find-UnknownSID
-    Mock Import-Clixml { return $script:TestADObjects } -ModuleName Find-UnknownSID
-}
+# Import full module for integration testing
+$script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
+Import-Module $script:ModulePath -Force
+# Import test helpers for reusable utilities
+$script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
+. $script:TestHelpersPath
+# Set up integration test environment
+$script:TestDomain = "test.local"
+$script:TestOU = "OU=TestOrganization,DC=test,DC=local"
+$script:CorrelationId = [System.Guid]::NewGuid().ToString()
+# Create safe test data for integration testing
+$script:TestSIDs = New-TestData -DataType 'SID' -Count 10 -CorrelationId $script:CorrelationId
+$script:TestADObjects = New-TestData -DataType 'ADObject' -Count 5 -CorrelationId $script:CorrelationId
+# Mock external dependencies for safe integration testing
+Mock Write-Verbose { } -ModuleName Find-UnknownSID
+Mock Write-Information { } -ModuleName Find-UnknownSID
+Mock Write-Warning { } -ModuleName Find-UnknownSID
+# Mock AD operations for safe testing
+Mock Get-ADObject {
+return $script:TestADObjects[0]
+} -ModuleName Find-UnknownSID
+Mock Get-ADUser {
+return @{ Name = 'TestUser'; SamAccountName = 'testuser'; ObjectGUID = [System.Guid]::NewGuid() }
+} -ModuleName Find-UnknownSID
+# Mock file system operations
+Mock Test-Path { return $true } -ModuleName Find-UnknownSID
+Mock New-Item { return @{ FullName = Join-Path $TestDrive 'MockBackup.xml' } } -ModuleName Find-UnknownSID
+Mock Export-Clixml { } -ModuleName Find-UnknownSID
+Mock Import-Clixml { return $script:TestADObjects } -ModuleName Find-UnknownSID
 
 Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical", "Workflow" {
 
@@ -76,9 +67,9 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             # Test individual SID validation as foundation
             $result = $script:TestSIDs[0] | Test-SIDFormat -CorrelationId $script:WorkflowCorrelationId
 
-            $result | Should -Not -BeNullOrEmpty
-            $result.IsValid | Should -Be $true
-            $result.SID | Should -Be $script:TestSIDs[0]
+            $result | Should Not BeNullOrEmpty
+            $result.IsValid | Should Be $true
+            $result.SID | Should Be $script:TestSIDs[0]
         }
 
         It "Should process multiple SIDs efficiently" {
@@ -88,8 +79,8 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             $results = $script:TestSIDs | Test-SIDFormat -CorrelationId $script:WorkflowCorrelationId
 
             $stopwatch.Stop()
-            $stopwatch.ElapsedSeconds | Should -BeLessThan 10  # 10 seconds max for 10 SIDs
-            $results.Count | Should -Be $script:TestSIDs.Count
+            $stopwatch.ElapsedSeconds | Should BeLessThan 10  # 10 seconds max for 10 SIDs
+            $results.Count | Should Be $script:TestSIDs.Count
             $results | Where-Object { $_.IsValid } | Should -HaveCount $script:TestSIDs.Count
         }
 
@@ -105,9 +96,9 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
 
             $initResult = Initialize-ScriptExecution -CorrelationId $script:WorkflowCorrelationId
 
-            $initResult | Should -Not -BeNullOrEmpty
+            $initResult | Should Not BeNullOrEmpty
             $initResult.Success | Should -BeTrue
-            $initResult.CorrelationId | Should -Be $script:WorkflowCorrelationId
+            $initResult.CorrelationId | Should Be $script:WorkflowCorrelationId
         }
     }
 
@@ -134,8 +125,8 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             $backupResult = New-BackupFile -InputData $sidValidation -CorrelationId $script:DataFlowCorrelationId
 
             # Validate data flow
-            $sidValidation.SID | Should -Be $backupResult.OriginalData
-            $sidValidation.CorrelationId | Should -Be $backupResult.CorrelationId
+            $sidValidation.SID | Should Be $backupResult.OriginalData
+            $sidValidation.CorrelationId | Should Be $backupResult.CorrelationId
             $backupResult.Success | Should -BeTrue
         }
 
@@ -157,7 +148,7 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
                 } -ModuleName Find-UnknownSID
 
                 $result = & $operation -CorrelationId $script:DataFlowCorrelationId
-                $result.CorrelationId | Should -Be $script:DataFlowCorrelationId
+                $result.CorrelationId | Should Be $script:DataFlowCorrelationId
             }
         }
     }
@@ -171,7 +162,7 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             # Test error handling in SID validation
             $invalidSID = "Invalid-SID-Format"
 
-            { Test-SIDFormat -SID $invalidSID -CorrelationId $script:ErrorCorrelationId } | Should -Throw "*Invalid SID format*"
+            { Test-SIDFormat -SID $invalidSID -CorrelationId $script:ErrorCorrelationId } | Should Throw "*Invalid SID format*"
         }
 
         It "Should maintain system state during errors" {
@@ -183,7 +174,7 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             $result1.IsValid | Should -BeTrue
 
             # Error operation
-            { Test-SIDFormat -SID "INVALID" -CorrelationId $script:ErrorCorrelationId } | Should -Throw
+            { Test-SIDFormat -SID "INVALID" -CorrelationId $script:ErrorCorrelationId } | Should Throw
 
             # Subsequent operation should still work
             $result2 = Test-SIDFormat -SID $validSID -CorrelationId $script:ErrorCorrelationId
@@ -198,8 +189,8 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
             }
             catch {
                 $errorOccurred = $true
-                $_.Exception.Message | Should -Match "SID"
-                $_.Exception.Message | Should -Match "format"
+                $_.Exception.Message | Should Match "SID"
+                $_.Exception.Message | Should Match "format"
             }
 
             $errorOccurred | Should -BeTrue
@@ -216,15 +207,15 @@ Describe "Full SID Removal Workflow Integration" -Tag "Integration", "Critical",
         It "Should support correlation ID tracking" {
             # Validate correlation ID infrastructure
             $testCorrelationId = [System.Guid]::NewGuid().ToString()
-            $testCorrelationId | Should -Match "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            $testCorrelationId | Should Match "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         }
 
         It "Should provide mock data generators" {
             # Validate test data generation
             $testData = New-TestData -DataType 'SID' -Count 3 -CorrelationId $script:CorrelationId
-            $testData | Should -Not -BeNullOrEmpty
-            $testData.Count | Should -Be 3
-            $testData | ForEach-Object { $_ | Should -Match "^S-1-" }
+            $testData | Should Not BeNullOrEmpty
+            $testData.Count | Should Be 3
+            $testData | ForEach-Object { $_ | Should Match "^S-1-" }
         }
     }
 }
@@ -252,14 +243,14 @@ Describe "Basic Module Integration" -Tag "Integration", "Modules", "Foundation" 
 
             foreach ($functionName in $functionNames) {
                 $verb = $functionName.Split('-')[0]
-                $approvedVerbs | Should -Contain $verb
+                $approvedVerbs | Should Contain $verb
             }
         }
 
         It "Should support pipeline operations" {
             # Test basic pipeline functionality
             $result = $script:TestSIDs | Test-SIDFormat -CorrelationId $script:CorrelationId
-            $result.Count | Should -Be $script:TestSIDs.Count
+            $result.Count | Should Be $script:TestSIDs.Count
         }
     }
 }

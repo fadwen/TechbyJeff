@@ -37,49 +37,43 @@
     - For module independence: .\Troubleshooting\Testing\Module-Independence-Guide.md
 #>
 
-BeforeAll {
-    # Load Module Independence Framework
-    $frameworkPath = Join-Path $PSScriptRoot '..\Infrastructure\Module-Independence-Framework.ps1'
-    if (Test-Path $frameworkPath) {
-        . $frameworkPath
-        Write-Verbose " Module Independence Framework loaded"
-    } else {
-        throw " Module Independence Framework not found at: $frameworkPath"
-    }
-
-    # Initialize module-independent testing environment
-    Initialize-MockEnvironment -TestType 'BusinessIntelligence' -CorrelationId $script:TestCorrelationId
-
-    # Business Intelligence configuration
-    $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
-    $script:BIConfig = @{
-        TestCorrelationId = $script:TestCorrelationId
-        ReportingPeriods = @('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')
-        BusinessMetrics = @{
-            'OrphanedSIDCount' = @{ Target = 0; Threshold = 10; Critical = 50 }
-            'RemovalEfficiency' = @{ Target = 95; Threshold = 80; Critical = 60 }
-            'ProcessingTime' = @{ Target = 300; Threshold = 600; Critical = 1800 }
-            'ErrorRate' = @{ Target = 0; Threshold = 1; Critical = 5 }
-            'SecurityCompliance' = @{ Target = 100; Threshold = 95; Critical = 80 }
-        }
-        DataVisualization = @{
-            ChartTypes = @('Bar', 'Line', 'Pie', 'Scatter', 'Heatmap')
-            ExportFormats = @('PDF', 'Excel', 'PowerBI', 'HTML', 'JSON')
-        }
-        AlertingThresholds = @{
-            Critical = @{ SIDCount = 100; ErrorRate = 10; ResponseTime = 3600 }
-            Warning = @{ SIDCount = 50; ErrorRate = 5; ResponseTime = 1800 }
-            Information = @{ SIDCount = 10; ErrorRate = 1; ResponseTime = 600 }
-        }
-    }
-
-    # Enterprise test data generation
-    $script:SmallDataset = New-EnterpriseTestData -DataSize 'Small' -TestType 'Performance' -CorrelationId $script:TestCorrelationId
-    $script:MediumDataset = New-EnterpriseTestData -DataSize 'Medium' -TestType 'Performance' -CorrelationId $script:TestCorrelationId  
-    $script:LargeDataset = New-EnterpriseTestData -DataSize 'Large' -TestType 'Performance' -CorrelationId $script:TestCorrelationId
-
-    Write-Verbose " BI Testing Environment Initialized - CorrelationId: $script:TestCorrelationId"
+# Load Module Independence Framework
+$frameworkPath = Join-Path $PSScriptRoot '..\Infrastructure\Module-Independence-Framework.ps1'
+if (Test-Path $frameworkPath) {
+. $frameworkPath
+Write-Verbose " Module Independence Framework loaded"
+} else {
+throw " Module Independence Framework not found at: $frameworkPath"
 }
+# Initialize module-independent testing environment
+Initialize-MockEnvironment -TestType 'BusinessIntelligence' -CorrelationId $script:TestCorrelationId
+# Business Intelligence configuration
+$script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
+$script:BIConfig = @{
+TestCorrelationId = $script:TestCorrelationId
+ReportingPeriods = @('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')
+BusinessMetrics = @{
+'OrphanedSIDCount' = @{ Target = 0; Threshold = 10; Critical = 50 }
+'RemovalEfficiency' = @{ Target = 95; Threshold = 80; Critical = 60 }
+'ProcessingTime' = @{ Target = 300; Threshold = 600; Critical = 1800 }
+'ErrorRate' = @{ Target = 0; Threshold = 1; Critical = 5 }
+'SecurityCompliance' = @{ Target = 100; Threshold = 95; Critical = 80 }
+}
+DataVisualization = @{
+ChartTypes = @('Bar', 'Line', 'Pie', 'Scatter', 'Heatmap')
+ExportFormats = @('PDF', 'Excel', 'PowerBI', 'HTML', 'JSON')
+}
+AlertingThresholds = @{
+Critical = @{ SIDCount = 100; ErrorRate = 10; ResponseTime = 3600 }
+Warning = @{ SIDCount = 50; ErrorRate = 5; ResponseTime = 1800 }
+Information = @{ SIDCount = 10; ErrorRate = 1; ResponseTime = 600 }
+}
+}
+# Enterprise test data generation
+$script:SmallDataset = New-EnterpriseTestData -DataSize 'Small' -TestType 'Performance' -CorrelationId $script:TestCorrelationId
+$script:MediumDataset = New-EnterpriseTestData -DataSize 'Medium' -TestType 'Performance' -CorrelationId $script:TestCorrelationId  
+$script:LargeDataset = New-EnterpriseTestData -DataSize 'Large' -TestType 'Performance' -CorrelationId $script:TestCorrelationId
+Write-Verbose " BI Testing Environment Initialized - CorrelationId: $script:TestCorrelationId"
 
 # ========================================================================================
 #  ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
@@ -218,9 +212,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             $result = Test-BIDashboardPerformance -TestData $testData -CorrelationId $script:TestCorrelationId
 
             # Validate results
-            $result.Performance.Duration | Should -BeLessOrEqual $ExpectedDuration
-            $result.Performance.MemoryUsedMB | Should -BeLessOrEqual $ExpectedMemory
-            $result.Result.ProcessedRecords | Should -BeGreaterThan 0
+            $result.Performance.Duration | Should BeLessThan $ExpectedDuration
+            $result.Performance.MemoryUsedMB | Should BeLessThan $ExpectedMemory
+            $result.Result.ProcessedRecords | Should BeGreaterThan 0
 
             Write-EnterpriseAuditLog -Level 'Information' -Message "Dashboard performance test completed" -Operation 'DashboardTest' -CorrelationId $script:TestCorrelationId -AdditionalData @{
                 DataSize = $DataSize
@@ -265,9 +259,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
 
             $result = Measure-EnterprisePerformance -Operation $operation -OperationName "ReportGeneration_$ReportType" -SLATargets $slaTargets -CorrelationId $script:TestCorrelationId
 
-            $result.Performance.Duration | Should -BeLessOrEqual $MaxDuration
-            $result.Performance.MemoryUsedMB | Should -BeLessOrEqual $MaxMemory
-            $result.Result.ReportType | Should -Be $ReportType
+            $result.Performance.Duration | Should BeLessThan $MaxDuration
+            $result.Performance.MemoryUsedMB | Should BeLessThan $MaxMemory
+            $result.Result.ReportType | Should Be $ReportType
         }
     }
 
@@ -281,8 +275,8 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             $testData = New-BITestData -BIComponent 'Dashboard' -DataSize 'Small' -CorrelationId $script:TestCorrelationId
             $result = Test-BIDashboardPerformance -TestData $testData -CorrelationId $script:TestCorrelationId
             
-            $result.Performance.Duration | Should -BeLessOrEqual 500
-            $result.Performance.MemoryUsedMB | Should -BeLessOrEqual 10
+            $result.Performance.Duration | Should BeLessThan 500
+            $result.Performance.MemoryUsedMB | Should BeLessThan 10
         }
 
         It "Should scale efficiently with dataset size" {
@@ -295,7 +289,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
 
             # Medium dataset should not be more than 10x slower than small
             $scalingRatio = $mediumResult.Performance.Duration / $smallResult.Performance.Duration
-            $scalingRatio | Should -BeLessOrEqual 10
+            $scalingRatio | Should BeLessThan 10
 
             Write-EnterpriseAuditLog -Level 'Information' -Message "Scaling validation completed" -Operation 'ScalingTest' -CorrelationId $script:TestCorrelationId -AdditionalData @{
                 ScalingRatio = $scalingRatio
@@ -310,14 +304,14 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             $result = Test-BIDashboardPerformance -TestData $testData -CorrelationId $script:TestCorrelationId
 
             # Large dataset processing: < 200MB memory usage
-            $result.Performance.MemoryUsedMB | Should -BeLessOrEqual 200
+            $result.Performance.MemoryUsedMB | Should BeLessThan 200
             
             # Force garbage collection and verify memory release
             [System.GC]::Collect()
             [System.GC]::WaitForPendingFinalizers()
             
             $memoryAfterGC = [System.GC]::GetTotalMemory($false) / 1MB
-            $memoryAfterGC | Should -BeLessOrEqual 300  # Total process memory should be reasonable
+            $memoryAfterGC | Should BeLessThan 300  # Total process memory should be reasonable
         }
     }
 
@@ -336,9 +330,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
 
             $complianceResult = Test-EnterpriseSecurityCompliance -Framework 'All' -SecurityContext $securityContext -CorrelationId $script:TestCorrelationId
 
-            $complianceResult.OverallCompliance | Should -Be $true
-            $complianceResult.OverallScore | Should -BeGreaterOrEqual 85
-            $complianceResult.TestResults.SOX.AuditTrailPresent | Should -Be $true
+            $complianceResult.OverallCompliance | Should Be $true
+            $complianceResult.OverallScore | Should BeGreaterThan 85
+            $complianceResult.TestResults.SOX.AuditTrailPresent | Should Be $true
         }
 
         It "Should prevent unauthorized report access" {
@@ -347,7 +341,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
                 throw " Access denied: Insufficient privileges for sensitive report"
             }
 
-            { & $unauthorizedOperation } | Should -Throw "*Access denied*"
+            { & $unauthorizedOperation } | Should Throw "*Access denied*"
 
             Write-EnterpriseAuditLog -Level 'Warning' -Message "Unauthorized access attempt blocked" -Operation 'SecurityTest' -CorrelationId $script:TestCorrelationId
         }
@@ -357,8 +351,8 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             $result = Test-BIDashboardPerformance -TestData $testData -CorrelationId $script:TestCorrelationId
 
             # Verify audit trail contains correlation ID
-            $result.Performance.CorrelationId | Should -Be $script:TestCorrelationId
-            $result.Performance.CorrelationId | Should -Match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            $result.Performance.CorrelationId | Should Be $script:TestCorrelationId
+            $result.Performance.CorrelationId | Should Match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         }
     }
 
@@ -372,22 +366,22 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             
             $exportResult = Export-Excel -Path 'TestReport.xlsx' -WorksheetName 'Dashboard' -InputObject $testData.TestData
             
-            $exportResult.Success | Should -Be $true
-            $exportResult.RowsExported | Should -BeGreaterThan 0
+            $exportResult.Success | Should Be $true
+            $exportResult.RowsExported | Should BeGreaterThan 0
         }
 
         It "Should handle BI platform API integration" {
             $refreshResult = Invoke-RestMethod -Uri 'https://api.powerbi.com/v1.0/datasets/refresh' -Method 'POST'
             
-            $refreshResult.Status | Should -Be 'Success'
-            $refreshResult.DataRefreshed | Should -Be $true
+            $refreshResult.Status | Should Be 'Success'
+            $refreshResult.DataRefreshed | Should Be $true
         }
 
         It "Should send automated BI reports via email" {
             $emailResult = Send-MailMessage -To 'management@company.com' -Subject 'Daily BI Report' -Body 'Report attached'
             
-            $emailResult.Delivered | Should -Be $true
-            $emailResult.Recipients | Should -Contain 'management@company.com'
+            $emailResult.Delivered | Should Be $true
+            $emailResult.Recipients | Should Contain 'management@company.com'
         }
     }
 
@@ -402,9 +396,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             
             $qualityResult = Assert-BIQualityGates -PerformanceResults $performanceResult -TestData $testData -CorrelationId $script:TestCorrelationId
             
-            $qualityResult.OverallPassed | Should -Be $true
-            $qualityResult.Violations.Count | Should -Be 0
-            $qualityResult.Metrics | Should -Not -BeNullOrEmpty
+            $qualityResult.OverallPassed | Should Be $true
+            $qualityResult.Violations.Count | Should Be 0
+            $qualityResult.Metrics | Should Not BeNullOrEmpty
         }
 
         It "Should detect and report quality gate violations" {
@@ -423,9 +417,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
 
             $qualityResult = Assert-BIQualityGates -PerformanceResults @{ Performance = $performanceMetrics } -TestData $testData -CorrelationId $script:TestCorrelationId
             
-            $qualityResult.OverallPassed | Should -Be $false
-            $qualityResult.Violations.Count | Should -BeGreaterThan 0
-            $qualityResult.Violations -join '; ' | Should -Match "Duration.*exceeds"
+            $qualityResult.OverallPassed | Should Be $false
+            $qualityResult.Violations.Count | Should BeGreaterThan 0
+            $qualityResult.Violations -join '; ' | Should Match "Duration.*exceeds"
         }
 
         It "Should track quality metrics over time" {
@@ -445,9 +439,9 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
             }
             
             # Validate metrics collection
-            $metrics.Count | Should -Be 5
+            $metrics.Count | Should Be 5
             $averageDuration = ($metrics.Duration | Measure-Object -Average).Average
-            $averageDuration | Should -BeLessOrEqual 1000  # Should be under 1 second average
+            $averageDuration | Should BeLessThan 1000  # Should be under 1 second average
             
             Write-EnterpriseAuditLog -Level 'Information' -Message "Quality metrics tracking completed" -Operation 'QualityTracking' -CorrelationId $script:TestCorrelationId -AdditionalData @{
                 TestRuns = $metrics.Count
@@ -461,29 +455,29 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
         It "Should run without requiring Find-UnknownSID module" {
             # Verify no module dependency
             $loadedModules = Get-Module | Where-Object Name -eq 'Find-UnknownSID'
-            $loadedModules | Should -BeNullOrEmpty
+            $loadedModules | Should BeNullOrEmpty
 
             # Verify mocking framework is active
             $mockEnvironment = $script:ModuleIndependenceConfig
-            $mockEnvironment.TestEnvironment | Should -Be 'ModuleIndependent'
-            $mockEnvironment.EnterpriseCompliance | Should -Be $true
+            $mockEnvironment.TestEnvironment | Should Be 'ModuleIndependent'
+            $mockEnvironment.EnterpriseCompliance | Should Be $true
         }
 
         It "Should provide complete functionality through mocking" {
             # Test that all required functions are mocked and functional
             $testResult = Find-UnknownSID -ComputerName 'TEST-SERVER' -Detailed:$true
             
-            $testResult | Should -Not -BeNullOrEmpty
-            $testResult[0].ComputerName | Should -Be 'TEST-SERVER'
-            $testResult[0].SIDType | Should -Be 'Orphaned'
-            $testResult[0].CorrelationId | Should -Not -BeNullOrEmpty
+            $testResult | Should Not BeNullOrEmpty
+            $testResult[0].ComputerName | Should Be 'TEST-SERVER'
+            $testResult[0].SIDType | Should Be 'Orphaned'
+            $testResult[0].CorrelationId | Should Not BeNullOrEmpty
         }
 
         It "Should maintain enterprise security controls" {
             # Verify dangerous operations are blocked
-            { Invoke-Expression 'calc.exe' } | Should -Throw "*SECURITY VIOLATION*"
-            { Start-Process 'notepad.exe' } | Should -Throw "*SECURITY VIOLATION*"
-            { Remove-Item 'C:\Windows\System32\test.txt' } | Should -Throw "*SECURITY VIOLATION*"
+            { Invoke-Expression 'calc.exe' } | Should Throw "*SECURITY VIOLATION*"
+            { Start-Process 'notepad.exe' } | Should Throw "*SECURITY VIOLATION*"
+            { Remove-Item 'C:\Windows\System32\test.txt' } | Should Throw "*SECURITY VIOLATION*"
         }
     }
 }
@@ -497,3 +491,4 @@ AfterAll {
     
     Write-Verbose " Module-Independent BI Testing Suite completed - CorrelationId: $script:TestCorrelationId"
 }
+

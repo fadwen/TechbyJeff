@@ -27,48 +27,43 @@
     - For reporting: .\Troubleshooting\Analytics\Report-Generation-Guide.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # Business Intelligence configuration
-    $script:BIConfig = @{
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        ReportingPeriods = @('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')
-        BusinessMetrics = @{
-            'OrphanedSIDCount' = @{ Target = 0; Threshold = 10; Critical = 50 }
-            'RemovalEfficiency' = @{ Target = 95; Threshold = 80; Critical = 60 }
-            'ProcessingTime' = @{ Target = 300; Threshold = 600; Critical = 1800 }
-            'ErrorRate' = @{ Target = 0; Threshold = 1; Critical = 5 }
-            'SecurityCompliance' = @{ Target = 100; Threshold = 95; Critical = 80 }
-        }
-        DataSources = @(
-            'ActiveDirectory',
-            'AuditLogs',
-            'PerformanceCounters',
-            'SecurityEvents',
-            'ApplicationLogs'
-        )
-        Dashboards = @(
-            'ExecutiveSummary',
-            'OperationalMetrics',
-            'SecurityPosture',
-            'ComplianceStatus',
-            'TechnicalDetails'
-        )
-        BIResults = @()
-    }
-
-    # Initialize BI test environment
-    Initialize-BITestEnvironment
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Business Intelligence configuration
+$script:BIConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+ReportingPeriods = @('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')
+BusinessMetrics = @{
+'OrphanedSIDCount' = @{ Target = 0; Threshold = 10; Critical = 50 }
+'RemovalEfficiency' = @{ Target = 95; Threshold = 80; Critical = 60 }
+'ProcessingTime' = @{ Target = 300; Threshold = 600; Critical = 1800 }
+'ErrorRate' = @{ Target = 0; Threshold = 1; Critical = 5 }
+'SecurityCompliance' = @{ Target = 100; Threshold = 95; Critical = 80 }
+}
+DataSources = @(
+'ActiveDirectory',
+'AuditLogs',
+'PerformanceCounters',
+'SecurityEvents',
+'ApplicationLogs'
+)
+Dashboards = @(
+'ExecutiveSummary',
+'OperationalMetrics',
+'SecurityPosture',
+'ComplianceStatus',
+'TechnicalDetails'
+)
+BIResults = @()
+}
+# Initialize BI test environment
+Initialize-BITestEnvironment
 
 AfterAll {
     # Generate comprehensive BI report
@@ -94,14 +89,14 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             # Test data collection from all sources
             $dataCollection = Test-ComprehensiveDataCollection
 
-            $dataCollection.SourcesConnected | Should -Be $script:BIConfig.DataSources.Count
-            $dataCollection.DataQuality | Should -BeGreaterOrEqual 95
-            $dataCollection.CompletenessScore | Should -BeGreaterOrEqual 90
-            $dataCollection.TimelinessSLA | Should -Be $true
+            $dataCollection.SourcesConnected | Should Be $script:BIConfig.DataSources.Count
+            $dataCollection.DataQuality | Should BeGreaterThan 95
+            $dataCollection.CompletenessScore | Should BeGreaterThan 90
+            $dataCollection.TimelinessSLA | Should Be $true
 
             # Verify all data sources are represented
             foreach ($source in $script:BIConfig.DataSources) {
-                $dataCollection.DataSources | Should -Contain $source -Because "Data source $source should be included"
+                $dataCollection.DataSources | Should Contain $source -Because "Data source $source should be included"
             }
         }
 
@@ -117,10 +112,10 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             # Test data aggregation for different periods
             $aggregation = Invoke-DataAggregation -Period $Period -Granularity $ExpectedGranularity
 
-            $aggregation.Success | Should -Be $true
-            $aggregation.DataPoints | Should -BeGreaterOrEqual $MinDataPoints
-            $aggregation.Granularity | Should -Be $ExpectedGranularity
-            $aggregation.AggregationAccuracy | Should -BeGreaterOrEqual 99.5
+            $aggregation.Success | Should Be $true
+            $aggregation.DataPoints | Should BeGreaterThan $MinDataPoints
+            $aggregation.Granularity | Should Be $ExpectedGranularity
+            $aggregation.AggregationAccuracy | Should BeGreaterThan 99.5
 
             # Record aggregation results
             $script:BIConfig.BIResults += @{
@@ -137,13 +132,13 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
                 $metric = $script:BIConfig.BusinessMetrics[$metricName]
                 $calculation = Calculate-BusinessMetric -MetricName $metricName -TestData $true
 
-                $calculation.ValueCalculated | Should -Be $true
-                $calculation.AccuracyValidated | Should -Be $true
-                $calculation.TrendAnalyzed | Should -Be $true
-                $calculation.ThresholdEvaluated | Should -Be $true
+                $calculation.ValueCalculated | Should Be $true
+                $calculation.AccuracyValidated | Should Be $true
+                $calculation.TrendAnalyzed | Should Be $true
+                $calculation.ThresholdEvaluated | Should Be $true
 
                 # Verify metric thresholds
-                $calculation.Value | Should -BeOfType [double] -Because "$metricName should have numeric value"
+                $calculation.Value | Should BeOfType [double] -Because "$metricName should have numeric value"
 
                 Write-Verbose "Business metric $metricName : Value=$($calculation.Value), Status=$($calculation.Status)"
             }
@@ -163,9 +158,9 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             foreach ($testName in $qualityTests.Keys) {
                 $qualityResult = & $qualityTests[$testName]
 
-                $qualityResult.Score | Should -BeGreaterOrEqual 90 -Because "Data quality test $testName should meet standards"
-                $qualityResult.IssuesFound | Should -BeLessOrEqual 5 -Because "Data quality issues should be minimal"
-                $qualityResult.Remediated | Should -Be $true -Because "Issues should be automatically remediated"
+                $qualityResult.Score | Should BeGreaterThan 90 -Because "Data quality test $testName should meet standards"
+                $qualityResult.IssuesFound | Should BeLessThan 5 -Because "Data quality issues should be minimal"
+                $qualityResult.Remediated | Should Be $true -Because "Issues should be automatically remediated"
             }
         }
     }
@@ -176,19 +171,19 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $sidMetrics = Get-OrphanedSIDBusinessMetrics
 
             # Validate core SID metrics
-            $sidMetrics.TotalOrphanedSIDs | Should -BeOfType [int]
-            $sidMetrics.SIDsRemovedToday | Should -BeOfType [int]
-            $sidMetrics.RemovalSuccessRate | Should -BeGreaterOrEqual 95
-            $sidMetrics.AverageRemovalTime | Should -BeLessOrEqual 300
+            $sidMetrics.TotalOrphanedSIDs | Should BeOfType [int]
+            $sidMetrics.SIDsRemovedToday | Should BeOfType [int]
+            $sidMetrics.RemovalSuccessRate | Should BeGreaterThan 95
+            $sidMetrics.AverageRemovalTime | Should BeLessThan 300
 
             # Validate trending data
-            $sidMetrics.TrendData | Should -Not -BeNullOrEmpty
-            $sidMetrics.TrendData.Count | Should -BeGreaterOrEqual 7 # At least 7 days of trend
+            $sidMetrics.TrendData | Should Not BeNullOrEmpty
+            $sidMetrics.TrendData.Count | Should BeGreaterThan 7 # At least 7 days of trend
 
             # Validate business impact metrics
-            $sidMetrics.SecurityRiskReduction | Should -BeGreaterOrEqual 80
-            $sidMetrics.ComplianceImprovement | Should -BeGreaterOrEqual 90
-            $sidMetrics.OperationalEfficiency | Should -BeGreaterOrEqual 85
+            $sidMetrics.SecurityRiskReduction | Should BeGreaterThan 80
+            $sidMetrics.ComplianceImprovement | Should BeGreaterThan 90
+            $sidMetrics.OperationalEfficiency | Should BeGreaterThan 85
         }
 
         It "Should calculate ROI and business value metrics" {
@@ -196,20 +191,20 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $roiMetrics = Calculate-BusinessValueMetrics
 
             # Financial metrics
-            $roiMetrics.TimeToValue | Should -BeLessOrEqual 90 # Days
-            $roiMetrics.CostSavings | Should -BeGreaterThan 0
-            $roiMetrics.ProductivityGain | Should -BeGreaterOrEqual 10 # Percentage
-            $roiMetrics.ROIPercentage | Should -BeGreaterOrEqual 200 # 200% ROI target
+            $roiMetrics.TimeToValue | Should BeLessThan 90 # Days
+            $roiMetrics.CostSavings | Should BeGreaterThan 0
+            $roiMetrics.ProductivityGain | Should BeGreaterThan 10 # Percentage
+            $roiMetrics.ROIPercentage | Should BeGreaterThan 200 # 200% ROI target
 
             # Risk metrics
-            $roiMetrics.SecurityRiskMitigation | Should -BeGreaterOrEqual 75
-            $roiMetrics.ComplianceRiskReduction | Should -BeGreaterOrEqual 80
-            $roiMetrics.OperationalRiskLowering | Should -BeGreaterOrEqual 70
+            $roiMetrics.SecurityRiskMitigation | Should BeGreaterThan 75
+            $roiMetrics.ComplianceRiskReduction | Should BeGreaterThan 80
+            $roiMetrics.OperationalRiskLowering | Should BeGreaterThan 70
 
             # Efficiency metrics
-            $roiMetrics.ProcessAutomation | Should -BeGreaterOrEqual 90
-            $roiMetrics.ErrorReduction | Should -BeGreaterOrEqual 85
-            $roiMetrics.ResourceOptimization | Should -BeGreaterOrEqual 75
+            $roiMetrics.ProcessAutomation | Should BeGreaterThan 90
+            $roiMetrics.ErrorReduction | Should BeGreaterThan 85
+            $roiMetrics.ResourceOptimization | Should BeGreaterThan 75
         }
 
         It "Should provide executive dashboard metrics" {
@@ -217,20 +212,20 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $executiveMetrics = Get-ExecutiveDashboardMetrics
 
             # High-level business metrics
-            $executiveMetrics.OverallHealth | Should -BeIn @('Excellent', 'Good', 'Fair')
-            $executiveMetrics.SecurityPosture | Should -BeGreaterOrEqual 90
-            $executiveMetrics.ComplianceStatus | Should -BeGreaterOrEqual 95
-            $executiveMetrics.OperationalEfficiency | Should -BeGreaterOrEqual 85
+            $executiveMetrics.OverallHealth | Should BeIn @('Excellent', 'Good', 'Fair')
+            $executiveMetrics.SecurityPosture | Should BeGreaterThan 90
+            $executiveMetrics.ComplianceStatus | Should BeGreaterThan 95
+            $executiveMetrics.OperationalEfficiency | Should BeGreaterThan 85
 
             # Strategic metrics
-            $executiveMetrics.BusinessObjectiveAlignment | Should -BeGreaterOrEqual 90
-            $executiveMetrics.DigitalTransformationContribution | Should -BeGreaterOrEqual 80
-            $executiveMetrics.InnovationIndex | Should -BeGreaterOrEqual 75
+            $executiveMetrics.BusinessObjectiveAlignment | Should BeGreaterThan 90
+            $executiveMetrics.DigitalTransformationContribution | Should BeGreaterThan 80
+            $executiveMetrics.InnovationIndex | Should BeGreaterThan 75
 
             # Financial performance
-            $executiveMetrics.CostOptimization | Should -BeGreaterOrEqual 80
-            $executiveMetrics.ValueGeneration | Should -BeGreaterOrEqual 85
-            $executiveMetrics.InvestmentEfficiency | Should -BeGreaterOrEqual 90
+            $executiveMetrics.CostOptimization | Should BeGreaterThan 80
+            $executiveMetrics.ValueGeneration | Should BeGreaterThan 85
+            $executiveMetrics.InvestmentEfficiency | Should BeGreaterThan 90
         }
 
         It "Should track performance against SLAs" {
@@ -238,19 +233,19 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $slaTracking = Test-SLAPerformanceTracking
 
             # Service level metrics
-            $slaTracking.AvailabilitySLA | Should -BeGreaterOrEqual 99.9
-            $slaTracking.PerformanceSLA | Should -BeGreaterOrEqual 95
-            $slaTracking.SecuritySLA | Should -BeGreaterOrEqual 99
-            $slaTracking.SupportSLA | Should -BeGreaterOrEqual 90
+            $slaTracking.AvailabilitySLA | Should BeGreaterThan 99.9
+            $slaTracking.PerformanceSLA | Should BeGreaterThan 95
+            $slaTracking.SecuritySLA | Should BeGreaterThan 99
+            $slaTracking.SupportSLA | Should BeGreaterThan 90
 
             # SLA breach analysis
-            $slaTracking.SLABreaches | Should -BeLessOrEqual 2 # Per month
-            $slaTracking.BreachResolutionTime | Should -BeLessOrEqual 240 # Minutes
-            $slaTracking.CustomerSatisfaction | Should -BeGreaterOrEqual 85
+            $slaTracking.SLABreaches | Should BeLessThan 2 # Per month
+            $slaTracking.BreachResolutionTime | Should BeLessThan 240 # Minutes
+            $slaTracking.CustomerSatisfaction | Should BeGreaterThan 85
 
             # Continuous improvement
-            $slaTracking.ImprovementTrend | Should -Be 'Positive'
-            $slaTracking.ProactiveActions | Should -BeGreaterOrEqual 5 # Per month
+            $slaTracking.ImprovementTrend | Should Be 'Positive'
+            $slaTracking.ProactiveActions | Should BeGreaterThan 5 # Per month
         }
     }
 
@@ -267,33 +262,33 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             # Generate and validate specific report types
             $report = Generate-BusinessReport -Type $ReportType -Audience $Audience -DetailLevel $DetailLevel
 
-            $report.Generated | Should -Be $true
-            $report.DataAccuracy | Should -BeGreaterOrEqual 99
-            $report.CompletenessScore | Should -BeGreaterOrEqual 95
-            $report.RelevanceScore | Should -BeGreaterOrEqual 90
+            $report.Generated | Should Be $true
+            $report.DataAccuracy | Should BeGreaterThan 99
+            $report.CompletenessScore | Should BeGreaterThan 95
+            $report.RelevanceScore | Should BeGreaterThan 90
 
             # Validate report content
-            $report.Content | Should -Not -BeNullOrEmpty
-            $report.Content.Charts | Should -Not -BeNullOrEmpty
-            $report.Content.Tables | Should -Not -BeNullOrEmpty
-            $report.Content.Summary | Should -Not -BeNullOrEmpty
+            $report.Content | Should Not BeNullOrEmpty
+            $report.Content.Charts | Should Not BeNullOrEmpty
+            $report.Content.Tables | Should Not BeNullOrEmpty
+            $report.Content.Summary | Should Not BeNullOrEmpty
 
             # Validate audience-specific content
             switch ($Audience) {
                 'Leadership' {
-                    $report.Content.ExecutiveSummary | Should -Not -BeNullOrEmpty
-                    $report.Content.BusinessImpact | Should -Not -BeNullOrEmpty
-                    $report.Content.ROIAnalysis | Should -Not -BeNullOrEmpty
+                    $report.Content.ExecutiveSummary | Should Not BeNullOrEmpty
+                    $report.Content.BusinessImpact | Should Not BeNullOrEmpty
+                    $report.Content.ROIAnalysis | Should Not BeNullOrEmpty
                 }
                 'Operations' {
-                    $report.Content.OperationalMetrics | Should -Not -BeNullOrEmpty
-                    $report.Content.PerformanceData | Should -Not -BeNullOrEmpty
-                    $report.Content.TrendAnalysis | Should -Not -BeNullOrEmpty
+                    $report.Content.OperationalMetrics | Should Not BeNullOrEmpty
+                    $report.Content.PerformanceData | Should Not BeNullOrEmpty
+                    $report.Content.TrendAnalysis | Should Not BeNullOrEmpty
                 }
                 'ITTeam' {
-                    $report.Content.TechnicalDetails | Should -Not -BeNullOrEmpty
-                    $report.Content.SystemMetrics | Should -Not -BeNullOrEmpty
-                    $report.Content.TroubleshootingInfo | Should -Not -BeNullOrEmpty
+                    $report.Content.TechnicalDetails | Should Not BeNullOrEmpty
+                    $report.Content.SystemMetrics | Should Not BeNullOrEmpty
+                    $report.Content.TroubleshootingInfo | Should Not BeNullOrEmpty
                 }
             }
         }
@@ -312,10 +307,10 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             foreach ($format in $reportFormats) {
                 $reportGeneration = Test-ReportFormatGeneration @format
 
-                $reportGeneration.Generated | Should -Be $true
-                $reportGeneration.Quality | Should -Be $format.Quality
-                $reportGeneration.FileValid | Should -Be $true
-                $reportGeneration.SizeReasonable | Should -Be $true
+                $reportGeneration.Generated | Should Be $true
+                $reportGeneration.Quality | Should Be $format.Quality
+                $reportGeneration.FileValid | Should Be $true
+                $reportGeneration.SizeReasonable | Should Be $true
 
                 Write-Verbose "Report format $($format.Format) generated successfully for $($format.Use)"
             }
@@ -333,10 +328,10 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             foreach ($testName in $schedulingTests.Keys) {
                 $schedulingResult = & $schedulingTests[$testName]
 
-                $schedulingResult.ScheduleCreated | Should -Be $true
-                $schedulingResult.AutomationWorking | Should -Be $true
-                $schedulingResult.DeliveryConfigured | Should -Be $true
-                $schedulingResult.ErrorHandling | Should -Be $true
+                $schedulingResult.ScheduleCreated | Should Be $true
+                $schedulingResult.AutomationWorking | Should Be $true
+                $schedulingResult.DeliveryConfigured | Should Be $true
+                $schedulingResult.ErrorHandling | Should Be $true
 
                 Write-Verbose "Scheduled reporting test $testName passed"
             }
@@ -347,20 +342,20 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $accuracyValidation = Test-ReportDataAccuracy
 
             # Data source validation
-            $accuracyValidation.SourceDataIntegrity | Should -Be $true
-            $accuracyValidation.CalculationAccuracy | Should -BeGreaterOrEqual 99.9
-            $accuracyValidation.CrossReferenceValid | Should -Be $true
-            $accuracyValidation.HistoricalConsistency | Should -Be $true
+            $accuracyValidation.SourceDataIntegrity | Should Be $true
+            $accuracyValidation.CalculationAccuracy | Should BeGreaterThan 99.9
+            $accuracyValidation.CrossReferenceValid | Should Be $true
+            $accuracyValidation.HistoricalConsistency | Should Be $true
 
             # Statistical validation
-            $accuracyValidation.OutliersIdentified | Should -Be $true
-            $accuracyValidation.TrendValidation | Should -Be $true
-            $accuracyValidation.ForecastAccuracy | Should -BeGreaterOrEqual 85
+            $accuracyValidation.OutliersIdentified | Should Be $true
+            $accuracyValidation.TrendValidation | Should Be $true
+            $accuracyValidation.ForecastAccuracy | Should BeGreaterThan 85
 
             # Business rule validation
-            $accuracyValidation.BusinessRulesApplied | Should -Be $true
-            $accuracyValidation.ThresholdAlertsWorking | Should -Be $true
-            $accuracyValidation.ExceptionHandling | Should -Be $true
+            $accuracyValidation.BusinessRulesApplied | Should Be $true
+            $accuracyValidation.ThresholdAlertsWorking | Should Be $true
+            $accuracyValidation.ExceptionHandling | Should Be $true
         }
     }
 
@@ -377,16 +372,16 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             # Test dashboard platform integration
             $integration = Test-DashboardPlatformIntegration -Platform $Platform -Type $Type
 
-            $integration.Connected | Should -Be $true
-            $integration.DataSourceConfigured | Should -Be $true
-            $integration.VisualizationsWorking | Should -Be $true
-            $integration.InteractivityEnabled | Should -Be $true
+            $integration.Connected | Should Be $true
+            $integration.DataSourceConfigured | Should Be $true
+            $integration.VisualizationsWorking | Should Be $true
+            $integration.InteractivityEnabled | Should Be $true
 
             # Test platform-specific features
             foreach ($feature in $Features) {
                 $featureTest = Test-DashboardFeature -Platform $Platform -Feature $feature
-                $featureTest.Available | Should -Be $true -Because "$feature should be available in $Platform"
-                $featureTest.Functional | Should -Be $true -Because "$feature should work correctly"
+                $featureTest.Available | Should Be $true -Because "$feature should be available in $Platform"
+                $featureTest.Functional | Should Be $true -Because "$feature should work correctly"
             }
         }
 
@@ -394,10 +389,10 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             # Test real-time dashboard functionality
             $realTimeTest = Test-RealTimeDashboards
 
-            $realTimeTest.DataRefreshWorking | Should -Be $true
-            $realTimeTest.RefreshInterval | Should -BeLessOrEqual 60 # Seconds
-            $realTimeTest.PerformanceAcceptable | Should -Be $true
-            $realTimeTest.AlertsTriggering | Should -Be $true
+            $realTimeTest.DataRefreshWorking | Should Be $true
+            $realTimeTest.RefreshInterval | Should BeLessThan 60 # Seconds
+            $realTimeTest.PerformanceAcceptable | Should Be $true
+            $realTimeTest.AlertsTriggering | Should Be $true
 
             # Test real-time scenarios
             $realTimeScenarios = @(
@@ -409,8 +404,8 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
 
             foreach ($scenario in $realTimeScenarios) {
                 $scenarioTest = Test-RealTimeScenario -Scenario $scenario
-                $scenarioTest.UpdateLatency | Should -BeLessOrEqual 30 # Seconds
-                $scenarioTest.DataAccuracy | Should -BeGreaterOrEqual 99
+                $scenarioTest.UpdateLatency | Should BeLessThan 30 # Seconds
+                $scenarioTest.DataAccuracy | Should BeGreaterThan 99
 
                 Write-Verbose "Real-time scenario $scenario validated"
             }
@@ -429,10 +424,10 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             foreach ($testName in $mobileTests.Keys) {
                 $mobileResult = & $mobileTests[$testName]
 
-                $mobileResult.Supported | Should -Be $true
-                $mobileResult.UserExperience | Should -BeGreaterOrEqual 8 # Out of 10
-                $mobileResult.Performance | Should -BeGreaterOrEqual 7
-                $mobileResult.Accessibility | Should -BeGreaterOrEqual 8
+                $mobileResult.Supported | Should Be $true
+                $mobileResult.UserExperience | Should BeGreaterThan 8 # Out of 10
+                $mobileResult.Performance | Should BeGreaterThan 7
+                $mobileResult.Accessibility | Should BeGreaterThan 8
 
                 Write-Verbose "Mobile dashboard test $testName : Score=$($mobileResult.UserExperience)/10"
             }
@@ -443,21 +438,21 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $interactivityTest = Test-DashboardInteractivity
 
             # Basic interactivity
-            $interactivityTest.DrillDownEnabled | Should -Be $true
-            $interactivityTest.FilteringWorking | Should -Be $true
-            $interactivityTest.SortingEnabled | Should -Be $true
-            $interactivityTest.SearchFunctional | Should -Be $true
+            $interactivityTest.DrillDownEnabled | Should Be $true
+            $interactivityTest.FilteringWorking | Should Be $true
+            $interactivityTest.SortingEnabled | Should Be $true
+            $interactivityTest.SearchFunctional | Should Be $true
 
             # Advanced interactivity
-            $interactivityTest.CrossFiltering | Should -Be $true
-            $interactivityTest.DynamicGrouping | Should -Be $true
-            $interactivityTest.ConditionalFormatting | Should -Be $true
-            $interactivityTest.CustomCalculations | Should -Be $true
+            $interactivityTest.CrossFiltering | Should Be $true
+            $interactivityTest.DynamicGrouping | Should Be $true
+            $interactivityTest.ConditionalFormatting | Should Be $true
+            $interactivityTest.CustomCalculations | Should Be $true
 
             # User experience
-            $interactivityTest.ResponseTime | Should -BeLessOrEqual 3000 # 3 seconds
-            $interactivityTest.IntuitiveDesign | Should -BeGreaterOrEqual 8
-            $interactivityTest.AccessibilityCompliant | Should -Be $true
+            $interactivityTest.ResponseTime | Should BeLessThan 3000 # 3 seconds
+            $interactivityTest.IntuitiveDesign | Should BeGreaterThan 8
+            $interactivityTest.AccessibilityCompliant | Should Be $true
         }
     }
 
@@ -467,20 +462,20 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $predictiveAnalytics = Test-PredictiveAnalytics
 
             # Model accuracy
-            $predictiveAnalytics.ModelAccuracy | Should -BeGreaterOrEqual 80
-            $predictiveAnalytics.PredictionConfidence | Should -BeGreaterOrEqual 75
-            $predictiveAnalytics.ForecastReliability | Should -BeGreaterOrEqual 85
+            $predictiveAnalytics.ModelAccuracy | Should BeGreaterThan 80
+            $predictiveAnalytics.PredictionConfidence | Should BeGreaterThan 75
+            $predictiveAnalytics.ForecastReliability | Should BeGreaterThan 85
 
             # Business predictions
-            $predictiveAnalytics.OrphanedSIDTrends | Should -Not -BeNullOrEmpty
-            $predictiveAnalytics.SecurityRiskForecast | Should -Not -BeNullOrEmpty
-            $predictiveAnalytics.ResourceUtilizationPrediction | Should -Not -BeNullOrEmpty
-            $predictiveAnalytics.MaintenanceRequirements | Should -Not -BeNullOrEmpty
+            $predictiveAnalytics.OrphanedSIDTrends | Should Not BeNullOrEmpty
+            $predictiveAnalytics.SecurityRiskForecast | Should Not BeNullOrEmpty
+            $predictiveAnalytics.ResourceUtilizationPrediction | Should Not BeNullOrEmpty
+            $predictiveAnalytics.MaintenanceRequirements | Should Not BeNullOrEmpty
 
             # Predictive alerts
-            $predictiveAnalytics.ProactiveAlertsEnabled | Should -Be $true
-            $predictiveAnalytics.EarlyWarningSystem | Should -Be $true
-            $predictiveAnalytics.AutomaticRecommendations | Should -Be $true
+            $predictiveAnalytics.ProactiveAlertsEnabled | Should Be $true
+            $predictiveAnalytics.EarlyWarningSystem | Should Be $true
+            $predictiveAnalytics.AutomaticRecommendations | Should Be $true
         }
 
         It "Should implement anomaly detection" {
@@ -488,20 +483,20 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $anomalyDetection = Test-AnomalyDetection
 
             # Detection capabilities
-            $anomalyDetection.StatisticalAnomalies | Should -Be $true
-            $anomalyDetection.PatternDeviation | Should -Be $true
-            $anomalyDetection.BehavioralChanges | Should -Be $true
-            $anomalyDetection.SeasonalAdjustment | Should -Be $true
+            $anomalyDetection.StatisticalAnomalies | Should Be $true
+            $anomalyDetection.PatternDeviation | Should Be $true
+            $anomalyDetection.BehavioralChanges | Should Be $true
+            $anomalyDetection.SeasonalAdjustment | Should Be $true
 
             # Performance metrics
-            $anomalyDetection.FalsePositiveRate | Should -BeLessOrEqual 5 # Percentage
-            $anomalyDetection.DetectionLatency | Should -BeLessOrEqual 300 # Seconds
-            $anomalyDetection.SensitivityTunable | Should -Be $true
+            $anomalyDetection.FalsePositiveRate | Should BeLessThan 5 # Percentage
+            $anomalyDetection.DetectionLatency | Should BeLessThan 300 # Seconds
+            $anomalyDetection.SensitivityTunable | Should Be $true
 
             # Business impact
-            $anomalyDetection.SecurityAnomaliesDetected | Should -Be $true
-            $anomalyDetection.PerformanceAnomaliesDetected | Should -Be $true
-            $anomalyDetection.OperationalAnomaliesDetected | Should -Be $true
+            $anomalyDetection.SecurityAnomaliesDetected | Should Be $true
+            $anomalyDetection.PerformanceAnomaliesDetected | Should Be $true
+            $anomalyDetection.OperationalAnomaliesDetected | Should Be $true
         }
 
         It "Should support data mining and pattern analysis" {
@@ -509,21 +504,21 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $dataMining = Test-DataMiningCapabilities
 
             # Pattern recognition
-            $dataMining.UserBehaviorPatterns | Should -Be $true
-            $dataMining.SystemUsagePatterns | Should -Be $true
-            $dataMining.SecurityPatterns | Should -Be $true
-            $dataMining.PerformancePatterns | Should -Be $true
+            $dataMining.UserBehaviorPatterns | Should Be $true
+            $dataMining.SystemUsagePatterns | Should Be $true
+            $dataMining.SecurityPatterns | Should Be $true
+            $dataMining.PerformancePatterns | Should Be $true
 
             # Analysis algorithms
-            $dataMining.ClusteringAnalysis | Should -Be $true
-            $dataMining.AssociationRules | Should -Be $true
-            $dataMining.ClassificationModels | Should -Be $true
-            $dataMining.TimeSeriesAnalysis | Should -Be $true
+            $dataMining.ClusteringAnalysis | Should Be $true
+            $dataMining.AssociationRules | Should Be $true
+            $dataMining.ClassificationModels | Should Be $true
+            $dataMining.TimeSeriesAnalysis | Should Be $true
 
             # Business insights
-            $dataMining.OptimizationOpportunities | Should -Not -BeNullOrEmpty
-            $dataMining.RiskFactorIdentification | Should -Not -BeNullOrEmpty
-            $dataMining.EfficiencyRecommendations | Should -Not -BeNullOrEmpty
+            $dataMining.OptimizationOpportunities | Should Not BeNullOrEmpty
+            $dataMining.RiskFactorIdentification | Should Not BeNullOrEmpty
+            $dataMining.EfficiencyRecommendations | Should Not BeNullOrEmpty
         }
 
         It "Should generate actionable business insights" {
@@ -531,21 +526,21 @@ Describe "Business Intelligence Data Analytics" -Tag @("Analytics", "BusinessInt
             $businessInsights = Generate-BusinessInsights
 
             # Insight quality
-            $businessInsights.RelevanceScore | Should -BeGreaterOrEqual 85
-            $businessInsights.ActionabilityScore | Should -BeGreaterOrEqual 80
-            $businessInsights.ConfidenceLevel | Should -BeGreaterOrEqual 75
+            $businessInsights.RelevanceScore | Should BeGreaterThan 85
+            $businessInsights.ActionabilityScore | Should BeGreaterThan 80
+            $businessInsights.ConfidenceLevel | Should BeGreaterThan 75
 
             # Insight categories
-            $businessInsights.OperationalInsights | Should -Not -BeNullOrEmpty
-            $businessInsights.SecurityInsights | Should -Not -BeNullOrEmpty
-            $businessInsights.FinancialInsights | Should -Not -BeNullOrEmpty
-            $businessInsights.StrategicInsights | Should -Not -BeNullOrEmpty
+            $businessInsights.OperationalInsights | Should Not BeNullOrEmpty
+            $businessInsights.SecurityInsights | Should Not BeNullOrEmpty
+            $businessInsights.FinancialInsights | Should Not BeNullOrEmpty
+            $businessInsights.StrategicInsights | Should Not BeNullOrEmpty
 
             # Implementation guidance
-            $businessInsights.RecommendationPriority | Should -Not -BeNullOrEmpty
-            $businessInsights.ImplementationComplexity | Should -Not -BeNullOrEmpty
-            $businessInsights.ExpectedROI | Should -BeGreaterThan 0
-            $businessInsights.RiskAssessment | Should -Not -BeNullOrEmpty
+            $businessInsights.RecommendationPriority | Should Not BeNullOrEmpty
+            $businessInsights.ImplementationComplexity | Should Not BeNullOrEmpty
+            $businessInsights.ExpectedROI | Should BeGreaterThan 0
+            $businessInsights.RiskAssessment | Should Not BeNullOrEmpty
         }
     }
 }
@@ -557,28 +552,28 @@ Describe "BI Performance and Scalability" -Tag @("Performance", "Scalability", "
             # Test BI performance with large datasets
             $performanceTest = Test-BIPerformanceWithLargeData
 
-            $performanceTest.DataProcessingTime | Should -BeLessOrEqual 300 # 5 minutes
-            $performanceTest.QueryResponseTime | Should -BeLessOrEqual 30 # 30 seconds
-            $performanceTest.ReportGenerationTime | Should -BeLessOrEqual 120 # 2 minutes
-            $performanceTest.DashboardLoadTime | Should -BeLessOrEqual 10 # 10 seconds
+            $performanceTest.DataProcessingTime | Should BeLessThan 300 # 5 minutes
+            $performanceTest.QueryResponseTime | Should BeLessThan 30 # 30 seconds
+            $performanceTest.ReportGenerationTime | Should BeLessThan 120 # 2 minutes
+            $performanceTest.DashboardLoadTime | Should BeLessThan 10 # 10 seconds
 
-            $performanceTest.MemoryUsageEfficient | Should -Be $true
-            $performanceTest.CPUUtilizationReasonable | Should -Be $true
-            $performanceTest.StorageOptimized | Should -Be $true
+            $performanceTest.MemoryUsageEfficient | Should Be $true
+            $performanceTest.CPUUtilizationReasonable | Should Be $true
+            $performanceTest.StorageOptimized | Should Be $true
         }
 
         It "Should scale with concurrent users" {
             # Test BI system scalability
             $scalabilityTest = Test-BIScalability -ConcurrentUsers 100
 
-            $scalabilityTest.SystemResponsive | Should -Be $true
-            $scalabilityTest.PerformanceDegradation | Should -BeLessOrEqual 20 # Percentage
-            $scalabilityTest.UserExperienceAcceptable | Should -Be $true
-            $scalabilityTest.ResourceUtilizationOptimal | Should -Be $true
+            $scalabilityTest.SystemResponsive | Should Be $true
+            $scalabilityTest.PerformanceDegradation | Should BeLessThan 20 # Percentage
+            $scalabilityTest.UserExperienceAcceptable | Should Be $true
+            $scalabilityTest.ResourceUtilizationOptimal | Should Be $true
 
-            $scalabilityTest.AutoScalingWorking | Should -Be $true
-            $scalabilityTest.LoadBalancingEffective | Should -Be $true
-            $scalabilityTest.CachingOptimized | Should -Be $true
+            $scalabilityTest.AutoScalingWorking | Should Be $true
+            $scalabilityTest.LoadBalancingEffective | Should Be $true
+            $scalabilityTest.CachingOptimized | Should Be $true
         }
     }
 }
@@ -1009,3 +1004,4 @@ function Test-BIScalability {
         CachingOptimized = $true
     }
 }
+

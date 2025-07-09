@@ -1,12 +1,11 @@
-﻿#Requires -Module Pester
+#Requires -Module Pester
 
-BeforeAll {
-    # Import test helpers following enterprise standards
-    . $PSScriptRoot\..\TestHelpers\TestHelpers.ps1
+# Import test helpers following enterprise standards (moved from BeforeAll for Pester 3.x compatibility)
+. $PSScriptRoot\..\TestHelpers\TestHelpers.ps1
 
-    # Initialize test environment with enterprise standards
-    $script:TestConfig = New-TestData -DataType 'Configuration'
-    $script:TestCorrelationId = $script:TestConfig.CorrelationId
+# Initialize test environment with enterprise standards
+$script:TestConfig = New-TestData -DataType 'Configuration'
+$script:TestCorrelationId = $script:TestConfig.CorrelationId
 
     # Set up performance baselines following pester.instructions.md
     $script:PerformanceBaseline = @{
@@ -89,7 +88,6 @@ BeforeAll {
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"
     }
-}
 
 Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
 
@@ -123,9 +121,9 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             param($TestCase, $CorrelationId, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should -Throw
+                { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should Throw
             } else {
-                { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should -Not -Throw
+                { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should Not Throw
             }
         }
 
@@ -140,9 +138,9 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             param($TestCase, $MaxMemoryUsageMB, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Initialize-ScriptExecution -MaxMemoryUsageMB $MaxMemoryUsageMB } | Should -Throw "*MaxMemoryUsageMB*"
+                { Initialize-ScriptExecution -MaxMemoryUsageMB $MaxMemoryUsageMB } | Should Throw "*MaxMemoryUsageMB*"
             } else {
-                { Initialize-ScriptExecution -MaxMemoryUsageMB $MaxMemoryUsageMB } | Should -Not -Throw
+                { Initialize-ScriptExecution -MaxMemoryUsageMB $MaxMemoryUsageMB } | Should Not Throw
             }
         }
 
@@ -159,9 +157,9 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             param($TestCase, $LogLevel, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Initialize-ScriptExecution -LogLevel $LogLevel } | Should -Throw "*LogLevel*"
+                { Initialize-ScriptExecution -LogLevel $LogLevel } | Should Throw "*LogLevel*"
             } else {
-                { Initialize-ScriptExecution -LogLevel $LogLevel } | Should -Not -Throw
+                { Initialize-ScriptExecution -LogLevel $LogLevel } | Should Not Throw
             }
         }
 
@@ -174,9 +172,9 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             param($TestCase, $ConfigPath, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $ConfigPath } | Should -Throw
+                { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $ConfigPath } | Should Throw
             } else {
-                { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $ConfigPath } | Should -Not -Throw
+                { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $ConfigPath } | Should Not Throw
             }
         }
     }
@@ -198,29 +196,29 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
 
         It "Should initialize script execution with default parameters" {
             $result = Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId
-            $result | Should -Not -BeNullOrEmpty
-            Should -Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $MaxMemoryMB -eq $null -or $MaxMemoryMB -eq 1024 }
+            $result | Should Not BeNullOrEmpty
+            Should Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $MaxMemoryMB -eq $null -or $MaxMemoryMB -eq 1024 }
         }
 
         It "Should initialize script execution with custom correlation ID" {
             $customCorrelationId = "CUSTOM-$(Get-Random)"
             $result = Initialize-ScriptExecution -CorrelationId $customCorrelationId
-            $result | Should -Not -BeNullOrEmpty
+            $result | Should Not BeNullOrEmpty
             # Verify correlation ID is used in downstream components
-            Should -Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $CorrelationId -eq $customCorrelationId }
+            Should Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $CorrelationId -eq $customCorrelationId }
         }
 
         It "Should initialize with custom memory limits" {
             $customMemoryMB = 512
             Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -MaxMemoryUsageMB $customMemoryMB
-            Should -Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $MaxMemoryMB -eq $customMemoryMB }
+            Should Invoke Initialize-MemoryManager -Exactly 1 -ParameterFilter { $MaxMemoryMB -eq $customMemoryMB }
         }
 
         It "Should load configuration from specified file" {
             $result = Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $script:TestConfigPath
-            $result | Should -Not -BeNullOrEmpty
+            $result | Should Not BeNullOrEmpty
             # Verify the call was made with proper configuration path access
-            $result | Should -Not -BeNullOrEmpty
+            $result | Should Not BeNullOrEmpty
         }
     }
 
@@ -229,7 +227,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
         It "Should handle memory manager initialization failures gracefully" {
             Mock Initialize-MemoryManager { throw "Memory initialization failed" } -ParameterFilter { $true }
             
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should -Throw "*Memory initialization failed*"
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should Throw "*Memory initialization failed*"
         }
 
         It "Should provide meaningful error messages on configuration failures" {
@@ -238,7 +236,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             try {
                 Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ErrorAction Stop
             } catch {
-                $_.Exception.Message | Should -Match "Memory initialization failed"
+                $_.Exception.Message | Should Match "Memory initialization failed"
             }
         }
 
@@ -247,20 +245,20 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $invalidConfigPath = Join-Path $TestDrive 'invalid-config.json'
             "{ invalid json content" | Out-File $invalidConfigPath
             
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $invalidConfigPath } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $invalidConfigPath } | Should Not Throw
         }
 
         It "Should handle permission denied scenarios" {
             Mock New-Item { throw "Access to the path is denied" } -ParameterFilter { $true }
             
             # Should still function even if directory creation fails
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should Not Throw
         }
 
         It "Should handle system resource exhaustion scenarios" {
             Mock Initialize-MemoryManager { throw "Not enough memory" } -ParameterFilter { $true }
             
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should -Throw "*Not enough memory*"
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId } | Should Throw "*Not enough memory*"
         }
     }
 
@@ -272,7 +270,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $endTime = Get-Date
             $executionTime = $endTime - $startTime
             
-            $executionTime.TotalSeconds | Should -BeLessThan $script:PerformanceBaseline.InitializationMaxTime.TotalSeconds
+            $executionTime.TotalSeconds | Should BeLessThan $script:PerformanceBaseline.InitializationMaxTime.TotalSeconds
         }
 
         It "Should load configuration within performance baseline (< 1 second)" {
@@ -281,7 +279,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $endTime = Get-Date
             $executionTime = $endTime - $startTime
             
-            $executionTime.TotalSeconds | Should -BeLessThan $script:PerformanceBaseline.ConfigurationLoadMaxTime.TotalSeconds
+            $executionTime.TotalSeconds | Should BeLessThan $script:PerformanceBaseline.ConfigurationLoadMaxTime.TotalSeconds
         }
 
         It "Should handle memory-constrained initialization efficiently" {
@@ -290,7 +288,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $endTime = Get-Date
             $executionTime = $endTime - $startTime
             
-            $executionTime.TotalSeconds | Should -BeLessThan $script:PerformanceBaseline.SingleOperationMaxTime.TotalSeconds
+            $executionTime.TotalSeconds | Should BeLessThan $script:PerformanceBaseline.SingleOperationMaxTime.TotalSeconds
         }
 
         It "Should not exceed memory usage baseline during initialization" {
@@ -301,7 +299,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $memoryAfter = (Get-Process -Id $PID).WorkingSet64 / 1MB
             $memoryIncrease = $memoryAfter - $memoryBefore
             
-            $memoryIncrease | Should -BeLessThan $script:PerformanceBaseline.MemoryUsageMaxMB
+            $memoryIncrease | Should BeLessThan $script:PerformanceBaseline.MemoryUsageMaxMB
         }
     }
 
@@ -317,17 +315,17 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             param($TestCase, $CorrelationId)
             
             # Should handle malicious input without throwing or executing harmful code
-            { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $CorrelationId } | Should Not Throw
             
             # Verify no actual harmful operations occurred (no file system changes, etc.)
-            Should -Not -Invoke Out-File -ParameterFilter { $FilePath -like "*DROP*" -or $FilePath -like "*etc/passwd*" }
+            Should Not Invoke Out-File -ParameterFilter { $FilePath -like "*DROP*" -or $FilePath -like "*etc/passwd*" }
         }
 
         It "Should sanitize configuration file paths" {
             # Test path traversal in configuration path
             $maliciousPath = "../../../Windows/System32/config/malicious.json"
             
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $maliciousPath } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $maliciousPath } | Should Not Throw
             
             # Should not attempt to access restricted system directories (relaxed check)
             # Note: May access the path for validation but shouldn't succeed
@@ -343,24 +341,24 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             $maliciousConfigPath = Join-Path $TestDrive 'malicious-config.json'
             $maliciousConfig | ConvertTo-Json | Out-File $maliciousConfigPath
             
-            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $maliciousConfigPath } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $script:TestCorrelationId -ConfigPath $maliciousConfigPath } | Should Not Throw
             
             # Verify harmful operations were not executed
-            Should -Not -Invoke Remove-Item -ParameterFilter { $Path -like "C:\*" }
+            Should Not Invoke Remove-Item -ParameterFilter { $Path -like "C:\*" }
         }
 
         It "Should handle credential exposure protection" {
             # Test with correlation ID that might contain credentials
             $credentialLikeId = "user:password@server/path"
             
-            { Initialize-ScriptExecution -CorrelationId $credentialLikeId } | Should -Not -Throw
+            { Initialize-ScriptExecution -CorrelationId $credentialLikeId } | Should Not Throw
             
             # Verify credentials are not logged in verbose output
-            Should -Not -Invoke Write-Verbose -ParameterFilter { $Message -like "*password*" }
-            Should -Not -Invoke Write-Information -ParameterFilter { $MessageData -like "*password*" -or $Message -like "*password*" }
+            Should Not Invoke Write-Verbose -ParameterFilter { $Message -like "*password*" }
+            Should Not Invoke Write-Information -ParameterFilter { $MessageData -like "*password*" -or $Message -like "*password*" }
         }
     }
-}
+
 
 Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
 
@@ -384,9 +382,9 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             param($TestCase, $Message, $Level, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Write-StructuredLog -Message $Message -Level $Level } | Should -Throw
+                { Write-StructuredLog -Message $Message -Level $Level } | Should Throw
             } else {
-                { Write-StructuredLog -Message $Message -Level $Level } | Should -Not -Throw
+                { Write-StructuredLog -Message $Message -Level $Level } | Should Not Throw
             }
         }
 
@@ -399,9 +397,9 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             param($TestCase, $CorrelationId, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $CorrelationId } | Should -Throw
+                { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $CorrelationId } | Should Throw
             } else {
-                { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $CorrelationId } | Should -Not -Throw
+                { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $CorrelationId } | Should Not Throw
             }
         }
     }
@@ -411,29 +409,29 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
         It "Should provide structured logging capabilities with correlation tracking" {
             $correlationId = [System.Guid]::NewGuid().ToString()
             
-            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $correlationId } | Should -Not -Throw
+            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $correlationId } | Should Not Throw
             
             # Verify the correlation tracking worked  
-            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $correlationId } | Should -Not -Throw
+            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $correlationId } | Should Not Throw
         }
 
         It "Should handle multiple log levels correctly" {
             $levels = @('Debug', 'Information', 'Warning', 'Error', 'Critical')
             
             foreach ($level in $levels) {
-                { Write-StructuredLog -Message "Test $level message" -Level $level } | Should -Not -Throw
+                { Write-StructuredLog -Message "Test $level message" -Level $level } | Should Not Throw
             }
             
             # Verify all levels were processed without error
             foreach ($level in $levels) {
-                { Write-StructuredLog -Message "Test $level message" -Level $level } | Should -Not -Throw
+                { Write-StructuredLog -Message "Test $level message" -Level $level } | Should Not Throw
             }
         }
 
         It "Should support verbose logging integration" {
             Mock Write-Verbose { } -ParameterFilter { $Message -like "*Core*" }
             
-            { Write-StructuredLog -Message $script:TestMessage -Level "Debug" -Verbose } | Should -Not -Throw
+            { Write-StructuredLog -Message $script:TestMessage -Level "Debug" -Verbose } | Should Not Throw
         }
     }
 
@@ -449,7 +447,7 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
                 } catch {
                     # Expected to catch and handle gracefully
                 }
-            } | Should -Not -Throw
+            } | Should Not Throw
         }
 
         It "Should handle configuration validation failures" {
@@ -458,10 +456,10 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
                 $config = [ScriptConfiguration]::new()
                 $result = $config.ValidateConfiguration()
                 # Should succeed or handle gracefully
-                $result | Should -BeOfType [bool]
+                $result | Should BeOfType [bool]
             } catch {
                 # If class doesn't exist, that's also acceptable for this test
-                $true | Should -Be $true  # Test passes
+                $true | Should Be $true  # Test passes
             }
         }
 
@@ -471,7 +469,7 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             try {
                 Write-StructuredLog -Message $script:TestMessage -Level "Information" -ErrorAction Stop
             } catch {
-                $_.Exception.Message | Should -Match "Specific logging error"
+                $_.Exception.Message | Should Match "Specific logging error"
             }
         }
     }
@@ -484,7 +482,7 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             $endTime = Get-Date
             $executionTime = $endTime - $startTime
             
-            $executionTime.TotalMilliseconds | Should -BeLessThan 100
+            $executionTime.TotalMilliseconds | Should BeLessThan 100
         }
 
         It "Should validate configuration objects efficiently (< 50ms)" {
@@ -497,10 +495,10 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
                 $executionTime = $endTime - $startTime
                 
                 # Relaxed performance expectation for this context
-                $executionTime.TotalMilliseconds | Should -BeLessThan 200
+                $executionTime.TotalMilliseconds | Should BeLessThan 200
             } catch {
                 # If ScriptConfiguration class doesn't exist, skip this test
-                $true | Should -Be $true
+                $true | Should Be $true
             }
         }
 
@@ -515,7 +513,7 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             $executionTime = $endTime - $startTime
             
             # Should complete 100 log operations in under 1 second
-            $executionTime.TotalSeconds | Should -BeLessThan 1
+            $executionTime.TotalSeconds | Should BeLessThan 1
         }
     }
 
@@ -529,19 +527,19 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
         ) {
             param($TestCase, $Message)
             
-            { Write-StructuredLog -Message $Message -Level "Information" -CorrelationId $script:TestCorrelationId } | Should -Not -Throw
+            { Write-StructuredLog -Message $Message -Level "Information" -CorrelationId $script:TestCorrelationId } | Should Not Throw
             
             # Verify malicious patterns are not executed or propagated unsafely
-            Should -Not -Invoke Remove-Item -ParameterFilter { $Path -like "*etc/passwd*" }
+            Should Not Invoke Remove-Item -ParameterFilter { $Path -like "*etc/passwd*" }
         }
 
         It "Should protect correlation IDs from credential exposure" {
             $credentialLikeId = "user:password@server/database"
             
-            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $credentialLikeId } | Should -Not -Throw
+            { Write-StructuredLog -Message $script:TestMessage -Level "Information" -CorrelationId $credentialLikeId } | Should Not Throw
             
             # Verify credentials are not exposed in verbose output
-            Should -Not -Invoke Write-Verbose -ParameterFilter { $Message -like "*password*" }
+            Should Not Invoke Write-Verbose -ParameterFilter { $Message -like "*password*" }
         }
 
         It "Should validate configuration object security constraints" {
@@ -551,10 +549,10 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
                 $isValid = $config.ValidateConfiguration()
                 
                 # Should return a boolean result
-                $isValid | Should -BeOfType [bool]
+                $isValid | Should BeOfType [bool]
             } catch {
                 # If ScriptConfiguration class doesn't exist, that's acceptable
-                $true | Should -Be $true
+                $true | Should Be $true
             }
         }
 
@@ -567,11 +565,11 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             }
             
             # Should not execute commands during configuration processing
-            { $null = $maliciousConfig } | Should -Not -Throw
+            { $null = $maliciousConfig } | Should Not Throw
             
             # Verify no command execution occurred
-            Should -Not -Invoke Start-Process -ParameterFilter { $FilePath -eq "cmd.exe" }
-            Should -Not -Invoke Remove-Item -ParameterFilter { $Path -like "C:\*" }
+            Should Not Invoke Start-Process -ParameterFilter { $FilePath -eq "cmd.exe" }
+            Should Not Invoke Remove-Item -ParameterFilter { $Path -like "C:\*" }
         }
     }
 
@@ -581,10 +579,10 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             try {
                 $config = [ScriptConfiguration]::new()
                 $result = $config.ValidateConfiguration()
-                $result | Should -BeOfType [bool]
+                $result | Should BeOfType [bool]
             } catch {
                 # If ScriptConfiguration class doesn't exist, that's acceptable
-                $true | Should -Be $true
+                $true | Should Be $true
             }
         }
 
@@ -596,10 +594,10 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             try {
                 $config = [ScriptConfiguration]::new()
                 $result = $config.ValidateConfiguration()
-                $result | Should -BeOfType [bool]
+                $result | Should BeOfType [bool]
             } catch {
                 # If ScriptConfiguration class doesn't exist, that's acceptable
-                $true | Should -Be $true
+                $true | Should Be $true
             }
         }
 
@@ -607,11 +605,15 @@ Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
             try {
                 $config = [ScriptConfiguration]::new()
                 $result = $config.ValidateConfiguration()
-                $result | Should -BeOfType [bool]
+                $result | Should BeOfType [bool]
             } catch {
                 # If ScriptConfiguration class doesn't exist, that's acceptable  
-                $true | Should -Be $true
+                $true | Should Be $true
             }
         }
     }
 }
+
+
+
+

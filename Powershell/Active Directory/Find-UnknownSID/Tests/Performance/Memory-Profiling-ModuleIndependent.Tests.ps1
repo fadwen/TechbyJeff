@@ -1058,3 +1058,4 @@ Describe "Memory Profiling Benchmarks" -Tag "Benchmarks", "Performance", "Memory
         Write-Host "Memory Profiling Benchmarks: ALL PASSED" -ForegroundColor Green
     }
 }
+

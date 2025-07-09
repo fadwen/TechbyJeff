@@ -27,64 +27,58 @@
     - For deployment: .\Troubleshooting\DevOps\Deployment-Troubleshooting.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # CI/CD configuration
-    $script:CICDConfig = @{
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        PipelineStages = @('Build', 'Test', 'Security', 'Deploy', 'Monitor')
-        SupportedPlatforms = @('Azure DevOps', 'GitHub Actions', 'GitLab CI', 'Jenkins', 'TeamCity')
-        DeploymentTargets = @('Development', 'Testing', 'Staging', 'Production')
-        QualityGates = @{
-            'CodeCoverage' = 80
-            'SecurityScan' = 'Pass'
-            'PerformanceTest' = 'Pass'
-            'IntegrationTest' = 'Pass'
-            'UnitTest' = 100
-        }
-        Environments = @{
-            'Development' = @{
-                AutoDeploy = $true
-                QualityGate = 'Basic'
-                Rollback = 'Automatic'
-            }
-            'Testing' = @{
-                AutoDeploy = $true
-                QualityGate = 'Standard'
-                Rollback = 'Automatic'
-            }
-            'Staging' = @{
-                AutoDeploy = $false
-                QualityGate = 'Comprehensive'
-                Rollback = 'Manual'
-            }
-            'Production' = @{
-                AutoDeploy = $false
-                QualityGate = 'Comprehensive'
-                Rollback = 'Manual'
-            }
-        }
-        CICDResults = @()
-    }
-
-    # Detect available CI/CD platforms
-    $script:AvailablePlatforms = @()
-    if ($env:AGENT_NAME) { $script:AvailablePlatforms += 'Azure DevOps' }
-    if ($env:GITHUB_ACTIONS) { $script:AvailablePlatforms += 'GitHub Actions' }
-    if ($env:GITLAB_CI) { $script:AvailablePlatforms += 'GitLab CI' }
-    if ($env:JENKINS_URL) { $script:AvailablePlatforms += 'Jenkins' }
-
-    Write-Verbose "Available CI/CD platforms: $($script:AvailablePlatforms -join ', ')"
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# CI/CD configuration
+$script:CICDConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+PipelineStages = @('Build', 'Test', 'Security', 'Deploy', 'Monitor')
+SupportedPlatforms = @('Azure DevOps', 'GitHub Actions', 'GitLab CI', 'Jenkins', 'TeamCity')
+DeploymentTargets = @('Development', 'Testing', 'Staging', 'Production')
+QualityGates = @{
+'CodeCoverage' = 80
+'SecurityScan' = 'Pass'
+'PerformanceTest' = 'Pass'
+'IntegrationTest' = 'Pass'
+'UnitTest' = 100
+}
+Environments = @{
+'Development' = @{
+AutoDeploy = $true
+QualityGate = 'Basic'
+Rollback = 'Automatic'
+}
+'Testing' = @{
+AutoDeploy = $true
+QualityGate = 'Standard'
+Rollback = 'Automatic'
+}
+'Staging' = @{
+AutoDeploy = $false
+QualityGate = 'Comprehensive'
+Rollback = 'Manual'
+}
+'Production' = @{
+AutoDeploy = $false
+QualityGate = 'Comprehensive'
+Rollback = 'Manual'
+}
+}
+CICDResults = @()
+}
+# Detect available CI/CD platforms
+$script:AvailablePlatforms = @()
+if ($env:AGENT_NAME) { $script:AvailablePlatforms += 'Azure DevOps' }
+if ($env:GITHUB_ACTIONS) { $script:AvailablePlatforms += 'GitHub Actions' }
+if ($env:GITLAB_CI) { $script:AvailablePlatforms += 'GitLab CI' }
+if ($env:JENKINS_URL) { $script:AvailablePlatforms += 'Jenkins' }
+Write-Verbose "Available CI/CD platforms: $($script:AvailablePlatforms -join ', ')"
 
 AfterAll {
     # Generate CI/CD testing report
@@ -116,16 +110,16 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             # Test pipeline configuration validation
             $configValidation = Test-PipelineConfiguration -Platform $Platform -ConfigFile $ConfigFile
 
-            $configValidation.ConfigurationValid | Should -Be $true
-            $configValidation.SyntaxCorrect | Should -Be $true
-            $configValidation.BestPracticesFollowed | Should -Be $true
-            $configValidation.SecurityCompliant | Should -Be $true
+            $configValidation.ConfigurationValid | Should Be $true
+            $configValidation.SyntaxCorrect | Should Be $true
+            $configValidation.BestPracticesFollowed | Should Be $true
+            $configValidation.SecurityCompliant | Should Be $true
 
             # Test platform-specific features
             foreach ($feature in $Features) {
                 $featureTest = Test-PipelineFeature -Platform $Platform -Feature $feature
-                $featureTest.Supported | Should -Be $true -Because "$feature should be supported in $Platform"
-                $featureTest.Configured | Should -Be $true -Because "$feature should be properly configured"
+                $featureTest.Supported | Should Be $true -Because "$feature should be supported in $Platform"
+                $featureTest.Configured | Should Be $true -Because "$feature should be properly configured"
             }
 
             # Record configuration results
@@ -142,16 +136,16 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $stageDependencies = Test-PipelineStageDependencies
 
             # Validate stage order
-            $stageDependencies.BuildBeforeTest | Should -Be $true
-            $stageDependencies.TestBeforeSecurity | Should -Be $true
-            $stageDependencies.SecurityBeforeDeploy | Should -Be $true
-            $stageDependencies.DeployBeforeMonitor | Should -Be $true
+            $stageDependencies.BuildBeforeTest | Should Be $true
+            $stageDependencies.TestBeforeSecurity | Should Be $true
+            $stageDependencies.SecurityBeforeDeploy | Should Be $true
+            $stageDependencies.DeployBeforeMonitor | Should Be $true
 
             # Validate dependency logic
-            $stageDependencies.ConditionalDeployment | Should -Be $true
-            $stageDependencies.FailFastImplemented | Should -Be $true
-            $stageDependencies.ParallelExecutionOptimized | Should -Be $true
-            $stageDependencies.ResourceManagementEfficient | Should -Be $true
+            $stageDependencies.ConditionalDeployment | Should Be $true
+            $stageDependencies.FailFastImplemented | Should Be $true
+            $stageDependencies.ParallelExecutionOptimized | Should Be $true
+            $stageDependencies.ResourceManagementEfficient | Should Be $true
         }
 
         It "Should implement quality gates for <Environment>" -TestCases @(
@@ -165,16 +159,16 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             # Test quality gates implementation
             $qualityGates = Test-QualityGatesImplementation -Environment $Environment
 
-            $qualityGates.GatesConfigured | Should -Be $true
-            $qualityGates.ThresholdsSet | Should -Be $true
-            $qualityGates.AutomationWorking | Should -Be $true
-            $qualityGates.ReportingEnabled | Should -Be $true
+            $qualityGates.GatesConfigured | Should Be $true
+            $qualityGates.ThresholdsSet | Should Be $true
+            $qualityGates.AutomationWorking | Should Be $true
+            $qualityGates.ReportingEnabled | Should Be $true
 
             # Validate specific gates for environment
             foreach ($gate in $Gates) {
                 $gateTest = Test-SpecificQualityGate -Gate $gate -Environment $Environment
-                $gateTest.Implemented | Should -Be $true -Because "$gate should be implemented for $Environment"
-                $gateTest.Functioning | Should -Be $true -Because "$gate should be working correctly"
+                $gateTest.Implemented | Should Be $true -Because "$gate should be implemented for $Environment"
+                $gateTest.Functioning | Should Be $true -Because "$gate should be working correctly"
             }
         }
 
@@ -183,16 +177,16 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $multiBranchTest = Test-MultiBranchPipelineStrategy
 
             # Branch strategy validation
-            $multiBranchTest.MainBranchProtected | Should -Be $true
-            $multiBranchTest.FeatureBranchesSupported | Should -Be $true
-            $multiBranchTest.HotfixBranchesSupported | Should -Be $true
-            $multiBranchTest.ReleaseBranchesSupported | Should -Be $true
+            $multiBranchTest.MainBranchProtected | Should Be $true
+            $multiBranchTest.FeatureBranchesSupported | Should Be $true
+            $multiBranchTest.HotfixBranchesSupported | Should Be $true
+            $multiBranchTest.ReleaseBranchesSupported | Should Be $true
 
             # Branch-specific behaviors
-            $multiBranchTest.MainBranchAutoDeployment | Should -Be $false
-            $multiBranchTest.FeatureBranchTesting | Should -Be $true
-            $multiBranchTest.PullRequestValidation | Should -Be $true
-            $multiBranchTest.BranchPolicyEnforcement | Should -Be $true
+            $multiBranchTest.MainBranchAutoDeployment | Should Be $false
+            $multiBranchTest.FeatureBranchTesting | Should Be $true
+            $multiBranchTest.PullRequestValidation | Should Be $true
+            $multiBranchTest.BranchPolicyEnforcement | Should Be $true
         }
     }
 
@@ -201,64 +195,64 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             # Test unit testing integration
             $unitTestIntegration = Test-UnitTestingIntegration
 
-            $unitTestIntegration.TestsDiscovered | Should -BeGreaterThan 650 # We know we have 656+ tests
-            $unitTestIntegration.TestsExecuted | Should -BeGreaterThan 650
-            $unitTestIntegration.PassRate | Should -BeGreaterOrEqual 99
-            $unitTestIntegration.CoverageCalculated | Should -Be $true
-            $unitTestIntegration.ResultsPublished | Should -Be $true
+            $unitTestIntegration.TestsDiscovered | Should BeGreaterThan 650 # We know we have 656+ tests
+            $unitTestIntegration.TestsExecuted | Should BeGreaterThan 650
+            $unitTestIntegration.PassRate | Should BeGreaterThan 99
+            $unitTestIntegration.CoverageCalculated | Should Be $true
+            $unitTestIntegration.ResultsPublished | Should Be $true
 
             # Test reporting
-            $unitTestIntegration.ReportGenerated | Should -Be $true
-            $unitTestIntegration.TrendingEnabled | Should -Be $true
-            $unitTestIntegration.FailureNotification | Should -Be $true
+            $unitTestIntegration.ReportGenerated | Should Be $true
+            $unitTestIntegration.TrendingEnabled | Should Be $true
+            $unitTestIntegration.FailureNotification | Should Be $true
         }
 
         It "Should execute integration tests automatically" {
             # Test integration testing automation
             $integrationTestAuto = Test-IntegrationTestingAutomation
 
-            $integrationTestAuto.TestsConfigured | Should -Be $true
-            $integrationTestAuto.EnvironmentSetup | Should -Be $true
-            $integrationTestAuto.TestExecution | Should -Be $true
-            $integrationTestAuto.CleanupPerformed | Should -Be $true
+            $integrationTestAuto.TestsConfigured | Should Be $true
+            $integrationTestAuto.EnvironmentSetup | Should Be $true
+            $integrationTestAuto.TestExecution | Should Be $true
+            $integrationTestAuto.CleanupPerformed | Should Be $true
 
             # Test environment management
-            $integrationTestAuto.DatabaseProvisioned | Should -Be $true
-            $integrationTestAuto.ServicesStarted | Should -Be $true
-            $integrationTestAuto.TestDataLoaded | Should -Be $true
-            $integrationTestAuto.NetworkConfigured | Should -Be $true
+            $integrationTestAuto.DatabaseProvisioned | Should Be $true
+            $integrationTestAuto.ServicesStarted | Should Be $true
+            $integrationTestAuto.TestDataLoaded | Should Be $true
+            $integrationTestAuto.NetworkConfigured | Should Be $true
         }
 
         It "Should run security testing in pipeline" {
             # Test security testing integration
             $securityTestIntegration = Test-SecurityTestingIntegration
 
-            $securityTestIntegration.StaticAnalysisRun | Should -Be $true
-            $securityTestIntegration.DependencyScanCompleted | Should -Be $true
-            $securityTestIntegration.SecretsScanned | Should -Be $true
-            $securityTestIntegration.ContainerScanned | Should -Be $true
+            $securityTestIntegration.StaticAnalysisRun | Should Be $true
+            $securityTestIntegration.DependencyScanCompleted | Should Be $true
+            $securityTestIntegration.SecretsScanned | Should Be $true
+            $securityTestIntegration.ContainerScanned | Should Be $true
 
             # Security results validation
-            $securityTestIntegration.CriticalVulnerabilities | Should -BeLessOrEqual 0
-            $securityTestIntegration.HighVulnerabilities | Should -BeLessOrEqual 5
-            $securityTestIntegration.ComplianceScore | Should -BeGreaterOrEqual 90
-            $securityTestIntegration.SecurityGatePassed | Should -Be $true
+            $securityTestIntegration.CriticalVulnerabilities | Should BeLessThan 0
+            $securityTestIntegration.HighVulnerabilities | Should BeLessThan 5
+            $securityTestIntegration.ComplianceScore | Should BeGreaterThan 90
+            $securityTestIntegration.SecurityGatePassed | Should Be $true
         }
 
         It "Should perform performance testing validation" {
             # Test performance testing integration
             $performanceTestIntegration = Test-PerformanceTestingIntegration
 
-            $performanceTestIntegration.LoadTestsExecuted | Should -Be $true
-            $performanceTestIntegration.StressTestsExecuted | Should -Be $true
-            $performanceTestIntegration.BaselineComparison | Should -Be $true
-            $performanceTestIntegration.RegressionDetection | Should -Be $true
+            $performanceTestIntegration.LoadTestsExecuted | Should Be $true
+            $performanceTestIntegration.StressTestsExecuted | Should Be $true
+            $performanceTestIntegration.BaselineComparison | Should Be $true
+            $performanceTestIntegration.RegressionDetection | Should Be $true
 
             # Performance criteria validation
-            $performanceTestIntegration.ResponseTimeAcceptable | Should -Be $true
-            $performanceTestIntegration.ThroughputMeetsTarget | Should -Be $true
-            $performanceTestIntegration.ResourceUsageOptimal | Should -Be $true
-            $performanceTestIntegration.PerformanceGatePassed | Should -Be $true
+            $performanceTestIntegration.ResponseTimeAcceptable | Should Be $true
+            $performanceTestIntegration.ThroughputMeetsTarget | Should Be $true
+            $performanceTestIntegration.ResourceUsageOptimal | Should Be $true
+            $performanceTestIntegration.PerformanceGatePassed | Should Be $true
         }
 
         It "Should generate comprehensive test reports" {
@@ -266,17 +260,17 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $testReporting = Test-ComprehensiveTestReporting
 
             # Report generation
-            $testReporting.UnitTestReport | Should -Be $true
-            $testReporting.IntegrationTestReport | Should -Be $true
-            $testReporting.SecurityTestReport | Should -Be $true
-            $testReporting.PerformanceTestReport | Should -Be $true
-            $testReporting.CoverageReport | Should -Be $true
+            $testReporting.UnitTestReport | Should Be $true
+            $testReporting.IntegrationTestReport | Should Be $true
+            $testReporting.SecurityTestReport | Should Be $true
+            $testReporting.PerformanceTestReport | Should Be $true
+            $testReporting.CoverageReport | Should Be $true
 
             # Report quality
-            $testReporting.ReportsAccessible | Should -Be $true
-            $testReporting.HistoricalTrending | Should -Be $true
-            $testReporting.NotificationsConfigured | Should -Be $true
-            $testReporting.DashboardIntegration | Should -Be $true
+            $testReporting.ReportsAccessible | Should Be $true
+            $testReporting.HistoricalTrending | Should Be $true
+            $testReporting.NotificationsConfigured | Should Be $true
+            $testReporting.DashboardIntegration | Should Be $true
         }
     }
 
@@ -292,21 +286,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             # Test deployment strategy implementation
             $deploymentStrategy = Test-DeploymentStrategy -Strategy $Strategy
 
-            $deploymentStrategy.StrategyImplemented | Should -Be $true
-            $deploymentStrategy.ConfigurationValid | Should -Be $true
-            $deploymentStrategy.AutomationWorking | Should -Be $true
-            $deploymentStrategy.MonitoringEnabled | Should -Be $true
+            $deploymentStrategy.StrategyImplemented | Should Be $true
+            $deploymentStrategy.ConfigurationValid | Should Be $true
+            $deploymentStrategy.AutomationWorking | Should Be $true
+            $deploymentStrategy.MonitoringEnabled | Should Be $true
 
             # Strategy-specific validation
-            $deploymentStrategy.RiskLevel | Should -Be $RiskLevel
-            $deploymentStrategy.RollbackCapability | Should -Be $true
-            $deploymentStrategy.MaxRollbackTime | Should -BeLessOrEqual $RollbackTime
+            $deploymentStrategy.RiskLevel | Should Be $RiskLevel
+            $deploymentStrategy.RollbackCapability | Should Be $true
+            $deploymentStrategy.MaxRollbackTime | Should BeLessThan $RollbackTime
 
             # Test deployment execution
             $deploymentExecution = Test-DeploymentExecution -Strategy $Strategy
-            $deploymentExecution.DeploymentSuccessful | Should -Be $true
-            $deploymentExecution.HealthChecksPassed | Should -Be $true
-            $deploymentExecution.TrafficRoutingWorking | Should -Be $true
+            $deploymentExecution.DeploymentSuccessful | Should Be $true
+            $deploymentExecution.HealthChecksPassed | Should Be $true
+            $deploymentExecution.TrafficRoutingWorking | Should Be $true
         }
 
         It "Should implement infrastructure as code" {
@@ -314,21 +308,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $iacTest = Test-InfrastructureAsCode
 
             # IaC configuration
-            $iacTest.TemplatesValid | Should -Be $true
-            $iacTest.ParameterizationCorrect | Should -Be $true
-            $iacTest.VersionControlled | Should -Be $true
-            $iacTest.DocumentationComplete | Should -Be $true
+            $iacTest.TemplatesValid | Should Be $true
+            $iacTest.ParameterizationCorrect | Should Be $true
+            $iacTest.VersionControlled | Should Be $true
+            $iacTest.DocumentationComplete | Should Be $true
 
             # IaC deployment
-            $iacTest.DeploymentRepeatable | Should -Be $true
-            $iacTest.EnvironmentConsistency | Should -Be $true
-            $iacTest.ResourceTagging | Should -Be $true
-            $iacTest.CostOptimization | Should -Be $true
+            $iacTest.DeploymentRepeatable | Should Be $true
+            $iacTest.EnvironmentConsistency | Should Be $true
+            $iacTest.ResourceTagging | Should Be $true
+            $iacTest.CostOptimization | Should Be $true
 
             # IaC validation
-            $iacTest.SecurityCompliant | Should -Be $true
-            $iacTest.BestPracticesFollowed | Should -Be $true
-            $iacTest.TestingAutomated | Should -Be $true
+            $iacTest.SecurityCompliant | Should Be $true
+            $iacTest.BestPracticesFollowed | Should Be $true
+            $iacTest.TestingAutomated | Should Be $true
         }
 
         It "Should manage configuration and secrets" {
@@ -336,21 +330,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $configManagement = Test-ConfigurationManagement
 
             # Configuration handling
-            $configManagement.EnvironmentSpecific | Should -Be $true
-            $configManagement.SecretsSecure | Should -Be $true
-            $configManagement.ValidationEnabled | Should -Be $true
-            $configManagement.VersionControlled | Should -Be $true
+            $configManagement.EnvironmentSpecific | Should Be $true
+            $configManagement.SecretsSecure | Should Be $true
+            $configManagement.ValidationEnabled | Should Be $true
+            $configManagement.VersionControlled | Should Be $true
 
             # Secrets management
-            $configManagement.SecretsEncrypted | Should -Be $true
-            $configManagement.AccessControlled | Should -Be $true
-            $configManagement.RotationEnabled | Should -Be $true
-            $configManagement.AuditingEnabled | Should -Be $true
+            $configManagement.SecretsEncrypted | Should Be $true
+            $configManagement.AccessControlled | Should Be $true
+            $configManagement.RotationEnabled | Should Be $true
+            $configManagement.AuditingEnabled | Should Be $true
 
             # Configuration deployment
-            $configManagement.AutomaticDeployment | Should -Be $true
-            $configManagement.ValidationGates | Should -Be $true
-            $configManagement.RollbackCapable | Should -Be $true
+            $configManagement.AutomaticDeployment | Should Be $true
+            $configManagement.ValidationGates | Should Be $true
+            $configManagement.RollbackCapable | Should Be $true
         }
 
         It "Should handle environment promotion" {
@@ -358,21 +352,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $promotion = Test-EnvironmentPromotion
 
             # Promotion workflow
-            $promotion.AutomaticPromotion | Should -Be $true
-            $promotion.ApprovalWorkflow | Should -Be $true
-            $promotion.QualityGatesEnforced | Should -Be $true
-            $promotion.RollbackEnabled | Should -Be $true
+            $promotion.AutomaticPromotion | Should Be $true
+            $promotion.ApprovalWorkflow | Should Be $true
+            $promotion.QualityGatesEnforced | Should Be $true
+            $promotion.RollbackEnabled | Should Be $true
 
             # Environment consistency
-            $promotion.EnvironmentParity | Should -BeGreaterOrEqual 95
-            $promotion.ConfigurationConsistency | Should -Be $true
-            $promotion.DataConsistency | Should -Be $true
-            $promotion.SecurityConsistency | Should -Be $true
+            $promotion.EnvironmentParity | Should BeGreaterThan 95
+            $promotion.ConfigurationConsistency | Should Be $true
+            $promotion.DataConsistency | Should Be $true
+            $promotion.SecurityConsistency | Should Be $true
 
             # Promotion validation
-            $promotion.SmokeTestsExecuted | Should -Be $true
-            $promotion.HealthChecksValidated | Should -Be $true
-            $promotion.MonitoringConfigured | Should -Be $true
+            $promotion.SmokeTestsExecuted | Should Be $true
+            $promotion.HealthChecksValidated | Should Be $true
+            $promotion.MonitoringConfigured | Should Be $true
         }
     }
 
@@ -382,21 +376,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $vcsIntegration = Test-VersionControlIntegration
 
             # Git integration
-            $vcsIntegration.GitHooksConfigured | Should -Be $true
-            $vcsIntegration.BranchPoliciesEnforced | Should -Be $true
-            $vcsIntegration.CommitValidation | Should -Be $true
-            $vcsIntegration.PullRequestAutomation | Should -Be $true
+            $vcsIntegration.GitHooksConfigured | Should Be $true
+            $vcsIntegration.BranchPoliciesEnforced | Should Be $true
+            $vcsIntegration.CommitValidation | Should Be $true
+            $vcsIntegration.PullRequestAutomation | Should Be $true
 
             # Code quality
-            $vcsIntegration.CodeAnalysisIntegrated | Should -Be $true
-            $vcsIntegration.CodeFormattingEnforced | Should -Be $true
-            $vcsIntegration.LintingEnabled | Should -Be $true
-            $vcsIntegration.SecurityScanningEnabled | Should -Be $true
+            $vcsIntegration.CodeAnalysisIntegrated | Should Be $true
+            $vcsIntegration.CodeFormattingEnforced | Should Be $true
+            $vcsIntegration.LintingEnabled | Should Be $true
+            $vcsIntegration.SecurityScanningEnabled | Should Be $true
 
             # Workflow automation
-            $vcsIntegration.AutomatedTesting | Should -Be $true
-            $vcsIntegration.ContinuousIntegration | Should -Be $true
-            $vcsIntegration.DeploymentTriggers | Should -Be $true
+            $vcsIntegration.AutomatedTesting | Should Be $true
+            $vcsIntegration.ContinuousIntegration | Should Be $true
+            $vcsIntegration.DeploymentTriggers | Should Be $true
         }
 
         It "Should support artifact management" {
@@ -404,21 +398,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $artifactManagement = Test-ArtifactManagement
 
             # Artifact creation
-            $artifactManagement.BuildArtifactsGenerated | Should -Be $true
-            $artifactManagement.ArtifactsVersioned | Should -Be $true
-            $artifactManagement.ArtifactsSigned | Should -Be $true
-            $artifactManagement.ArtifactsScanned | Should -Be $true
+            $artifactManagement.BuildArtifactsGenerated | Should Be $true
+            $artifactManagement.ArtifactsVersioned | Should Be $true
+            $artifactManagement.ArtifactsSigned | Should Be $true
+            $artifactManagement.ArtifactsScanned | Should Be $true
 
             # Artifact storage
-            $artifactManagement.SecureStorage | Should -Be $true
-            $artifactManagement.AccessControlled | Should -Be $true
-            $artifactManagement.RetentionPolicyApplied | Should -Be $true
-            $artifactManagement.BackupEnabled | Should -Be $true
+            $artifactManagement.SecureStorage | Should Be $true
+            $artifactManagement.AccessControlled | Should Be $true
+            $artifactManagement.RetentionPolicyApplied | Should Be $true
+            $artifactManagement.BackupEnabled | Should Be $true
 
             # Artifact distribution
-            $artifactManagement.DistributionAutomated | Should -Be $true
-            $artifactManagement.IntegrityValidated | Should -Be $true
-            $artifactManagement.DeploymentTracked | Should -Be $true
+            $artifactManagement.DistributionAutomated | Should Be $true
+            $artifactManagement.IntegrityValidated | Should Be $true
+            $artifactManagement.DeploymentTracked | Should Be $true
         }
 
         It "Should implement monitoring and observability" {
@@ -426,22 +420,22 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $monitoringIntegration = Test-MonitoringIntegration
 
             # Pipeline monitoring
-            $monitoringIntegration.PipelineMetrics | Should -Be $true
-            $monitoringIntegration.BuildMetrics | Should -Be $true
-            $monitoringIntegration.DeploymentMetrics | Should -Be $true
-            $monitoringIntegration.QualityMetrics | Should -Be $true
+            $monitoringIntegration.PipelineMetrics | Should Be $true
+            $monitoringIntegration.BuildMetrics | Should Be $true
+            $monitoringIntegration.DeploymentMetrics | Should Be $true
+            $monitoringIntegration.QualityMetrics | Should Be $true
 
             # Application monitoring
-            $monitoringIntegration.ApplicationMetrics | Should -Be $true
-            $monitoringIntegration.PerformanceMonitoring | Should -Be $true
-            $monitoringIntegration.ErrorTracking | Should -Be $true
-            $monitoringIntegration.LogAggregation | Should -Be $true
+            $monitoringIntegration.ApplicationMetrics | Should Be $true
+            $monitoringIntegration.PerformanceMonitoring | Should Be $true
+            $monitoringIntegration.ErrorTracking | Should Be $true
+            $monitoringIntegration.LogAggregation | Should Be $true
 
             # Alerting and notification
-            $monitoringIntegration.AlertingConfigured | Should -Be $true
-            $monitoringIntegration.EscalationPolicies | Should -Be $true
-            $monitoringIntegration.NotificationChannels | Should -Be $true
-            $monitoringIntegration.DashboardsAvailable | Should -Be $true
+            $monitoringIntegration.AlertingConfigured | Should Be $true
+            $monitoringIntegration.EscalationPolicies | Should Be $true
+            $monitoringIntegration.NotificationChannels | Should Be $true
+            $monitoringIntegration.DashboardsAvailable | Should Be $true
         }
 
         It "Should support collaboration workflows" {
@@ -449,22 +443,22 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $collaboration = Test-CollaborationWorkflows
 
             # Team collaboration
-            $collaboration.PullRequestWorkflow | Should -Be $true
-            $collaboration.CodeReviewProcess | Should -Be $true
-            $collaboration.KnowledgeSharing | Should -Be $true
-            $collaboration.DocumentationIntegrated | Should -Be $true
+            $collaboration.PullRequestWorkflow | Should Be $true
+            $collaboration.CodeReviewProcess | Should Be $true
+            $collaboration.KnowledgeSharing | Should Be $true
+            $collaboration.DocumentationIntegrated | Should Be $true
 
             # Communication integration
-            $collaboration.SlackIntegration | Should -Be $true
-            $collaboration.TeamsIntegration | Should -Be $true
-            $collaboration.EmailNotifications | Should -Be $true
-            $collaboration.StatusUpdates | Should -Be $true
+            $collaboration.SlackIntegration | Should Be $true
+            $collaboration.TeamsIntegration | Should Be $true
+            $collaboration.EmailNotifications | Should Be $true
+            $collaboration.StatusUpdates | Should Be $true
 
             # Project management
-            $collaboration.IssueTracking | Should -Be $true
-            $collaboration.ProjectPlanning | Should -Be $true
-            $collaboration.ReleaseManagement | Should -Be $true
-            $collaboration.ProgressTracking | Should -Be $true
+            $collaboration.IssueTracking | Should Be $true
+            $collaboration.ProjectPlanning | Should Be $true
+            $collaboration.ReleaseManagement | Should Be $true
+            $collaboration.ProgressTracking | Should Be $true
         }
     }
 
@@ -474,21 +468,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $releasePlanning = Test-ReleasePlanningWorkflows
 
             # Planning processes
-            $releasePlanning.ReleaseScheduling | Should -Be $true
-            $releasePlanning.FeaturePlanning | Should -Be $true
-            $releasePlanning.DependencyManagement | Should -Be $true
-            $releasePlanning.RiskAssessment | Should -Be $true
+            $releasePlanning.ReleaseScheduling | Should Be $true
+            $releasePlanning.FeaturePlanning | Should Be $true
+            $releasePlanning.DependencyManagement | Should Be $true
+            $releasePlanning.RiskAssessment | Should Be $true
 
             # Release coordination
-            $releasePlanning.CrossTeamCoordination | Should -Be $true
-            $releasePlanning.StakeholderCommunication | Should -Be $true
-            $releasePlanning.TimelineManagement | Should -Be $true
-            $releasePlanning.ResourcePlanning | Should -Be $true
+            $releasePlanning.CrossTeamCoordination | Should Be $true
+            $releasePlanning.StakeholderCommunication | Should Be $true
+            $releasePlanning.TimelineManagement | Should Be $true
+            $releasePlanning.ResourcePlanning | Should Be $true
 
             # Release validation
-            $releasePlanning.ReadinessChecklist | Should -Be $true
-            $releasePlanning.GoNoGoProcess | Should -Be $true
-            $releasePlanning.RollbackPlanning | Should -Be $true
+            $releasePlanning.ReadinessChecklist | Should Be $true
+            $releasePlanning.GoNoGoProcess | Should Be $true
+            $releasePlanning.RollbackPlanning | Should Be $true
         }
 
         It "Should enforce compliance and governance" {
@@ -496,22 +490,22 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $compliance = Test-ComplianceEnforcement
 
             # Governance controls
-            $compliance.PolicyEnforcement | Should -Be $true
-            $compliance.ApprovalWorkflows | Should -Be $true
-            $compliance.AuditTrails | Should -Be $true
-            $compliance.ComplianceReporting | Should -Be $true
+            $compliance.PolicyEnforcement | Should Be $true
+            $compliance.ApprovalWorkflows | Should Be $true
+            $compliance.AuditTrails | Should Be $true
+            $compliance.ComplianceReporting | Should Be $true
 
             # Security governance
-            $compliance.SecurityPolicies | Should -Be $true
-            $compliance.AccessControls | Should -Be $true
-            $compliance.SecretManagement | Should -Be $true
-            $compliance.VulnerabilityManagement | Should -Be $true
+            $compliance.SecurityPolicies | Should Be $true
+            $compliance.AccessControls | Should Be $true
+            $compliance.SecretManagement | Should Be $true
+            $compliance.VulnerabilityManagement | Should Be $true
 
             # Quality governance
-            $compliance.QualityStandards | Should -Be $true
-            $compliance.TestingRequirements | Should -Be $true
-            $compliance.DocumentationStandards | Should -Be $true
-            $compliance.CodeStandards | Should -Be $true
+            $compliance.QualityStandards | Should Be $true
+            $compliance.TestingRequirements | Should Be $true
+            $compliance.DocumentationStandards | Should Be $true
+            $compliance.CodeStandards | Should Be $true
         }
 
         It "Should provide release analytics and reporting" {
@@ -519,21 +513,21 @@ Describe "CI/CD Pipeline Integration Testing" -Tag @("CICD", "DevOps", "Automati
             $releaseAnalytics = Test-ReleaseAnalytics
 
             # Release metrics
-            $releaseAnalytics.DeploymentFrequency | Should -BeGreaterThan 0
-            $releaseAnalytics.LeadTime | Should -BeLessOrEqual 7 # Days
-            $releaseAnalytics.FailureRate | Should -BeLessOrEqual 5 # Percentage
-            $releaseAnalytics.RecoveryTime | Should -BeLessOrEqual 60 # Minutes
+            $releaseAnalytics.DeploymentFrequency | Should BeGreaterThan 0
+            $releaseAnalytics.LeadTime | Should BeLessThan 7 # Days
+            $releaseAnalytics.FailureRate | Should BeLessThan 5 # Percentage
+            $releaseAnalytics.RecoveryTime | Should BeLessThan 60 # Minutes
 
             # Quality metrics
-            $releaseAnalytics.DefectRate | Should -BeLessOrEqual 2 # Percentage
-            $releaseAnalytics.CustomerSatisfaction | Should -BeGreaterOrEqual 85
-            $releaseAnalytics.PerformanceMetrics | Should -Be $true
-            $releaseAnalytics.SecurityMetrics | Should -Be $true
+            $releaseAnalytics.DefectRate | Should BeLessThan 2 # Percentage
+            $releaseAnalytics.CustomerSatisfaction | Should BeGreaterThan 85
+            $releaseAnalytics.PerformanceMetrics | Should Be $true
+            $releaseAnalytics.SecurityMetrics | Should Be $true
 
             # Business metrics
-            $releaseAnalytics.BusinessValue | Should -BeGreaterThan 0
-            $releaseAnalytics.ROI | Should -BeGreaterThan 0
-            $releaseAnalytics.UserAdoption | Should -BeGreaterOrEqual 70
+            $releaseAnalytics.BusinessValue | Should BeGreaterThan 0
+            $releaseAnalytics.ROI | Should BeGreaterThan 0
+            $releaseAnalytics.UserAdoption | Should BeGreaterThan 70
         }
     }
 }
@@ -545,24 +539,24 @@ Describe "CI/CD Performance and Optimization" -Tag @("Performance", "CICD", "Opt
             # Test pipeline performance optimization
             $performanceOptimization = Test-PipelinePerformanceOptimization
 
-            $performanceOptimization.BuildTime | Should -BeLessOrEqual 300 # 5 minutes
-            $performanceOptimization.TestTime | Should -BeLessOrEqual 600 # 10 minutes
-            $performanceOptimization.DeploymentTime | Should -BeLessOrEqual 180 # 3 minutes
-            $performanceOptimization.TotalTime | Should -BeLessOrEqual 900 # 15 minutes
+            $performanceOptimization.BuildTime | Should BeLessThan 300 # 5 minutes
+            $performanceOptimization.TestTime | Should BeLessThan 600 # 10 minutes
+            $performanceOptimization.DeploymentTime | Should BeLessThan 180 # 3 minutes
+            $performanceOptimization.TotalTime | Should BeLessThan 900 # 15 minutes
 
-            $performanceOptimization.ParallelizationOptimized | Should -Be $true
-            $performanceOptimization.CachingEffective | Should -Be $true
-            $performanceOptimization.ResourceUtilizationOptimal | Should -Be $true
+            $performanceOptimization.ParallelizationOptimized | Should Be $true
+            $performanceOptimization.CachingEffective | Should Be $true
+            $performanceOptimization.ResourceUtilizationOptimal | Should Be $true
         }
 
         It "Should scale with concurrent builds" {
             # Test concurrent build scaling
             $scalingTest = Test-ConcurrentBuildScaling -ConcurrentBuilds 10
 
-            $scalingTest.SystemResponsive | Should -Be $true
-            $scalingTest.QueueManagementEffective | Should -Be $true
-            $scalingTest.ResourceAllocationOptimal | Should -Be $true
-            $scalingTest.PerformanceDegradation | Should -BeLessOrEqual 20 # Percentage
+            $scalingTest.SystemResponsive | Should Be $true
+            $scalingTest.QueueManagementEffective | Should Be $true
+            $scalingTest.ResourceAllocationOptimal | Should Be $true
+            $scalingTest.PerformanceDegradation | Should BeLessThan 20 # Percentage
         }
     }
 }
@@ -930,3 +924,4 @@ function Test-ConcurrentBuildScaling {
         PerformanceDegradation = 15 # Percentage
     }
 }
+

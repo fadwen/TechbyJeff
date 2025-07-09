@@ -1,128 +1,109 @@
-﻿#Requires -Module Pester
+#Requires -Module Pester
 
-BeforeAll {
-    Write-Host " Initializing Security.Tests.ps1 with enterprise compliance..."
-    
-    # Initialize test correlation ID for enterprise tracing
-    $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
-    
-    # Initialize test logs collection
-    $global:TestLogs = @()
-    
-    # Ensure critical functions are available with minimal mocks
-    if (-not (Get-Command "Write-StructuredLog" -ErrorAction SilentlyContinue)) {
-        function Write-StructuredLog {
-            param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
-            Write-Verbose "$Level`: $Message (CorrelationId: $CorrelationId)"
-        }
-        Write-Host " Created minimal Write-StructuredLog function"
-    }
-    
-    if (-not (Get-Command "Test-ClassIntegrity" -ErrorAction SilentlyContinue)) {
-        function Test-ClassIntegrity {
-            param(
-                [Parameter(Mandatory)]
-                [string]$Class,
-                [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-            )
-            Write-StructuredLog -Level "Information" -Message "Testing class integrity for $Class" -CorrelationId $CorrelationId
-            return $true
-        }
-        Write-Host " Created minimal Test-ClassIntegrity function"
-    }
-    
-    if (-not (Get-Command "Measure-TestPerformance" -ErrorAction SilentlyContinue)) {
-        function Measure-TestPerformance {
-            param([ScriptBlock]$ScriptBlock, [string]$Name)
-            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-            $memoryBefore = [System.GC]::GetTotalMemory($false)
-            
-            $result = & $ScriptBlock
-            
-            $stopwatch.Stop()
-            $memoryAfter = [System.GC]::GetTotalMemory($false)
-            
-            return [PSCustomObject]@{
-                Duration = $stopwatch.Elapsed
-                Result = $result
-                MemoryUsedMB = [math]::Round(($memoryAfter - $memoryBefore) / 1MB, 2)
-            }
-        }
-        Write-Host " Created minimal Measure-TestPerformance function"
-    }
-    
-    if (-not (Get-Command "Assert-PerformanceWithinSLA" -ErrorAction SilentlyContinue)) {
-        function Assert-PerformanceWithinSLA {
-            param([TimeSpan]$Duration, [double]$MaxSeconds, [long]$MemoryBefore, [long]$MemoryAfter, [double]$MaxMemoryIncreaseMB = 10)
-            $Duration.TotalSeconds | Should -BeLessThan $MaxSeconds
-            if ($MemoryBefore -and $MemoryAfter) {
-                $memoryIncreaseMB = ($MemoryAfter - $MemoryBefore) / 1MB
-                $memoryIncreaseMB | Should -BeLessThan $MaxMemoryIncreaseMB
-            }
-        }
-        Write-Host " Created minimal Assert-PerformanceWithinSLA function"
-    }
-    
-    # Set performance baselines for security operations
-    $global:PerformanceBaselines = @{
-        Security = @{
-            ClassIntegrityMaxSeconds = 0.5
-            CredentialValidationMaxSeconds = 1.0
-            InputSanitizationMaxSeconds = 0.1
-            MemoryUsageMaxMB = 5
-        }
-    }
-    
-    # Enterprise mocking patterns
-    Mock Write-StructuredLog { 
-        param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
-        $global:TestLogs += @{
-            Level = $Level
-            Message = $Message
-            CorrelationId = $CorrelationId
-            Component = $Component
-            Timestamp = Get-Date
-        }
-    }
-    
-    Mock Write-Verbose { param($Message) }
-    Mock Write-Warning { param($Message) }
-    Mock Write-Error { param($Message, $ErrorAction) }
-    
-    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
-    Mock Invoke-Expression { 
-        param($Command)
-        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
-        throw "Security violation: Dangerous operation blocked - $Command"
-    }
-    
-    Mock Start-Process { 
-        param($FilePath, $ArgumentList, [switch]$PassThru)
-        if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
-            Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
-            throw "Security violation: Process execution blocked - $FilePath"
-        }
-        Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
-    }
-
-    Mock Stop-Process {
-        param($Name, $Id, [switch]$Force)
-        if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
-            throw "Security violation: Critical process termination blocked - $Name"
-        }
-        Write-Verbose "Mock Stop-Process called safely for test process: $Name"
-    }
-    
-    Mock Remove-Item { 
-        param($Path, [switch]$Recurse, [switch]$Force)
-        if ($Path -match '^C:\\|^\\\\|^/') {
-            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
-            throw "Security violation: System file deletion blocked - $Path"
-        }
-        Write-Verbose "Mock Remove-Item called safely for test path: $Path"
-    }
+Write-Host " Initializing Security.Tests.ps1 with enterprise compliance..."
+# Initialize test correlation ID for enterprise tracing
+$script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
+# Initialize test logs collection
+$global:TestLogs = @()
+# Ensure critical functions are available with minimal mocks
+if (-not (Get-Command "Write-StructuredLog" -ErrorAction SilentlyContinue)) {
+function Write-StructuredLog {
+param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
+Write-Verbose "$Level`: $Message (CorrelationId: $CorrelationId)"
 }
+Write-Host " Created minimal Write-StructuredLog function"
+}
+if (-not (Get-Command "Test-ClassIntegrity" -ErrorAction SilentlyContinue)) {
+function Test-ClassIntegrity {
+param(
+[Parameter(Mandatory)]
+[string]$Class,
+[string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+)
+Write-StructuredLog -Level "Information" -Message "Testing class integrity for $Class" -CorrelationId $CorrelationId
+return $true
+}
+Write-Host " Created minimal Test-ClassIntegrity function"
+}
+if (-not (Get-Command "Measure-TestPerformance" -ErrorAction SilentlyContinue)) {
+function Measure-TestPerformance {
+param([ScriptBlock]$ScriptBlock, [string]$Name)
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$memoryBefore = [System.GC]::GetTotalMemory($false)
+$result = & $ScriptBlock
+$stopwatch.Stop()
+$memoryAfter = [System.GC]::GetTotalMemory($false)
+return [PSCustomObject]@{
+Duration = $stopwatch.Elapsed
+Result = $result
+MemoryUsedMB = [math]::Round(($memoryAfter - $memoryBefore) / 1MB, 2)
+}
+}
+Write-Host " Created minimal Measure-TestPerformance function"
+}
+if (-not (Get-Command "Assert-PerformanceWithinSLA" -ErrorAction SilentlyContinue)) {
+function Assert-PerformanceWithinSLA {
+param([TimeSpan]$Duration, [double]$MaxSeconds, [long]$MemoryBefore, [long]$MemoryAfter, [double]$MaxMemoryIncreaseMB = 10)
+$Duration.TotalSeconds | Should BeLessThan $MaxSeconds
+if ($MemoryBefore -and $MemoryAfter) {
+$memoryIncreaseMB = ($MemoryAfter - $MemoryBefore) / 1MB
+$memoryIncreaseMB | Should BeLessThan $MaxMemoryIncreaseMB
+}
+}
+Write-Host " Created minimal Assert-PerformanceWithinSLA function"
+}
+# Set performance baselines for security operations
+$global:PerformanceBaselines = @{
+Security = @{
+ClassIntegrityMaxSeconds = 0.5
+CredentialValidationMaxSeconds = 1.0
+InputSanitizationMaxSeconds = 0.1
+MemoryUsageMaxMB = 5
+}
+}
+# Enterprise mocking patterns
+Mock Write-StructuredLog { 
+param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
+$global:TestLogs += @{
+Level = $Level
+Message = $Message
+CorrelationId = $CorrelationId
+Component = $Component
+Timestamp = Get-Date
+}
+}
+Mock Write-Verbose { param($Message) }
+Mock Write-Warning { param($Message) }
+Mock Write-Error { param($Message, $ErrorAction) }
+#  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
+Mock Invoke-Expression { 
+param($Command)
+Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+throw "Security violation: Dangerous operation blocked - $Command"
+}
+Mock Start-Process { 
+param($FilePath, $ArgumentList, [switch]$PassThru)
+if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
+Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+throw "Security violation: Process execution blocked - $FilePath"
+}
+Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
+}
+Mock Stop-Process {
+param($Name, $Id, [switch]$Force)
+if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
+Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+throw "Security violation: Critical process termination blocked - $Name"
+}
+Write-Verbose "Mock Stop-Process called safely for test process: $Name"
+}
+Mock Remove-Item { 
+param($Path, [switch]$Recurse, [switch]$Force)
+if ($Path -match '^C:\\|^\\\\|^/') {
+Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+throw "Security violation: System file deletion blocked - $Path"
+}
+Write-Verbose "Mock Remove-Item called safely for test path: $Path"
 
 Describe "Security Framework Tests" -Tag "Unit", "Security" {
     Context "Parameter Validation" {
@@ -135,15 +116,15 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             param($TestCase, $Class, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should -Throw
+                { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should Throw
             } else {
-                { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should -Not -Throw
+                { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should Not Throw
             }
         }
 
         It "Should require CorrelationId parameter format validation" {
             $validCorrelationId = [System.Guid]::NewGuid().ToString()
-            $validCorrelationId | Should -Match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            $validCorrelationId | Should Match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         }
     }
 
@@ -155,16 +136,16 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
 
         It "Should load security functions successfully" {
             $result = Get-Command Test-ClassIntegrity -ErrorAction SilentlyContinue
-            $result | Should -Not -BeNullOrEmpty
-            $result.Name | Should -Be "Test-ClassIntegrity"
+            $result | Should Not BeNullOrEmpty
+            $result.Name | Should Be "Test-ClassIntegrity"
         }
 
         It "Should perform class integrity validation" {
             $result = Test-ClassIntegrity -Class "TestClass" -CorrelationId $script:TestCorrelationId
             
-            $result | Should -Be $true
+            $result | Should Be $true
             # Verify correlation tracking
-            $global:TestLogs | Should -Not -BeNullOrEmpty
+            $global:TestLogs | Should Not BeNullOrEmpty
         }
 
         It "Should maintain correlation ID throughout operation" {
@@ -174,20 +155,20 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             
             # Verify correlation ID was used in logging
             $logEntry = $global:TestLogs | Where-Object { $_.CorrelationId -eq $testCorrelationId }
-            $logEntry | Should -Not -BeNullOrEmpty
+            $logEntry | Should Not BeNullOrEmpty
         }
     }
 
     Context "Error Handling" {
         It "Should handle invalid class names gracefully" {
-            { Test-ClassIntegrity -Class $null -CorrelationId $script:TestCorrelationId } | Should -Throw
+            { Test-ClassIntegrity -Class $null -CorrelationId $script:TestCorrelationId } | Should Throw
         }
 
         It "Should provide meaningful error messages" {
             try {
                 Test-ClassIntegrity -Class $null -CorrelationId $script:TestCorrelationId
             } catch {
-                $_.Exception.Message | Should -Not -BeNullOrEmpty
+                $_.Exception.Message | Should Not BeNullOrEmpty
             }
         }
     }
@@ -199,7 +180,7 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             } -Name "ClassIntegrityCheck"
 
             Assert-PerformanceWithinSLA -Duration $performance.Duration -MaxSeconds $global:PerformanceBaselines.Security.ClassIntegrityMaxSeconds
-            $performance.Result | Should -Be $true
+            $performance.Result | Should Be $true
         }
 
         It "Should not exceed memory baseline during security validation" {
@@ -227,13 +208,13 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
                 # Test each dangerous operation safely
                 switch ($AttackVector) {
                     "Code Injection" {
-                        { Invoke-Expression "calc.exe" } | Should -Throw "*Security violation*"
+                        { Invoke-Expression "calc.exe" } | Should Throw "*Security violation*"
                     }
                     "Process Execution" {
-                        { Start-Process "cmd.exe" } | Should -Throw "*Security violation*"
+                        { Start-Process "cmd.exe" } | Should Throw "*Security violation*"
                     }
                     "File Deletion" {
-                        { Remove-Item "C:\Windows\System32\test.txt" } | Should -Throw "*Security violation*"
+                        { Remove-Item "C:\Windows\System32\test.txt" } | Should Throw "*Security violation*"
                     }
                 }
             }
@@ -252,7 +233,7 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             # Valid: starts with letter, contains only letters/numbers/underscore
             $pattern = '^[a-zA-Z][a-zA-Z0-9_]*$'
             $isValid = [bool]($TestInput -match $pattern)
-            $isValid | Should -Be $Expected -Because "Input '$TestInput' should be $Expected for $InjectionType"
+            $isValid | Should Be $Expected -Because "Input '$TestInput' should be $Expected for $InjectionType"
         }
 
         It "Should ensure correlation ID tracking for security audit trails" {
@@ -262,8 +243,11 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             
             # Verify audit trail
             $auditEntry = $global:TestLogs | Where-Object { $_.CorrelationId -eq $auditCorrelationId }
-            $auditEntry | Should -Not -BeNullOrEmpty
-            $auditEntry.Message | Should -Match "Testing class integrity"
+            $auditEntry | Should Not BeNullOrEmpty
+            $auditEntry.Message | Should Match "Testing class integrity"
         }
     }
 }
+
+
+

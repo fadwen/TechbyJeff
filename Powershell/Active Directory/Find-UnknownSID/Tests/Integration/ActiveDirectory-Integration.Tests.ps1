@@ -27,44 +27,36 @@
     - For performance issues: .\Troubleshooting\Performance\AD-Performance-Issues.md
 #>
 
-BeforeAll {
-    # Import full module for AD integration testing
-    $script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
-    Import-Module $script:ModulePath -Force
-
-    # Import test helpers
-    $script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
-    . $script:TestHelpersPath
-
-    # Set up AD integration test environment
-    $script:TestDomain = $env:USERDOMAIN
-    $script:TestServer = $env:LOGONSERVER -replace '\\\\', ''
-    $script:CorrelationId = [System.Guid]::NewGuid().ToString()
-
-    # Create safe test identities (non-destructive)
-    $script:SafeTestUsers = @(
-        'Administrator',  # Built-in account
-        'Guest',         # Built-in account
-        'krbtgt'         # Built-in service account
-    )
-
-    # Mock dangerous operations for safety
-    Mock Remove-ACLEntry {
-        Write-Warning "MOCK: Remove-ACLEntry called safely"
-        return @{ Success = $true; Operation = 'MOCKED'; CorrelationId = $args[0] }
-    } -ModuleName Find-UnknownSID
-
-    Mock Set-Acl {
-        Write-Warning "MOCK: Set-Acl called safely"
-        return $true
-    } -ModuleName Find-UnknownSID
-
-    # Test AD module availability
-    $script:ADModuleAvailable = $null -ne (Get-Module -ListAvailable -Name ActiveDirectory)
-    if (-not $script:ADModuleAvailable) {
-        Write-Warning "ActiveDirectory module not available - some tests will be skipped"
-    }
-}
+# Import full module for AD integration testing
+$script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
+Import-Module $script:ModulePath -Force
+# Import test helpers
+$script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
+. $script:TestHelpersPath
+# Set up AD integration test environment
+$script:TestDomain = $env:USERDOMAIN
+$script:TestServer = $env:LOGONSERVER -replace '\\\\', ''
+$script:CorrelationId = [System.Guid]::NewGuid().ToString()
+# Create safe test identities (non-destructive)
+$script:SafeTestUsers = @(
+'Administrator',  # Built-in account
+'Guest',         # Built-in account
+'krbtgt'         # Built-in service account
+)
+# Mock dangerous operations for safety
+Mock Remove-ACLEntry {
+Write-Warning "MOCK: Remove-ACLEntry called safely"
+return @{ Success = $true; Operation = 'MOCKED'; CorrelationId = $args[0] }
+} -ModuleName Find-UnknownSID
+Mock Set-Acl {
+Write-Warning "MOCK: Set-Acl called safely"
+return $true
+} -ModuleName Find-UnknownSID
+# Test AD module availability
+$script:ADModuleAvailable = $null -ne (Get-Module -ListAvailable -Name ActiveDirectory)
+if (-not $script:ADModuleAvailable) {
+Write-Warning "ActiveDirectory module not available - some tests will be skipped"
+}
 
 Describe "Active Directory Connectivity Integration" -Tag "Integration", "ActiveDirectory", "Connectivity" {
 
@@ -78,8 +70,8 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $domain = Get-ADDomain -ErrorAction SilentlyContinue
 
             if ($domain) {
-                $domain.Name | Should -Not -BeNullOrEmpty
-                $domain.DistinguishedName | Should -Match "^DC="
+                $domain.Name | Should Not BeNullOrEmpty
+                $domain.DistinguishedName | Should Match "^DC="
                 Write-Verbose "Connected to domain: $($domain.Name) - CorrelationId: $script:ConnectivityCorrelationId"
             } else {
                 Set-ItResult -Skipped -Because "No AD domain available for testing"
@@ -91,10 +83,10 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $domainControllers = Get-ADDomainController -Filter * -ErrorAction SilentlyContinue
 
             if ($domainControllers) {
-                $domainControllers | Should -Not -BeNullOrEmpty
+                $domainControllers | Should Not BeNullOrEmpty
                 $domainControllers | ForEach-Object {
-                    $_.Name | Should -Not -BeNullOrEmpty
-                    $_.Domain | Should -Not -BeNullOrEmpty
+                    $_.Name | Should Not BeNullOrEmpty
+                    $_.Domain | Should Not BeNullOrEmpty
                 }
                 Write-Verbose "Found $($domainControllers.Count) domain controllers - CorrelationId: $script:ConnectivityCorrelationId"
             } else {
@@ -106,7 +98,7 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             # Test timeout handling with invalid server
             $invalidServer = "invalid-dc-$([System.Guid]::NewGuid().ToString().Substring(0,8)).local"
 
-            { Get-ADDomain -Server $invalidServer -ErrorAction Stop } | Should -Throw
+            { Get-ADDomain -Server $invalidServer -ErrorAction Stop } | Should Throw
         }
     }
 
@@ -121,9 +113,9 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
                 $user = Get-ADUser -Identity $testUser -ErrorAction SilentlyContinue
 
                 if ($user) {
-                    $user.SamAccountName | Should -Be $testUser
-                    $user.DistinguishedName | Should -Match "CN=$testUser"
-                    $user.ObjectGUID | Should -Not -BeNullOrEmpty
+                    $user.SamAccountName | Should Be $testUser
+                    $user.DistinguishedName | Should Match "CN=$testUser"
+                    $user.ObjectGUID | Should Not BeNullOrEmpty
                     Write-Verbose "Successfully queried user: $testUser - CorrelationId: $script:QueryCorrelationId"
                 } else {
                     Write-Warning "User $testUser not found - may be expected in some environments"
@@ -135,7 +127,7 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             # Test error handling for non-existent users
             $invalidUser = "NonExistentUser-$([System.Guid]::NewGuid().ToString().Substring(0,8))"
 
-            { Get-ADUser -Identity $invalidUser -ErrorAction Stop } | Should -Throw "*Cannot find an object*"
+            { Get-ADUser -Identity $invalidUser -ErrorAction Stop } | Should Throw "*Cannot find an object*"
         }
 
         It "Should query organizational units safely" {
@@ -143,10 +135,10 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $ous = Get-ADOrganizationalUnit -Filter * -ErrorAction SilentlyContinue
 
             if ($ous) {
-                $ous | Should -Not -BeNullOrEmpty
+                $ous | Should Not BeNullOrEmpty
                 $ous | ForEach-Object {
-                    $_.DistinguishedName | Should -Match "^OU="
-                    $_.ObjectGUID | Should -Not -BeNullOrEmpty
+                    $_.DistinguishedName | Should Match "^OU="
+                    $_.ObjectGUID | Should Not BeNullOrEmpty
                 }
                 Write-Verbose "Found $($ous.Count) organizational units - CorrelationId: $script:QueryCorrelationId"
             } else {
@@ -159,11 +151,11 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $groups = Get-ADGroup -Filter "GroupCategory -eq 'Security'" -ErrorAction SilentlyContinue | Select-Object -First 10
 
             if ($groups) {
-                $groups | Should -Not -BeNullOrEmpty
+                $groups | Should Not BeNullOrEmpty
                 $groups | ForEach-Object {
-                    $_.GroupCategory | Should -Be 'Security'
-                    $_.SamAccountName | Should -Not -BeNullOrEmpty
-                    $_.ObjectGUID | Should -Not -BeNullOrEmpty
+                    $_.GroupCategory | Should Be 'Security'
+                    $_.SamAccountName | Should Not BeNullOrEmpty
+                    $_.ObjectGUID | Should Not BeNullOrEmpty
                 }
                 Write-Verbose "Found $($groups.Count) security groups - CorrelationId: $script:QueryCorrelationId"
             } else {
@@ -190,7 +182,7 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
 
                 try {
                     $account = $securityIdentifier.Translate([System.Security.Principal.NTAccount])
-                    $account.Value | Should -Not -BeNullOrEmpty
+                    $account.Value | Should Not BeNullOrEmpty
                     Write-Verbose "Resolved SID $sid to $($account.Value) - CorrelationId: $script:SIDResolutionCorrelationId"
                 }
                 catch {
@@ -214,9 +206,9 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
 
             $orphanedSIDs = Get-OrphanedSIDs -CorrelationId $script:SIDResolutionCorrelationId
 
-            $orphanedSIDs | Should -Not -BeNullOrEmpty
-            $orphanedSIDs[0].SID | Should -Match "^S-1-5-21-"
-            $orphanedSIDs[0].CorrelationId | Should -Be $script:SIDResolutionCorrelationId
+            $orphanedSIDs | Should Not BeNullOrEmpty
+            $orphanedSIDs[0].SID | Should Match "^S-1-5-21-"
+            $orphanedSIDs[0].CorrelationId | Should Be $script:SIDResolutionCorrelationId
         }
 
         It "Should validate SID format before resolution" {
@@ -230,9 +222,9 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
 
             foreach ($testCase in $testSIDs) {
                 if ($testCase.Valid) {
-                    { Test-SIDFormat -SID $testCase.SID -CorrelationId $script:SIDResolutionCorrelationId } | Should -Not -Throw
+                    { Test-SIDFormat -SID $testCase.SID -CorrelationId $script:SIDResolutionCorrelationId } | Should Not Throw
                 } else {
-                    { Test-SIDFormat -SID $testCase.SID -CorrelationId $script:SIDResolutionCorrelationId } | Should -Throw
+                    { Test-SIDFormat -SID $testCase.SID -CorrelationId $script:SIDResolutionCorrelationId } | Should Throw
                 }
             }
         }
@@ -252,7 +244,7 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $stopwatch.Stop()
 
             if ($domain) {
-                $stopwatch.ElapsedSeconds | Should -BeLessThan 30  # 30 second max for domain query
+                $stopwatch.ElapsedSeconds | Should BeLessThan 30  # 30 second max for domain query
                 Write-Verbose "Domain query completed in $($stopwatch.ElapsedSeconds) seconds - CorrelationId: $script:PerformanceCorrelationId"
             } else {
                 Set-ItResult -Skipped -Because "No domain available for performance testing"
@@ -269,8 +261,8 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $stopwatch.Stop()
 
             if ($users) {
-                $stopwatch.ElapsedSeconds | Should -BeLessThan 60  # 60 seconds max for 10 users
-                $users.Count | Should -BeGreaterThan 0
+                $stopwatch.ElapsedSeconds | Should BeLessThan 60  # 60 seconds max for 10 users
+                $users.Count | Should BeGreaterThan 0
                 Write-Verbose "Batch query of $($users.Count) users completed in $($stopwatch.ElapsedSeconds) seconds - CorrelationId: $script:PerformanceCorrelationId"
             } else {
                 Set-ItResult -Skipped -Because "No users found for performance testing"
@@ -287,14 +279,14 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             # Test network error handling
             Mock Get-ADDomain { throw "The server is not operational" } -ModuleName Find-UnknownSID
 
-            { Get-ADDomain -ErrorAction Stop } | Should -Throw "*server is not operational*"
+            { Get-ADDomain -ErrorAction Stop } | Should Throw "*server is not operational*"
         }
 
         It "Should handle authentication failures gracefully" {
             # Test authentication error handling
             $invalidCredential = New-Object System.Management.Automation.PSCredential("InvalidUser", (ConvertTo-SecureString "InvalidPassword" -AsPlainText -Force))
 
-            { Get-ADUser -Identity "testuser" -Credential $invalidCredential -ErrorAction Stop } | Should -Throw
+            { Get-ADUser -Identity "testuser" -Credential $invalidCredential -ErrorAction Stop } | Should Throw
         }
 
         It "Should maintain correlation ID tracking in error scenarios" {
@@ -304,11 +296,11 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             }
             catch {
                 # Verify error occurred (expected)
-                $_.Exception.Message | Should -Match "Cannot find an object"
+                $_.Exception.Message | Should Match "Cannot find an object"
             }
 
             # Correlation ID should still be tracked
-            $script:ErrorHandlingCorrelationId | Should -Not -BeNullOrEmpty
+            $script:ErrorHandlingCorrelationId | Should Not BeNullOrEmpty
         }
     }
 
@@ -326,7 +318,7 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
 
             $result = Set-ADUser -Identity "TestUser" -Description "Test modification"
 
-            $result.Operation | Should -Be 'MOCKED'
+            $result.Operation | Should Be 'MOCKED'
             $result.Success | Should -BeTrue
         }
 
@@ -338,8 +330,8 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             }
 
             # Empty identity should be caught by validation
-            { $testParameters.Identity | Should -Not -BeNullOrEmpty } | Should -Not -Throw
-            $testParameters.Identity | Should -BeNullOrEmpty  # This validates our test data
+            { $testParameters.Identity | Should Not BeNullOrEmpty } | Should Not Throw
+            $testParameters.Identity | Should BeNullOrEmpty  # This validates our test data
         }
 
         It "Should implement proper backup before modifications" {
@@ -356,8 +348,8 @@ Describe "Active Directory Connectivity Integration" -Tag "Integration", "Active
             $backupResult = New-BackupFile -InputData @{ Identity = "TestUser" } -CorrelationId $script:ModificationCorrelationId
 
             $backupResult.Success | Should -BeTrue
-            $backupResult.CorrelationId | Should -Be $script:ModificationCorrelationId
-            $backupResult.BackupPath | Should -Match "AD_Backup_"
+            $backupResult.CorrelationId | Should Be $script:ModificationCorrelationId
+            $backupResult.BackupPath | Should Match "AD_Backup_"
         }
     }
 }
@@ -391,13 +383,13 @@ Describe "AD Integration Infrastructure" -Tag "Integration", "Infrastructure", "
     Context "Test Data Validation" {
         It "Should use only safe test identities" {
             # Validate that all test identities are safe built-in accounts
-            $script:SafeTestUsers | Should -Contain 'Administrator'
-            $script:SafeTestUsers | Should -Contain 'Guest'
-            $script:SafeTestUsers | Should -Contain 'krbtgt'
+            $script:SafeTestUsers | Should Contain 'Administrator'
+            $script:SafeTestUsers | Should Contain 'Guest'
+            $script:SafeTestUsers | Should Contain 'krbtgt'
 
             # Ensure no production user accounts are used
-            $script:SafeTestUsers | Should -Not -Contain 'TestUser'
-            $script:SafeTestUsers | Should -Not -Contain 'ServiceAccount'
+            $script:SafeTestUsers | Should Not Contain 'TestUser'
+            $script:SafeTestUsers | Should Not Contain 'ServiceAccount'
         }
 
         It "Should have proper mock implementations for dangerous operations" {
@@ -422,3 +414,4 @@ AfterAll {
     # Log completion
     Write-Information "AD integration tests completed successfully" -InformationAction Continue
 }
+

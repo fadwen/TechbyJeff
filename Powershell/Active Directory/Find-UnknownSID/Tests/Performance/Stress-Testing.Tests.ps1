@@ -27,45 +27,37 @@
     - For system recovery: .\Troubleshooting\Performance\System-Recovery-Guide.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # Stress test configuration
-    $script:StressConfig = @{
-        MaxTestDuration = [TimeSpan]::FromHours(2)
-        MaxConcurrentOperations = 100
-        MaxMemoryUsage = 4GB
-        MaxCPUUsage = 95
-        TestDataSizeGB = 10
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        StressTestResults = @()
-    }
-
-    # Mock stress testing functions
-    function Initialize-StressTestEnvironment {
-        param([string]$CorrelationId)
-        Write-Verbose "Initialized stress test environment"
-    }
-
-    function Clear-StressTestEnvironment {
-        param([string]$CorrelationId)
-        Write-Verbose "Cleared stress test environment"
-    }
-
-    # Initialize stress testing environment
-    Initialize-StressTestEnvironment
-
-    # Start system monitoring
-    Start-SystemMonitoring -CorrelationId $script:StressConfig.TestCorrelationId
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Stress test configuration
+$script:StressConfig = @{
+MaxTestDuration = [TimeSpan]::FromHours(2)
+MaxConcurrentOperations = 100
+MaxMemoryUsage = 4GB
+MaxCPUUsage = 95
+TestDataSizeGB = 10
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+StressTestResults = @()
+}
+# Mock stress testing functions
+function Initialize-StressTestEnvironment {
+param([string]$CorrelationId)
+Write-Verbose "Initialized stress test environment"
+}
+function Clear-StressTestEnvironment {
+param([string]$CorrelationId)
+Write-Verbose "Cleared stress test environment"
+}
+# Initialize stress testing environment
+Initialize-StressTestEnvironment
+# Start system monitoring
+Start-SystemMonitoring -CorrelationId $script:StressConfig.TestCorrelationId
 
 AfterAll {
     # Stop system monitoring and generate report
@@ -126,7 +118,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
             $successCount = ($results | Where-Object Status -eq 'Success').Count
             $successRate = ($successCount / $ConcurrentOps) * 100
 
-            $successRate | Should -BeGreaterOrEqual $ExpectedSuccess -Because "Load level $LoadLevel should maintain $ExpectedSuccess% success rate"
+            $successRate | Should BeGreaterThan $ExpectedSuccess -Because "Load level $LoadLevel should maintain $ExpectedSuccess% success rate"
 
             # Record stress test results
             $script:StressConfig.StressTestResults += @{
@@ -157,7 +149,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
 
             # Response time should not degrade more than 5x under maximum load
             $maxDegradation = ($responseTimes | Measure-Object -Property DegradationFactor -Maximum).Maximum
-            $maxDegradation | Should -BeLessOrEqual 5.0 -Because "Response time degradation should be manageable"
+            $maxDegradation | Should BeLessThan 5.0 -Because "Response time degradation should be manageable"
 
             # Log response time analysis
             $responseTimes | ForEach-Object {
@@ -187,11 +179,11 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                     $memoryIncrease = $memoryAfter.WorkingSet - $memoryBefore.WorkingSet
 
                     # Memory usage should not exceed 2GB regardless of data size
-                    $memoryIncrease | Should -BeLessOrEqual 2GB -Because "Memory usage should be bounded for $($test.Description)"
+                    $memoryIncrease | Should BeLessThan 2GB -Because "Memory usage should be bounded for $($test.Description)"
 
                     # Should successfully process all records
-                    $result.ProcessedRecords | Should -Be $test.Records
-                    $result.Status | Should -Be 'Completed'
+                    $result.ProcessedRecords | Should Be $test.Records
+                    $result.Status | Should Be 'Completed'
 
                 } finally {
                     # Force garbage collection to free memory
@@ -242,10 +234,10 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                 $systemAfter = Get-SystemMetrics
 
                 # System should remain responsive
-                $systemAfter.SystemResponsive | Should -Be $true -Because "$testName should not crash system"
+                $systemAfter.SystemResponsive | Should Be $true -Because "$testName should not crash system"
 
                 # Find-UnknownSID should still function
-                { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should -Not -Throw
+                { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should Not Throw
             }
         }
 
@@ -268,10 +260,10 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                     $stopwatch.Stop()
 
                     # Should complete successfully even under CPU stress
-                    $result | Should -Not -BeNullOrEmpty
+                    $result | Should Not BeNullOrEmpty
 
                     # Response time may be slower but should not hang
-                    $stopwatch.ElapsedMilliseconds | Should -BeLessOrEqual 30000 -Because "Should not hang under CPU stress: $($test.Name)"
+                    $stopwatch.ElapsedMilliseconds | Should BeLessThan 30000 -Because "Should not hang under CPU stress: $($test.Name)"
 
                 } finally {
                     # Stop CPU-intensive task
@@ -297,11 +289,11 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                     $result = Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -LogLevel Verbose
 
                     # Should handle logging and file operations gracefully
-                    $result | Should -Not -BeNullOrEmpty
+                    $result | Should Not BeNullOrEmpty
 
                     # Log files should be written successfully
                     $logFiles = Get-ChildItem ".\Logs" -Filter "*$($script:StressConfig.TestCorrelationId)*"
-                    $logFiles | Should -Not -BeNullOrEmpty -Because "Logging should work under disk stress: $testName"
+                    $logFiles | Should Not BeNullOrEmpty -Because "Logging should work under disk stress: $testName"
 
                 } finally {
                     # Stop disk stress
@@ -355,12 +347,12 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                 & $limitTests[$testName]
 
                 # Verify Find-UnknownSID still works
-                { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should -Not -Throw -Because "Should handle $testName gracefully"
+                { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should Not Throw -Because "Should handle $testName gracefully"
 
                 # System should recover
                 Start-Sleep 5
                 $systemAfter = Get-SystemLimits
-                $systemAfter.SystemStable | Should -Be $true
+                $systemAfter.SystemStable | Should Be $true
             }
         }
 
@@ -384,9 +376,9 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                 # Verify data integrity maintained
                 $integrityCheck = Test-DataIntegrity -Data $result.ProcessedData -OriginalData $testData
 
-                $integrityCheck.ChecksumValid | Should -Be $true -Because "Data integrity should be maintained during $test"
-                $integrityCheck.NoCorruption | Should -Be $true
-                $integrityCheck.CompleteData | Should -Be $true
+                $integrityCheck.ChecksumValid | Should Be $true -Because "Data integrity should be maintained during $test"
+                $integrityCheck.NoCorruption | Should Be $true
+                $integrityCheck.CompleteData | Should Be $true
             }
         }
     }
@@ -414,19 +406,19 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                     # Check operation health
                     $health = Get-OperationHealth -Job $longRunJob
 
-                    $health.IsRunning | Should -Be $true -Because "Operation should still be running after $($i * 15) minutes"
-                    $health.MemoryUsage | Should -BeLessOrEqual 2GB -Because "Memory should not continuously grow"
-                    $health.CPUUsage | Should -BeLessOrEqual 50 -Because "CPU usage should be reasonable"
+                    $health.IsRunning | Should Be $true -Because "Operation should still be running after $($i * 15) minutes"
+                    $health.MemoryUsage | Should BeLessThan 2GB -Because "Memory should not continuously grow"
+                    $health.CPUUsage | Should BeLessThan 50 -Because "CPU usage should be reasonable"
 
                     # Test that other operations still work
-                    { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should -Not -Throw
+                    { Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf } | Should Not Throw
                 }
 
                 # Wait for completion
                 $result = Wait-LongRunningOperation -Job $longRunJob -Timeout $TimeSpan.Add([TimeSpan]::FromMinutes(30))
 
-                $result.Status | Should -Be 'Completed' -Because "Long-running operation should complete successfully"
-                $result.DataIntegrity | Should -Be $true
+                $result.Status | Should Be 'Completed' -Because "Long-running operation should complete successfully"
+                $result.DataIntegrity | Should Be $true
 
             } finally {
                 # Cleanup long-running operation
@@ -472,7 +464,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
             $growthPercentage = ($memoryGrowth / $initialMemory) * 100
 
             # Memory growth should be minimal (< 20% over 2 hours)
-            $growthPercentage | Should -BeLessOrEqual 20 -Because "Memory growth should be minimal over extended periods"
+            $growthPercentage | Should BeLessThan 20 -Because "Memory growth should be minimal over extended periods"
 
             # Log memory analysis
             Write-Verbose "Memory Analysis: Initial: $($initialMemory/1MB)MB, Final: $($finalMemory/1MB)MB, Growth: $growthPercentage%"
@@ -490,7 +482,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
 
             # Establish baseline operation
             $baselineResult = Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf
-            $baselineResult | Should -Not -BeNullOrEmpty
+            $baselineResult | Should Not BeNullOrEmpty
 
             # Simulate failure
             $failureSimulation = Start-FailureSimulation -Type $FailureType
@@ -501,7 +493,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
 
                 # Verify failure occurred
                 $failureDetected = Test-FailureDetection -Type $FailureType
-                $failureDetected | Should -Be $true -Because "$FailureType should be detectable"
+                $failureDetected | Should Be $true -Because "$FailureType should be detectable"
 
                 # Measure recovery time
                 $recoveryTimer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -514,12 +506,12 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                 $recoveryTimer.Stop()
 
                 # Verify recovery
-                $recovered | Should -Be $true -Because "System should recover from $FailureType"
-                $recoveryTimer.ElapsedSeconds | Should -BeLessOrEqual $MaxRecoveryTime -Because "Recovery should be within acceptable time"
+                $recovered | Should Be $true -Because "System should recover from $FailureType"
+                $recoveryTimer.ElapsedSeconds | Should BeLessThan $MaxRecoveryTime -Because "Recovery should be within acceptable time"
 
                 # Verify functionality restored
                 $postRecoveryResult = Find-UnknownSID -SearchBase "OU=Test,DC=contoso,DC=com" -WhatIf
-                $postRecoveryResult | Should -Not -BeNullOrEmpty -Because "Functionality should be restored after recovery"
+                $postRecoveryResult | Should Not BeNullOrEmpty -Because "Functionality should be restored after recovery"
 
             } finally {
                 # Stop failure simulation
@@ -562,7 +554,7 @@ Describe "Find-UnknownSID Extreme Stress Testing Suite" -Tag @("Performance", "S
                 $successfulChecks = ($availabilityChecks | Where-Object Available -eq $true).Count
                 $availabilityPercentage = ($successfulChecks / $totalChecks) * 100
 
-                $availabilityPercentage | Should -BeGreaterOrEqual $availabilityTarget -Because "Service availability should meet SLA during updates"
+                $availabilityPercentage | Should BeGreaterThan $availabilityTarget -Because "Service availability should meet SLA during updates"
 
             } finally {
                 Stop-RollingUpdateSimulation -Simulation $updateSimulation
@@ -595,10 +587,10 @@ Describe "Enterprise-Scale Stress Scenarios" -Tag @("Performance", "Enterprise",
                 $performanceMetrics = Monitor-SystemPerformance -Duration $monitoringDuration
 
                 # Verify system handles multi-tenant load
-                $performanceMetrics.AverageResponseTime | Should -BeLessOrEqual 5000 -Because "Response time should be acceptable under multi-tenant load"
-                $performanceMetrics.CPUUtilization | Should -BeLessOrEqual 80 -Because "CPU should not be overloaded"
-                $performanceMetrics.MemoryUtilization | Should -BeLessOrEqual 85 -Because "Memory should not be exhausted"
-                $performanceMetrics.ErrorRate | Should -BeLessOrEqual 1 -Because "Error rate should be minimal"
+                $performanceMetrics.AverageResponseTime | Should BeLessThan 5000 -Because "Response time should be acceptable under multi-tenant load"
+                $performanceMetrics.CPUUtilization | Should BeLessThan 80 -Because "CPU should not be overloaded"
+                $performanceMetrics.MemoryUtilization | Should BeLessThan 85 -Because "Memory should not be exhausted"
+                $performanceMetrics.ErrorRate | Should BeLessThan 1 -Because "Error rate should be minimal"
 
             } finally {
                 # Stop all tenant simulations
@@ -610,10 +602,10 @@ Describe "Enterprise-Scale Stress Scenarios" -Tag @("Performance", "Enterprise",
             # Test tenant isolation under extreme load
             $isolationTest = Test-TenantIsolationUnderStress -TenantCount 5 -StressLevel 'Maximum'
 
-            $isolationTest.DataIsolation | Should -Be $true
-            $isolationTest.PerformanceIsolation | Should -Be $true
-            $isolationTest.SecurityIsolation | Should -Be $true
-            $isolationTest.NoDataLeakage | Should -Be $true
+            $isolationTest.DataIsolation | Should Be $true
+            $isolationTest.PerformanceIsolation | Should Be $true
+            $isolationTest.SecurityIsolation | Should Be $true
+            $isolationTest.NoDataLeakage | Should Be $true
         }
     }
 
@@ -635,9 +627,9 @@ Describe "Enterprise-Scale Stress Scenarios" -Tag @("Performance", "Enterprise",
                 $globalMetrics = Test-GlobalPerformance -Duration ([TimeSpan]::FromMinutes(45))
 
                 # Verify global performance standards
-                $globalMetrics.AverageLatency | Should -BeLessOrEqual 300 -Because "Global latency should be acceptable"
-                $globalMetrics.RegionalAvailability | Should -BeGreaterOrEqual 99.5 -Because "Regional availability should be high"
-                $globalMetrics.DataConsistency | Should -Be $true -Because "Data should be consistent globally"
+                $globalMetrics.AverageLatency | Should BeLessThan 300 -Because "Global latency should be acceptable"
+                $globalMetrics.RegionalAvailability | Should BeGreaterThan 99.5 -Because "Regional availability should be high"
+                $globalMetrics.DataConsistency | Should Be $true -Because "Data should be consistent globally"
 
             } finally {
                 Stop-GlobalStressSimulation -Simulation $globalSimulation
@@ -927,3 +919,4 @@ function Stop-GlobalStressSimulation {
     param($Simulation)
     Write-Verbose "Stopping global stress simulation"
 }
+

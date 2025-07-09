@@ -27,45 +27,39 @@
     - For cross-platform: .\Troubleshooting\Platform\Cross-Platform-Guide.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # Platform and version detection
-    $script:PlatformInfo = @{
-        PowerShellVersion = $PSVersionTable.PSVersion
-        PowerShellEdition = $PSVersionTable.PSEdition
-        Platform = $PSVersionTable.Platform
-        OS = $PSVersionTable.OS
-        CLRVersion = $PSVersionTable.CLRVersion
-        BuildVersion = $PSVersionTable.BuildVersion
-        GitCommitId = $PSVersionTable.GitCommitId
-        IsWindows = $IsWindows
-        IsLinux = $IsLinux
-        IsMacOS = $IsMacOS
-        IsCoreCLR = $PSVersionTable.PSEdition -eq 'Core'
-        IsDesktop = $PSVersionTable.PSEdition -eq 'Desktop'
-    }
-
-    # Compatibility test configuration
-    $script:CompatibilityConfig = @{
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        SupportedVersions = @('5.1', '7.0', '7.1', '7.2', '7.3', '7.4')
-        MinimumVersion = [Version]'5.1.0'
-        RecommendedVersion = [Version]'7.4.0'
-        TestedPlatforms = @('Windows', 'Linux', 'macOS')
-        FeatureMatrix = @{}
-    }
-
-    Write-Verbose "Platform Info: $($script:PlatformInfo | ConvertTo-Json -Depth 2)"
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Platform and version detection
+$script:PlatformInfo = @{
+PowerShellVersion = $PSVersionTable.PSVersion
+PowerShellEdition = $PSVersionTable.PSEdition
+Platform = $PSVersionTable.Platform
+OS = $PSVersionTable.OS
+CLRVersion = $PSVersionTable.CLRVersion
+BuildVersion = $PSVersionTable.BuildVersion
+GitCommitId = $PSVersionTable.GitCommitId
+IsWindows = $IsWindows
+IsLinux = $IsLinux
+IsMacOS = $IsMacOS
+IsCoreCLR = $PSVersionTable.PSEdition -eq 'Core'
+IsDesktop = $PSVersionTable.PSEdition -eq 'Desktop'
+}
+# Compatibility test configuration
+$script:CompatibilityConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+SupportedVersions = @('5.1', '7.0', '7.1', '7.2', '7.3', '7.4')
+MinimumVersion = [Version]'5.1.0'
+RecommendedVersion = [Version]'7.4.0'
+TestedPlatforms = @('Windows', 'Linux', 'macOS')
+FeatureMatrix = @{}
+}
+Write-Verbose "Platform Info: $($script:PlatformInfo | ConvertTo-Json -Depth 2)"
 
 AfterAll {
     # Generate compatibility report
@@ -135,7 +129,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                 TestedOn = $script:PlatformInfo.PowerShellVersion
             }
 
-            $compatibilityPercentage | Should -BeGreaterOrEqual $MinFeatures -Because "PowerShell $Version should support at least $MinFeatures% of features"
+            $compatibilityPercentage | Should BeGreaterThan $MinFeatures -Because "PowerShell $Version should support at least $MinFeatures% of features"
         }
 
         It "Should handle version-specific syntax differences" {
@@ -190,7 +184,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                     Write-Verbose "$syntaxName syntax test: $(if ($supported) { 'Supported' } else { 'Not Supported' })"
 
                     # All syntax should either work or be gracefully handled
-                    $supported | Should -Be $true -Because "$syntaxName should be handled correctly"
+                    $supported | Should Be $true -Because "$syntaxName should be handled correctly"
                 } catch {
                     # Syntax errors are acceptable for older PowerShell versions
                     if ($script:PlatformInfo.PowerShellVersion.Major -lt 7) {
@@ -236,7 +230,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
 
             foreach ($testName in $behaviorTests.Keys) {
                 $result = & $behaviorTests[$testName]
-                $result | Should -Be $true -Because "$testName should behave consistently across editions"
+                $result | Should Be $true -Because "$testName should behave consistently across editions"
             }
         }
     }
@@ -286,7 +280,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                         Write-Verbose "Windows test $testName : $(if ($result) { 'Available' } else { 'Not Available' })"
 
                         # Windows features should be available on Windows
-                        $result | Should -Be $true -Because "$testName should be available on Windows"
+                        $result | Should Be $true -Because "$testName should be available on Windows"
                     } catch {
                         Write-Warning "Windows test $testName failed: $($_.Exception.Message)"
                         # Some Windows features might not be available in all contexts
@@ -297,7 +291,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                 Write-Verbose "Skipping Windows-specific tests on $($script:PlatformInfo.Platform)"
 
                 # Test that Windows-specific code doesn't break on other platforms
-                { Test-WindowsSpecificGracefulDegradation } | Should -Not -Throw -Because "Windows-specific code should degrade gracefully"
+                { Test-WindowsSpecificGracefulDegradation } | Should Not Throw -Because "Windows-specific code should degrade gracefully"
             }
         }
 
@@ -338,7 +332,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
 
             foreach ($testName in $pathTests.Keys) {
                 $result = & $pathTests[$testName]
-                $result | Should -Be $true -Because "Path operation $testName should work correctly on $($script:PlatformInfo.Platform)"
+                $result | Should Be $true -Because "Path operation $testName should work correctly on $($script:PlatformInfo.Platform)"
             }
         }
 
@@ -370,7 +364,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                 try {
                     $result = & $securityTests[$testName]
                     if ($script:PlatformInfo.IsWindows) {
-                        $result | Should -Be $true -Because "Security test $testName should work on Windows"
+                        $result | Should Be $true -Because "Security test $testName should work on Windows"
                     } else {
                         # On non-Windows, some security features might not be available
                         Write-Verbose "Security test $testName on $($script:PlatformInfo.Platform): $(if ($result) { 'Available' } else { 'Not Available' })"
@@ -459,10 +453,10 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
 
                 # Performance should be reasonable (arbitrary thresholds based on test complexity)
                 switch ($testName) {
-                    'ObjectCreation' { $executionTime | Should -BeLessOrEqual 5000 }
-                    'StringOperations' { $executionTime | Should -BeLessOrEqual 10000 }
-                    'FileOperations' { $executionTime | Should -BeLessOrEqual 15000 }
-                    'PipelineOperations' { $executionTime | Should -BeLessOrEqual 3000 }
+                    'ObjectCreation' { $executionTime | Should BeLessThan 5000 }
+                    'StringOperations' { $executionTime | Should BeLessThan 10000 }
+                    'FileOperations' { $executionTime | Should BeLessThan 15000 }
+                    'PipelineOperations' { $executionTime | Should BeLessThan 3000 }
                 }
             }
 
@@ -512,8 +506,8 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                     Write-Verbose "Modern feature $featureName : $($result.ExecutionTime) ms"
 
                     # Modern features should work and complete
-                    $result.ExecutionTime | Should -BeGreaterThan 0
-                    $result.ResultCount | Should -BeGreaterThan 0
+                    $result.ExecutionTime | Should BeGreaterThan 0
+                    $result.ResultCount | Should BeGreaterThan 0
                 }
             } else {
                 Write-Verbose "Skipping modern feature tests on PowerShell $($script:PlatformInfo.PowerShellVersion)"
@@ -571,9 +565,9 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                 Write-Verbose "  Breaking Changes: $($scenario.BreakingChanges)"
 
                 # Migration scenarios should be well-defined
-                $scenario.RequiresAttention | Should -BeOfType [array]
-                $scenario.AutomaticUpgrade | Should -BeOfType [bool]
-                $scenario.BreakingChanges | Should -BeOfType [bool]
+                $scenario.RequiresAttention | Should BeOfType [array]
+                $scenario.AutomaticUpgrade | Should BeOfType [bool]
+                $scenario.BreakingChanges | Should BeOfType [bool]
             }
         }
 
@@ -619,7 +613,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
 
             foreach ($testName in $backwardCompatibilityTests.Keys) {
                 $result = & $backwardCompatibilityTests[$testName]
-                $result | Should -Be $true -Because "Backward compatibility test $testName should pass"
+                $result | Should Be $true -Because "Backward compatibility test $testName should pass"
             }
         }
     }
@@ -649,7 +643,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                         Write-Verbose "Legacy support test $testName : $(if ($result) { 'Supported' } else { 'Limited Support' })"
 
                         # Legacy support should be available or gracefully degraded
-                        $result | Should -BeOfType [bool] -Because "Legacy test $testName should return boolean result"
+                        $result | Should BeOfType [bool] -Because "Legacy test $testName should return boolean result"
                     } catch {
                         Write-Warning "Legacy test $testName failed: $($_.Exception.Message)"
                     }
@@ -678,7 +672,7 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
 
             foreach ($formatName in $moduleFormatTests.Keys) {
                 $result = & $moduleFormatTests[$formatName]
-                $result | Should -Be $true -Because "Module format $formatName should be supported"
+                $result | Should Be $true -Because "Module format $formatName should be supported"
             }
         }
     }
@@ -691,20 +685,20 @@ Describe "Cross-Platform Integration Testing" -Tag @("CrossPlatform", "Integrati
             # Test deployment scenarios
             $deploymentTest = Test-CrossPlatformDeployment
 
-            $deploymentTest.ModuleLoads | Should -Be $true
-            $deploymentTest.FunctionsAvailable | Should -Be $true
-            $deploymentTest.DependenciesResolved | Should -Be $true
-            $deploymentTest.ConfigurationValid | Should -Be $true
+            $deploymentTest.ModuleLoads | Should Be $true
+            $deploymentTest.FunctionsAvailable | Should Be $true
+            $deploymentTest.DependenciesResolved | Should Be $true
+            $deploymentTest.ConfigurationValid | Should Be $true
         }
 
         It "Should handle platform-specific configurations" {
             # Test platform-specific configuration handling
             $configTest = Test-PlatformSpecificConfiguration
 
-            $configTest.PathsResolved | Should -Be $true
-            $configTest.SecurityContextValid | Should -Be $true
-            $configTest.LoggingConfigured | Should -Be $true
-            $configTest.ErrorHandlingConfigured | Should -Be $true
+            $configTest.PathsResolved | Should Be $true
+            $configTest.SecurityContextValid | Should Be $true
+            $configTest.LoggingConfigured | Should Be $true
+            $configTest.ErrorHandlingConfigured | Should Be $true
         }
     }
 }
@@ -879,3 +873,4 @@ function Test-PlatformSpecificConfiguration {
         ErrorHandlingConfigured = $true
     }
 }
+

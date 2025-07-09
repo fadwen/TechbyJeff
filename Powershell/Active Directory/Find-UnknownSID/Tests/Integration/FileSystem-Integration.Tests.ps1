@@ -28,62 +28,52 @@
     - For permission issues: .\Troubleshooting\Security\Permission-Issues.md
 #>
 
-BeforeAll {
-    # Import full module for file system integration testing
-    $script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
-    Import-Module $script:ModulePath -Force
-
-    # Import test helpers
-    $script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
-    . $script:TestHelpersPath
-
-    # Set up file system integration test environment
-    $script:TestRootPath = Join-Path $TestDrive 'FileSystemIntegrationTests'
-    $script:TestFilesPath = Join-Path $script:TestRootPath 'TestFiles'
-    $script:TestFoldersPath = Join-Path $script:TestRootPath 'TestFolders'
-    $script:BackupPath = Join-Path $script:TestRootPath 'Backups'
-    $script:CorrelationId = [System.Guid]::NewGuid().ToString()
-
-    # Create test directory structure
-    New-Item -Path $script:TestRootPath -ItemType Directory -Force | Out-Null
-    New-Item -Path $script:TestFilesPath -ItemType Directory -Force | Out-Null
-    New-Item -Path $script:TestFoldersPath -ItemType Directory -Force | Out-Null
-    New-Item -Path $script:BackupPath -ItemType Directory -Force | Out-Null
-
-    # Create test files with various permissions
-    $script:TestFiles = @()
-    for ($i = 1; $i -le 5; $i++) {
-        $testFile = Join-Path $script:TestFilesPath "TestFile$i.txt"
-        "Test content for file $i" | Set-Content -Path $testFile
-        $script:TestFiles += $testFile
-    }
-
-    # Create test folders
-    $script:TestFolders = @()
-    for ($i = 1; $i -le 3; $i++) {
-        $testFolder = Join-Path $script:TestFoldersPath "TestFolder$i"
-        New-Item -Path $testFolder -ItemType Directory -Force | Out-Null
-        $script:TestFolders += $testFolder
-    }
-
-    # Generate test SIDs for ACL testing
-    $script:TestSIDs = @(
-        'S-1-5-21-1234567890-1234567890-1234567890-1001',
-        'S-1-5-21-1234567890-1234567890-1234567890-1002',
-        'S-1-5-21-1234567890-1234567890-1234567890-1003'
-    )
-
-    # Mock dangerous file system operations for safety
-    Mock Remove-Item {
-        Write-Warning "MOCK: Remove-Item called safely for $($args[0])"
-        return @{ Success = $true; Operation = 'MOCKED'; Path = $args[0] }
-    } -ModuleName Find-UnknownSID -ParameterFilter { $Path -notlike "*TestDrive*" }
-
-    Mock Set-Acl {
-        Write-Warning "MOCK: Set-Acl called safely for $($args[0])"
-        return $true
-    } -ModuleName Find-UnknownSID -ParameterFilter { $Path -notlike "*TestDrive*" }
+# Import full module for file system integration testing
+$script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
+Import-Module $script:ModulePath -Force
+# Import test helpers
+$script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
+. $script:TestHelpersPath
+# Set up file system integration test environment
+$script:TestRootPath = Join-Path $TestDrive 'FileSystemIntegrationTests'
+$script:TestFilesPath = Join-Path $script:TestRootPath 'TestFiles'
+$script:TestFoldersPath = Join-Path $script:TestRootPath 'TestFolders'
+$script:BackupPath = Join-Path $script:TestRootPath 'Backups'
+$script:CorrelationId = [System.Guid]::NewGuid().ToString()
+# Create test directory structure
+New-Item -Path $script:TestRootPath -ItemType Directory -Force | Out-Null
+New-Item -Path $script:TestFilesPath -ItemType Directory -Force | Out-Null
+New-Item -Path $script:TestFoldersPath -ItemType Directory -Force | Out-Null
+New-Item -Path $script:BackupPath -ItemType Directory -Force | Out-Null
+# Create test files with various permissions
+$script:TestFiles = @()
+for ($i = 1; $i -le 5; $i++) {
+$testFile = Join-Path $script:TestFilesPath "TestFile$i.txt"
+"Test content for file $i" | Set-Content -Path $testFile
+$script:TestFiles += $testFile
 }
+# Create test folders
+$script:TestFolders = @()
+for ($i = 1; $i -le 3; $i++) {
+$testFolder = Join-Path $script:TestFoldersPath "TestFolder$i"
+New-Item -Path $testFolder -ItemType Directory -Force | Out-Null
+$script:TestFolders += $testFolder
+}
+# Generate test SIDs for ACL testing
+$script:TestSIDs = @(
+'S-1-5-21-1234567890-1234567890-1234567890-1001',
+'S-1-5-21-1234567890-1234567890-1234567890-1002',
+'S-1-5-21-1234567890-1234567890-1234567890-1003'
+)
+# Mock dangerous file system operations for safety
+Mock Remove-Item {
+Write-Warning "MOCK: Remove-Item called safely for $($args[0])"
+return @{ Success = $true; Operation = 'MOCKED'; Path = $args[0] }
+} -ModuleName Find-UnknownSID -ParameterFilter { $Path -notlike "*TestDrive*" }
+Mock Set-Acl {
+Write-Warning "MOCK: Set-Acl called safely for $($args[0])"
+return $true
+} -ModuleName Find-UnknownSID -ParameterFilter { $Path -notlike "*TestDrive*" }
 
 Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
 
@@ -98,9 +88,9 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
                 $acl = Get-Acl -Path $testFile
 
                 $acl | Should -Not -BeNull
-                $acl.Path | Should -Be $testFile
+                $acl.Path | Should Be $testFile
                 $acl.Access | Should -Not -BeNull
-                $acl.Owner | Should -Not -BeNullOrEmpty
+                $acl.Owner | Should Not BeNullOrEmpty
 
                 Write-Verbose "Successfully read ACL for $testFile - CorrelationId: $script:ACLCorrelationId"
             }
@@ -112,9 +102,9 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
                 $acl = Get-Acl -Path $testFolder
 
                 $acl | Should -Not -BeNull
-                $acl.Path | Should -Be $testFolder
+                $acl.Path | Should Be $testFolder
                 $acl.Access | Should -Not -BeNull
-                $acl.Owner | Should -Not -BeNullOrEmpty
+                $acl.Owner | Should Not BeNullOrEmpty
 
                 Write-Verbose "Successfully read ACL for $testFolder - CorrelationId: $script:ACLCorrelationId"
             }
@@ -141,16 +131,16 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $result = Get-ACLForRemoval -Path $script:TestFiles[0] -CorrelationId $script:ACLCorrelationId
 
             $result.Success | Should -BeTrue
-            $result.OrphanedEntries | Should -Not -BeNullOrEmpty
-            $result.OrphanedEntries[0].SID | Should -Be $script:TestSIDs[0]
-            $result.CorrelationId | Should -Be $script:ACLCorrelationId
+            $result.OrphanedEntries | Should Not BeNullOrEmpty
+            $result.OrphanedEntries[0].SID | Should Be $script:TestSIDs[0]
+            $result.CorrelationId | Should Be $script:ACLCorrelationId
         }
 
         It "Should handle ACL reading errors gracefully" {
             # Test error handling for inaccessible files
             $inaccessiblePath = "C:\NonExistentPath\File.txt"
 
-            { Get-Acl -Path $inaccessiblePath -ErrorAction Stop } | Should -Throw
+            { Get-Acl -Path $inaccessiblePath -ErrorAction Stop } | Should Throw
         }
     }
 
@@ -177,9 +167,9 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $backupResult = New-BackupFile -Path $script:TestFiles[0] -CorrelationId $script:ModificationCorrelationId
 
             $backupResult.Success | Should -BeTrue
-            $backupResult.FilePath | Should -Be $script:TestFiles[0]
-            $backupResult.CorrelationId | Should -Be $script:ModificationCorrelationId
-            $backupResult.BackupPath | Should -Match "ACL_Backup_"
+            $backupResult.FilePath | Should Be $script:TestFiles[0]
+            $backupResult.CorrelationId | Should Be $script:ModificationCorrelationId
+            $backupResult.BackupPath | Should Match "ACL_Backup_"
         }
 
         It "Should modify ACLs safely in test environment" {
@@ -216,16 +206,16 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $result = Invoke-SIDRemoval -Path $script:TestFiles[0] -SID $script:TestSIDs[0] -CorrelationId $script:ModificationCorrelationId
 
             $result.Success | Should -BeTrue
-            $result.SIDsRemoved | Should -Contain $script:TestSIDs[0]
+            $result.SIDsRemoved | Should Contain $script:TestSIDs[0]
             $result.BackupCreated | Should -BeTrue
-            $result.CorrelationId | Should -Be $script:ModificationCorrelationId
+            $result.CorrelationId | Should Be $script:ModificationCorrelationId
         }
 
         It "Should handle ACL modification failures" {
             # Test error handling during ACL modifications
             Mock Set-Acl { throw "Access denied to modify ACL" } -ModuleName Find-UnknownSID
 
-            { Set-Acl -Path $script:TestFiles[0] -AclObject (Get-Acl $script:TestFiles[0]) -ErrorAction Stop } | Should -Throw "*Access denied*"
+            { Set-Acl -Path $script:TestFiles[0] -AclObject (Get-Acl $script:TestFiles[0]) -ErrorAction Stop } | Should Throw "*Access denied*"
         }
     }
 
@@ -243,8 +233,8 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             }
 
             $stopwatch.Stop()
-            $stopwatch.ElapsedSeconds | Should -BeLessThan 10  # 10 seconds max for 5 files
-            $results.Count | Should -Be $script:TestFiles.Count
+            $stopwatch.ElapsedSeconds | Should BeLessThan 10  # 10 seconds max for 5 files
+            $results.Count | Should Be $script:TestFiles.Count
 
             Write-Verbose "Processed $($results.Count) files in $($stopwatch.ElapsedSeconds) seconds - CorrelationId: $script:BatchCorrelationId"
         }
@@ -267,7 +257,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
 
             $results | ForEach-Object {
                 $_.Success | Should -BeTrue
-                $_.CorrelationId | Should -Be $script:BatchCorrelationId
+                $_.CorrelationId | Should Be $script:BatchCorrelationId
             }
         }
 
@@ -295,9 +285,9 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
                 }
             }
 
-            $processResults.Count | Should -Be $script:TestFiles.Count
+            $processResults.Count | Should Be $script:TestFiles.Count
             $successCount = ($processResults | Where-Object { $_.Success }).Count
-            $successCount | Should -BeGreaterThan 0
+            $successCount | Should BeGreaterThan 0
         }
     }
 
@@ -322,7 +312,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
                     return $true
                 } -ModuleName Find-UnknownSID
 
-                { Test-PathSecurity -Path $maliciousPath } | Should -Throw "*Path traversal detected*"
+                { Test-PathSecurity -Path $maliciousPath } | Should Throw "*Path traversal detected*"
             }
         }
 
@@ -343,7 +333,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $result.HasWriteAccess | Should -BeTrue
             $result.HasModifyAccess | Should -BeTrue
             $result.IsReadOnly | Should -BeFalse
-            $result.CorrelationId | Should -Be $script:SecurityCorrelationId
+            $result.CorrelationId | Should Be $script:SecurityCorrelationId
         }
 
         It "Should enforce safe file operation limits" {
@@ -351,7 +341,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $maxFiles = 1000  # Reasonable limit
             $testFileCount = $script:TestFiles.Count
 
-            $testFileCount | Should -BeLessThan $maxFiles
+            $testFileCount | Should BeLessThan $maxFiles
 
             # Test that batch operations respect limits
             if ($testFileCount -gt 100) {
@@ -389,8 +379,8 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
             $result = New-FileBackup -Path $script:TestFiles[0] -CorrelationId $script:BackupCorrelationId
 
             $result.Success | Should -BeTrue
-            $result.OriginalPath | Should -Be $script:TestFiles[0]
-            $result.CorrelationId | Should -Be $script:BackupCorrelationId
+            $result.OriginalPath | Should Be $script:TestFiles[0]
+            $result.CorrelationId | Should Be $script:BackupCorrelationId
             Test-Path $result.BackupPath | Should -BeTrue
         }
 
@@ -412,7 +402,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
 
             $result.IsValid | Should -BeTrue
             $result.ACLDataPresent | Should -BeTrue
-            $result.CorrelationId | Should -Be $script:BackupCorrelationId
+            $result.CorrelationId | Should Be $script:BackupCorrelationId
         }
 
         It "Should support backup restoration" {
@@ -433,7 +423,7 @@ Describe "File System ACL Integration" -Tag "Integration", "FileSystem", "ACL" {
 
             $result.RestoreSuccessful | Should -BeTrue
             $result.ACLRestored | Should -BeTrue
-            $result.CorrelationId | Should -Be $script:BackupCorrelationId
+            $result.CorrelationId | Should Be $script:BackupCorrelationId
         }
     }
 }
@@ -461,8 +451,8 @@ Describe "File System Performance Integration" -Tag "Integration", "Performance"
             }
 
             $stopwatch.Stop()
-            $stopwatch.ElapsedSeconds | Should -BeLessThan 30  # 30 seconds max for 20 files
-            $results.Count | Should -Be $largeFileSet.Count
+            $stopwatch.ElapsedSeconds | Should BeLessThan 30  # 30 seconds max for 20 files
+            $results.Count | Should Be $largeFileSet.Count
 
             Write-Verbose "Processed $($results.Count) files in $($stopwatch.ElapsedSeconds) seconds - CorrelationId: $script:PerformanceCorrelationId"
         }
@@ -479,7 +469,7 @@ Describe "File System Performance Integration" -Tag "Integration", "Performance"
             $results = $concurrentJobs | Wait-Job | Receive-Job
             $concurrentJobs | Remove-Job
 
-            $results.Count | Should -Be $script:TestFiles.Count
+            $results.Count | Should Be $script:TestFiles.Count
 
             Write-Verbose "Completed concurrent processing of $($results.Count) files - CorrelationId: $script:PerformanceCorrelationId"
         }
@@ -502,7 +492,7 @@ Describe "File System Integration Infrastructure" -Tag "Integration", "Infrastru
             foreach ($testFile in $script:TestFiles) {
                 Test-Path $testFile | Should -BeTrue
                 $content = Get-Content $testFile
-                $content | Should -Not -BeNullOrEmpty
+                $content | Should Not BeNullOrEmpty
             }
         }
 
@@ -523,3 +513,4 @@ AfterAll {
     # Force garbage collection
     [System.GC]::Collect()
 }
+

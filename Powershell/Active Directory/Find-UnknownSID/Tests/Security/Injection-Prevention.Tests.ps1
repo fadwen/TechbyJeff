@@ -26,52 +26,44 @@
     - For compliance problems: .\Troubleshooting\Compliance\Compliance-Troubleshooting.md
 #>
 
-BeforeAll {
-    # Import security testing utilities
-    $script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
-    Import-Module $script:ModulePath -Force
-
-    # Import test helpers
-    $script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
-    . $script:TestHelpersPath
-
-    # Set up security test data
-    $script:MaliciousInputs = @(
-        "'; DROP TABLE Users; --",              # SQL injection
-        "../../../windows/system32/config",     # Path traversal
-        "$(Invoke-Expression 'calc.exe')",      # PowerShell injection
-        "|cmd /c whoami",                       # Command injection
-        "$(Get-Process)",                       # PowerShell execution
-        "../etc/passwd",                        # Unix path traversal
-        "javascript:alert('xss')",             # Script injection
-        "<script>alert('xss')</script>",       # HTML injection
-        "CN=Administrator,CN=Users`; rm -rf /", # LDAP injection with command
-        "../../../../../../etc/shadow",         # Extended path traversal
-        "%SystemRoot%\system32\cmd.exe",        # Environment variable injection
-        "$(whoami; cat /etc/passwd)",           # Command chaining
-        "'; shutdown /s /t 1; --"              # System command injection
-    )
-
-    $script:PrivilegeEscalationTests = @(
-        @{ User = 'standard_user'; Action = 'AdminOperation'; ShouldFail = $true }
-        @{ User = 'domain_admin'; Action = 'StandardOperation'; ShouldSucceed = $true }
-        @{ User = 'service_account'; Action = 'ServiceOperation'; ShouldSucceed = $true }
-        @{ User = 'guest_user'; Action = 'ReadOperation'; ShouldFail = $true }
-        @{ User = 'backup_operator'; Action = 'BackupOperation'; ShouldSucceed = $true }
-    )
-
-    $script:CorrelationId = [System.Guid]::NewGuid().ToString()
-
-    # Mock security logging for testing
-    Mock Write-SecurityLog {
-        param($SecurityEventType, $Message, $Outcome, $CorrelationId, $SecurityContext)
-        Write-Verbose "Security Event: $SecurityEventType - $Message - $Outcome"
-    } -ModuleName Find-UnknownSID
-
-    # Mock dangerous operations for safe testing
-    Mock Invoke-Expression { throw "Dangerous operation blocked" } -ModuleName Find-UnknownSID
-    Mock Start-Process { throw "Process execution blocked" } -ModuleName Find-UnknownSID
-}
+# Import security testing utilities
+$script:ModulePath = Join-Path $PSScriptRoot '..\..\Find-UnknownSID.ps1'
+Import-Module $script:ModulePath -Force
+# Import test helpers
+$script:TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
+. $script:TestHelpersPath
+# Set up security test data
+$script:MaliciousInputs = @(
+"'; DROP TABLE Users; --",              # SQL injection
+"../../../windows/system32/config",     # Path traversal
+"$(Invoke-Expression 'calc.exe')",      # PowerShell injection
+"|cmd /c whoami",                       # Command injection
+"$(Get-Process)",                       # PowerShell execution
+"../etc/passwd",                        # Unix path traversal
+"javascript:alert('xss')",             # Script injection
+"<script>alert('xss')</script>",       # HTML injection
+"CN=Administrator,CN=Users`; rm -rf /", # LDAP injection with command
+"../../../../../../etc/shadow",         # Extended path traversal
+"%SystemRoot%\system32\cmd.exe",        # Environment variable injection
+"$(whoami; cat /etc/passwd)",           # Command chaining
+"'; shutdown /s /t 1; --"              # System command injection
+)
+$script:PrivilegeEscalationTests = @(
+@{ User = 'standard_user'; Action = 'AdminOperation'; ShouldFail = $true }
+@{ User = 'domain_admin'; Action = 'StandardOperation'; ShouldSucceed = $true }
+@{ User = 'service_account'; Action = 'ServiceOperation'; ShouldSucceed = $true }
+@{ User = 'guest_user'; Action = 'ReadOperation'; ShouldFail = $true }
+@{ User = 'backup_operator'; Action = 'BackupOperation'; ShouldSucceed = $true }
+)
+$script:CorrelationId = [System.Guid]::NewGuid().ToString()
+# Mock security logging for testing
+Mock Write-SecurityLog {
+param($SecurityEventType, $Message, $Outcome, $CorrelationId, $SecurityContext)
+Write-Verbose "Security Event: $SecurityEventType - $Message - $Outcome"
+} -ModuleName Find-UnknownSID
+# Mock dangerous operations for safe testing
+Mock Invoke-Expression { throw "Dangerous operation blocked" } -ModuleName Find-UnknownSID
+Mock Start-Process { throw "Process execution blocked" } -ModuleName Find-UnknownSID
 
 Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" {
 
@@ -92,7 +84,7 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
                 return @()
             } -ModuleName Find-UnknownSID
 
-            { Find-OrphanedSIDs -SearchBase $MaliciousInput -CorrelationId $script:InjectionCorrelationId } | Should -Throw "*Invalid*"
+            { Find-OrphanedSIDs -SearchBase $MaliciousInput -CorrelationId $script:InjectionCorrelationId } | Should Throw "*Invalid*"
         }
 
         It "Should sanitize input parameters for AD queries" {
@@ -110,9 +102,9 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
 
             $safeInput = "CN=TestUser,CN=Users,DC=test,DC=local"
             $sanitizedResult = Protect-UserInput -InputString $safeInput -InputType 'DistinguishedName' -CorrelationId $script:InjectionCorrelationId
-            $sanitizedResult | Should -Be $safeInput
+            $sanitizedResult | Should Be $safeInput
 
-            { Protect-UserInput -InputString "../../../windows" -InputType 'DistinguishedName' -CorrelationId $script:InjectionCorrelationId } | Should -Throw "*dangerous*"
+            { Protect-UserInput -InputString "../../../windows" -InputType 'DistinguishedName' -CorrelationId $script:InjectionCorrelationId } | Should Throw "*dangerous*"
         }
 
         It "Should validate SID format to prevent injection" {
@@ -123,7 +115,7 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
 
             # Test malicious SID formats
             foreach ($maliciousInput in $script:MaliciousInputs) {
-                { Test-SIDFormat -SID $maliciousInput -CorrelationId $script:InjectionCorrelationId } | Should -Throw
+                { Test-SIDFormat -SID $maliciousInput -CorrelationId $script:InjectionCorrelationId } | Should Throw
             }
         }
     }
@@ -137,14 +129,14 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
             # Test prevention of PowerShell execution in parameters
             $maliciousPSCode = "$(Get-Process)"
 
-            { Test-SIDFormat -SID $maliciousPSCode -CorrelationId $script:PSInjectionCorrelationId } | Should -Throw "*Invalid SID format*"
+            { Test-SIDFormat -SID $maliciousPSCode -CorrelationId $script:PSInjectionCorrelationId } | Should Throw "*Invalid SID format*"
         }
 
         It "Should prevent command substitution attacks" {
             # Test prevention of command substitution
             $commandSubstitution = "`$(whoami)"
 
-            { Test-SIDFormat -SID $commandSubstitution -CorrelationId $script:PSInjectionCorrelationId } | Should -Throw "*Invalid SID format*"
+            { Test-SIDFormat -SID $commandSubstitution -CorrelationId $script:PSInjectionCorrelationId } | Should Throw "*Invalid SID format*"
         }
 
         It "Should validate file paths to prevent traversal" {
@@ -162,7 +154,7 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
             $safePath = "C:\Logs\backup.xml"
             Test-SafeFilePath -FilePath $safePath -CorrelationId $script:PSInjectionCorrelationId | Should -BeTrue
 
-            { Test-SafeFilePath -FilePath "../../../windows/system32/config" -CorrelationId $script:PSInjectionCorrelationId } | Should -Throw "*traversal*"
+            { Test-SafeFilePath -FilePath "../../../windows/system32/config" -CorrelationId $script:PSInjectionCorrelationId } | Should Throw "*traversal*"
         }
     }
 
@@ -189,7 +181,7 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
                     return @{ Success = $true; FilePath = $FilePath }
                 } -ModuleName Find-UnknownSID
 
-                { New-BackupFile -FilePath $traversalPath -CorrelationId $script:FileInjectionCorrelationId } | Should -Throw "*traversal*"
+                { New-BackupFile -FilePath $traversalPath -CorrelationId $script:FileInjectionCorrelationId } | Should Throw "*traversal*"
             }
         }
 
@@ -214,7 +206,7 @@ Describe "Injection Attack Prevention" -Tag "Security", "Critical", "Injection" 
             $result = New-BackupFile -FilePath $validPath -CorrelationId $script:FileInjectionCorrelationId
             $result.Success | Should -BeTrue
 
-            { New-BackupFile -FilePath "C:\Backups\backup<script>.exe" -CorrelationId $script:FileInjectionCorrelationId } | Should -Throw "*Invalid characters*"
+            { New-BackupFile -FilePath "C:\Backups\backup<script>.exe" -CorrelationId $script:FileInjectionCorrelationId } | Should Throw "*Invalid characters*"
         }
     }
 }
@@ -257,7 +249,7 @@ Describe "Privilege Escalation Prevention" -Tag "Security", "Authorization", "Ac
             } -ModuleName Find-UnknownSID
 
             if ($ShouldFail) {
-                { Invoke-SecureOperation -Action $Action -User $User -CorrelationId $script:AccessCorrelationId } | Should -Throw "*Unauthorized*"
+                { Invoke-SecureOperation -Action $Action -User $User -CorrelationId $script:AccessCorrelationId } | Should Throw "*Unauthorized*"
             }
             if ($ShouldSucceed) {
                 $result = Invoke-SecureOperation -Action $Action -User $User -CorrelationId $script:AccessCorrelationId
@@ -310,8 +302,8 @@ Describe "Privilege Escalation Prevention" -Tag "Security", "Authorization", "Ac
             } -ModuleName Find-UnknownSID
 
             $credential = Get-SecureCredential -Username 'testuser' -CorrelationId $script:CredentialCorrelationId
-            $credential | Should -BeOfType [System.Management.Automation.PSCredential]
-            $credential.UserName | Should -Be 'testuser'
+            $credential | Should BeOfType [System.Management.Automation.PSCredential]
+            $credential.UserName | Should Be 'testuser'
         }
 
         It "Should never expose credentials in logs" {
@@ -320,10 +312,10 @@ Describe "Privilege Escalation Prevention" -Tag "Security", "Authorization", "Ac
                 param($SecurityEventType, $Message, $Outcome, $CorrelationId, $SecurityContext)
 
                 # Verify no credential data in logs
-                $Message | Should -Not -Match "password|credential|secret"
+                $Message | Should Not Match "password|credential|secret"
                 if ($SecurityContext) {
                     $SecurityContext.Values | ForEach-Object {
-                        $_ | Should -Not -Match "password|credential|secret"
+                        $_ | Should Not Match "password|credential|secret"
                     }
                 }
 
@@ -366,7 +358,7 @@ Describe "Audit Trail Validation" -Tag "Security", "Compliance", "Auditing" {
 
             $result = Invoke-SecureOperation -Operation $testOperation -CorrelationId $script:AuditCorrelationId
 
-            $result.CorrelationId | Should -Be $script:AuditCorrelationId
+            $result.CorrelationId | Should Be $script:AuditCorrelationId
             Assert-MockCalled Write-SecurityLog -ModuleName Find-UnknownSID -Exactly 1
         }
 
@@ -375,10 +367,10 @@ Describe "Audit Trail Validation" -Tag "Security", "Compliance", "Auditing" {
                 param($SecurityEventType, $Message, $Outcome, $CorrelationId, $SecurityContext)
 
                 # Verify required security context elements
-                $SecurityContext | Should -Not -BeNullOrEmpty
-                $SecurityContext.Keys | Should -Contain 'User'
-                $SecurityContext.Keys | Should -Contain 'Action'
-                $SecurityContext.Keys | Should -Contain 'Timestamp'
+                $SecurityContext | Should Not BeNullOrEmpty
+                $SecurityContext.Keys | Should Contain 'User'
+                $SecurityContext.Keys | Should Contain 'Action'
+                $SecurityContext.Keys | Should Contain 'Timestamp'
 
                 return @{ Success = $true }
             } -ModuleName Find-UnknownSID
@@ -418,8 +410,8 @@ Describe "Audit Trail Validation" -Tag "Security", "Compliance", "Auditing" {
 
                 # Verify all records have correlation ID and hash
                 foreach ($record in $auditRecords) {
-                    $record.CorrelationId | Should -Be $CorrelationId
-                    $record.Hash | Should -Not -BeNullOrEmpty
+                    $record.CorrelationId | Should Be $CorrelationId
+                    $record.Hash | Should Not BeNullOrEmpty
                 }
 
                 return @{ Integrity = $true; RecordCount = $auditRecords.Count }
@@ -427,7 +419,7 @@ Describe "Audit Trail Validation" -Tag "Security", "Compliance", "Auditing" {
 
             $result = Test-AuditIntegrity -CorrelationId $script:AuditCorrelationId
             $result.Integrity | Should -BeTrue
-            $result.RecordCount | Should -BeGreaterThan 0
+            $result.RecordCount | Should BeGreaterThan 0
         }
     }
 }
@@ -445,3 +437,4 @@ AfterAll {
     [System.GC]::WaitForPendingFinalizers()
     [System.GC]::Collect()
 }
+

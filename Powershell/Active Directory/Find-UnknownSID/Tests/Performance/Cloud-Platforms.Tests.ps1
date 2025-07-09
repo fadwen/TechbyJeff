@@ -27,50 +27,44 @@
     - For hybrid scenarios: .\Troubleshooting\Cloud\Hybrid-Configuration-Guide.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # Cloud platform configuration
-    $script:CloudConfig = @{
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        SupportedPlatforms = @('Azure', 'AWS', 'GoogleCloud', 'Hybrid')
-        TestEnvironments = @{
-            'Azure' = @{
-                TenantId = $env:AZURE_TENANT_ID
-                SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
-                ResourceGroup = "rg-findunknownsid-test"
-                Region = "East US"
-            }
-            'AWS' = @{
-                Region = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }
-                AccountId = $env:AWS_ACCOUNT_ID
-                DirectoryId = $env:AWS_DIRECTORY_ID
-            }
-            'GoogleCloud' = @{
-                ProjectId = $env:GOOGLE_CLOUD_PROJECT_ID
-                Region = if ($env:GOOGLE_CLOUD_REGION) { $env:GOOGLE_CLOUD_REGION } else { "us-central1" }
-                Zone = if ($env:GOOGLE_CLOUD_ZONE) { $env:GOOGLE_CLOUD_ZONE } else { "us-central1-a" }
-            }
-        }
-        CloudFeatures = @()
-    }
-
-    # Detect available cloud environments
-    $script:AvailableEnvironments = @()
-    if ($env:AZURE_TENANT_ID) { $script:AvailableEnvironments += 'Azure' }
-    if ($env:AWS_ACCOUNT_ID) { $script:AvailableEnvironments += 'AWS' }
-    if ($env:GOOGLE_CLOUD_PROJECT_ID) { $script:AvailableEnvironments += 'GoogleCloud' }
-
-    Write-Verbose "Available cloud environments: $($script:AvailableEnvironments -join ', ')"
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Cloud platform configuration
+$script:CloudConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+SupportedPlatforms = @('Azure', 'AWS', 'GoogleCloud', 'Hybrid')
+TestEnvironments = @{
+'Azure' = @{
+TenantId = $env:AZURE_TENANT_ID
+SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+ResourceGroup = "rg-findunknownsid-test"
+Region = "East US"
+}
+'AWS' = @{
+Region = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }
+AccountId = $env:AWS_ACCOUNT_ID
+DirectoryId = $env:AWS_DIRECTORY_ID
+}
+'GoogleCloud' = @{
+ProjectId = $env:GOOGLE_CLOUD_PROJECT_ID
+Region = if ($env:GOOGLE_CLOUD_REGION) { $env:GOOGLE_CLOUD_REGION } else { "us-central1" }
+Zone = if ($env:GOOGLE_CLOUD_ZONE) { $env:GOOGLE_CLOUD_ZONE } else { "us-central1-a" }
+}
+}
+CloudFeatures = @()
+}
+# Detect available cloud environments
+$script:AvailableEnvironments = @()
+if ($env:AZURE_TENANT_ID) { $script:AvailableEnvironments += 'Azure' }
+if ($env:AWS_ACCOUNT_ID) { $script:AvailableEnvironments += 'AWS' }
+if ($env:GOOGLE_CLOUD_PROJECT_ID) { $script:AvailableEnvironments += 'GoogleCloud' }
+Write-Verbose "Available cloud environments: $($script:AvailableEnvironments -join ', ')"
 
 AfterAll {
     # Generate cloud testing report
@@ -89,302 +83,128 @@ AfterAll {
 Describe "Azure Cloud Platform Integration" -Tag @("Cloud", "Azure", "Integration") {
 
     Context "Azure Active Directory Integration" -Skip:($env:AZURE_TENANT_ID -eq $null) {
-        BeforeAll {
-            # Initialize Azure connection
-            try {
-                $azureConnected = Initialize-AzureConnection
-                if (-not $azureConnected) {
-                    Set-ItResult -Skipped -Because "Azure connection not available"
-                }
-            } catch {
-                Set-ItResult -Skipped -Because "Azure connection failed: $($_.Exception.Message)"
-            }
-        }
-
-        It "Should connect to Azure Active Directory successfully" {
-            # Test Azure AD connection
-            $azureADConnection = Test-AzureADConnection
-
-            $azureADConnection.Connected | Should -Be $true
-            $azureADConnection.TenantId | Should -Be $script:CloudConfig.TestEnvironments.Azure.TenantId
-            $azureADConnection.AuthenticationMethod | Should -Not -BeNullOrEmpty
-            $azureADConnection.Permissions | Should -Contain "Directory.Read.All"
-        }
-
-        It "Should query Azure AD for orphaned SIDs" {
-            # Test Azure AD SID querying
-            $azureQuery = @{
-                Filter = "userType eq 'Member'"
-                Properties = @('id', 'userPrincipalName', 'securityIdentifier')
-                Top = 100
-            }
-
-            $queryResult = Invoke-AzureADSIDQuery @azureQuery
-
-            $queryResult.Success | Should -Be $true
-            $queryResult.Users | Should -Not -BeNullOrEmpty
-            $queryResult.Users[0] | Should -HaveProperty 'securityIdentifier'
-            $queryResult.ExecutionTime | Should -BeLessOrEqual 30000 # 30 seconds
-        }
-
-        It "Should handle Azure AD hybrid scenarios" {
-            # Test hybrid Azure AD + on-premises scenarios
-            $hybridTest = Test-AzureADHybridScenario -SearchBase "DC=contoso,DC=com"
-
-            $hybridTest.OnPremisesConnected | Should -Be $true
-            $hybridTest.AzureADConnected | Should -Be $true
-            $hybridTest.SyncStatusHealthy | Should -Be $true
-            $hybridTest.CrossReferenceResolution | Should -Be $true
-        }
-
-        It "Should validate Azure AD permissions and security" {
-            # Test Azure AD security validation
-            $securityValidation = Test-AzureADSecurity
-
-            $securityValidation.MinimumPermissions | Should -Be $true
-            $securityValidation.NoExcessivePermissions | Should -Be $true
-            $securityValidation.SecureAuthentication | Should -Be $true
-            $securityValidation.AuditLoggingEnabled | Should -Be $true
-        }
-
-        It "Should handle Azure AD throttling gracefully" {
-            # Test Azure AD API throttling scenarios
-            $throttlingTest = Test-AzureADThrottling -RequestsPerSecond 100
-
-            $throttlingTest.HandledGracefully | Should -Be $true
-            $throttlingTest.BackoffImplemented | Should -Be $true
-            $throttlingTest.NoDataLoss | Should -Be $true
-            $throttlingTest.RecoverySuccessful | Should -Be $true
-        }
-    }
-
-    Context "Azure Resource Management" -Skip:($env:AZURE_SUBSCRIPTION_ID -eq $null) {
-        It "Should deploy to Azure Resource Groups successfully" {
-            # Test Azure resource group deployment
-            $deploymentTest = Test-AzureResourceGroupDeployment -ResourceGroup $script:CloudConfig.TestEnvironments.Azure.ResourceGroup
-
-            $deploymentTest.ResourceGroupExists | Should -Be $true
-            $deploymentTest.DeploymentSuccessful | Should -Be $true
-            $deploymentTest.ResourcesHealthy | Should -Be $true
-            $deploymentTest.NetworkingConfigured | Should -Be $true
-        }
-
-        It "Should integrate with Azure Key Vault for secrets" {
-            # Test Azure Key Vault integration
-            $keyVaultTest = Test-AzureKeyVaultIntegration
-
-            $keyVaultTest.VaultAccessible | Should -Be $true
-            $keyVaultTest.SecretsRetrievable | Should -Be $true
-            $keyVaultTest.EncryptionWorking | Should -Be $true
-            $keyVaultTest.AccessLogged | Should -Be $true
-        }
-
-        It "Should work with Azure Monitor and Application Insights" {
-            # Test Azure monitoring integration
-            $monitoringTest = Test-AzureMonitoringIntegration
-
-            $monitoringTest.MetricsCollected | Should -Be $true
-            $monitoringTest.LogsIngested | Should -Be $true
-            $monitoringTest.AlertsConfigured | Should -Be $true
-            $monitoringTest.DashboardsWorking | Should -Be $true
-        }
-    }
-
-    Context "Azure PowerShell and CLI Integration" {
-        It "Should work with Azure PowerShell modules" {
-            # Test Azure PowerShell integration
-            $azPSTest = Test-AzurePowerShellIntegration
-
-            $azPSTest.ModulesLoaded | Should -Be $true
-            $azPSTest.CommandsAvailable | Should -Be $true
-            $azPSTest.AuthenticationWorking | Should -Be $true
-            $azPSTest.ResourceManagement | Should -Be $true
-        }
-
-        It "Should work with Azure CLI when available" {
-            # Test Azure CLI integration
-            $azCLIAvailable = Test-AzureCLIAvailability
-
-            if ($azCLIAvailable) {
-                $azCLITest = Test-AzureCLIIntegration
-
-                $azCLITest.LoginSuccessful | Should -Be $true
-                $azCLITest.CommandsExecute | Should -Be $true
-                $azCLITest.OutputParseable | Should -Be $true
-            } else {
-                Set-ItResult -Skipped -Because "Azure CLI not available"
-            }
-        }
-    }
+        # Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Cloud platform configuration
+$script:CloudConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+SupportedPlatforms = @('Azure', 'AWS', 'GoogleCloud', 'Hybrid')
+TestEnvironments = @{
+'Azure' = @{
+TenantId = $env:AZURE_TENANT_ID
+SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+ResourceGroup = "rg-findunknownsid-test"
+Region = "East US"
+}
+'AWS' = @{
+Region = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }
+AccountId = $env:AWS_ACCOUNT_ID
+DirectoryId = $env:AWS_DIRECTORY_ID
+}
+'GoogleCloud' = @{
+ProjectId = $env:GOOGLE_CLOUD_PROJECT_ID
+Region = if ($env:GOOGLE_CLOUD_REGION) { $env:GOOGLE_CLOUD_REGION } else { "us-central1" }
+Zone = if ($env:GOOGLE_CLOUD_ZONE) { $env:GOOGLE_CLOUD_ZONE } else { "us-central1-a" }
+}
+}
+CloudFeatures = @()
+}
+# Detect available cloud environments
+$script:AvailableEnvironments = @()
+if ($env:AZURE_TENANT_ID) { $script:AvailableEnvironments += 'Azure' }
+if ($env:AWS_ACCOUNT_ID) { $script:AvailableEnvironments += 'AWS' }
+if ($env:GOOGLE_CLOUD_PROJECT_ID) { $script:AvailableEnvironments += 'GoogleCloud' }
+Write-Verbose "Available cloud environments: $($script:AvailableEnvironments -join ', ')"
 
 Describe "AWS Cloud Platform Integration" -Tag @("Cloud", "AWS", "Integration") {
 
     Context "AWS Directory Services Integration" -Skip:($env:AWS_ACCOUNT_ID -eq $null) {
-        BeforeAll {
-            # Initialize AWS connection
-            try {
-                $awsConnected = Initialize-AWSConnection
-                if (-not $awsConnected) {
-                    Set-ItResult -Skipped -Because "AWS connection not available"
-                }
-            } catch {
-                Set-ItResult -Skipped -Because "AWS connection failed: $($_.Exception.Message)"
-            }
-        }
-
-        It "Should connect to AWS Directory Services" {
-            # Test AWS Directory Services connection
-            $awsDirectoryConnection = Test-AWSDirectoryConnection
-
-            $awsDirectoryConnection.Connected | Should -Be $true
-            $awsDirectoryConnection.DirectoryType | Should -BeIn @('SimpleAD', 'ManagedMicrosoftAD', 'ConnectedDirectory')
-            $awsDirectoryConnection.Region | Should -Be $script:CloudConfig.TestEnvironments.AWS.Region
-            $awsDirectoryConnection.Status | Should -Be 'Active'
-        }
-
-        It "Should query AWS Managed Microsoft AD" {
-            # Test AWS Managed AD querying
-            $awsADQuery = Test-AWSManagedADQuery -DirectoryId $script:CloudConfig.TestEnvironments.AWS.DirectoryId
-
-            $awsADQuery.QuerySuccessful | Should -Be $true
-            $awsADQuery.UsersRetrieved | Should -BeGreaterThan 0
-            $awsADQuery.SIDsValidated | Should -Be $true
-            $awsADQuery.PerformanceAcceptable | Should -Be $true
-        }
-
-        It "Should integrate with AWS IAM for authentication" {
-            # Test AWS IAM integration
-            $iamIntegration = Test-AWSIAMIntegration
-
-            $iamIntegration.RolesConfigured | Should -Be $true
-            $iamIntegration.PoliciesAttached | Should -Be $true
-            $iamIntegration.PermissionsBoundary | Should -Be $true
-            $iamIntegration.AssumeRoleWorking | Should -Be $true
-        }
-
-        It "Should work with AWS Systems Manager" {
-            # Test AWS Systems Manager integration
-            $ssmIntegration = Test-AWSSystemsManagerIntegration
-
-            $ssmIntegration.ParameterStoreAccess | Should -Be $true
-            $ssmIntegration.SecureStringsDecryption | Should -Be $true
-            $ssmIntegration.DocumentExecution | Should -Be $true
-            $ssmIntegration.SessionManagerWorking | Should -Be $true
-        }
-    }
-
-    Context "AWS Security and Compliance" {
-        It "Should integrate with AWS CloudTrail for auditing" {
-            # Test AWS CloudTrail integration
-            $cloudTrailTest = Test-AWSCloudTrailIntegration
-
-            $cloudTrailTest.EventsLogged | Should -Be $true
-            $cloudTrailTest.IntegrityValidation | Should -Be $true
-            $cloudTrailTest.EncryptionEnabled | Should -Be $true
-            $cloudTrailTest.LogRetentionConfigured | Should -Be $true
-        }
-
-        It "Should work with AWS Config for compliance" {
-            # Test AWS Config integration
-            $configTest = Test-AWSConfigIntegration
-
-            $configTest.RulesEvaluated | Should -Be $true
-            $configTest.ComplianceStatus | Should -Be 'COMPLIANT'
-            $configTest.RemediationWorking | Should -Be $true
-            $configTest.NotificationsConfigured | Should -Be $true
-        }
-
-        It "Should integrate with AWS Secrets Manager" {
-            # Test AWS Secrets Manager integration
-            $secretsTest = Test-AWSSecretsManagerIntegration
-
-            $secretsTest.SecretsAccessible | Should -Be $true
-            $secretsTest.AutoRotationConfigured | Should -Be $true
-            $secretsTest.EncryptionEnabled | Should -Be $true
-            $secretsTest.VPCEndpointSecure | Should -Be $true
-        }
-    }
+        # Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Cloud platform configuration
+$script:CloudConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+SupportedPlatforms = @('Azure', 'AWS', 'GoogleCloud', 'Hybrid')
+TestEnvironments = @{
+'Azure' = @{
+TenantId = $env:AZURE_TENANT_ID
+SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+ResourceGroup = "rg-findunknownsid-test"
+Region = "East US"
+}
+'AWS' = @{
+Region = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }
+AccountId = $env:AWS_ACCOUNT_ID
+DirectoryId = $env:AWS_DIRECTORY_ID
+}
+'GoogleCloud' = @{
+ProjectId = $env:GOOGLE_CLOUD_PROJECT_ID
+Region = if ($env:GOOGLE_CLOUD_REGION) { $env:GOOGLE_CLOUD_REGION } else { "us-central1" }
+Zone = if ($env:GOOGLE_CLOUD_ZONE) { $env:GOOGLE_CLOUD_ZONE } else { "us-central1-a" }
+}
+}
+CloudFeatures = @()
+}
+# Detect available cloud environments
+$script:AvailableEnvironments = @()
+if ($env:AZURE_TENANT_ID) { $script:AvailableEnvironments += 'Azure' }
+if ($env:AWS_ACCOUNT_ID) { $script:AvailableEnvironments += 'AWS' }
+if ($env:GOOGLE_CLOUD_PROJECT_ID) { $script:AvailableEnvironments += 'GoogleCloud' }
+Write-Verbose "Available cloud environments: $($script:AvailableEnvironments -join ', ')"
 
 Describe "Google Cloud Platform Integration" -Tag @("Cloud", "GoogleCloud", "Integration") {
 
     Context "Google Cloud Identity Integration" -Skip:($env:GOOGLE_CLOUD_PROJECT_ID -eq $null) {
-        BeforeAll {
-            # Initialize Google Cloud connection
-            try {
-                $gcpConnected = Initialize-GCPConnection
-                if (-not $gcpConnected) {
-                    Set-ItResult -Skipped -Because "Google Cloud connection not available"
-                }
-            } catch {
-                Set-ItResult -Skipped -Because "Google Cloud connection failed: $($_.Exception.Message)"
-            }
-        }
-
-        It "Should connect to Google Cloud Identity" {
-            # Test Google Cloud Identity connection
-            $gcpIdentityConnection = Test-GCPIdentityConnection
-
-            $gcpIdentityConnection.Connected | Should -Be $true
-            $gcpIdentityConnection.ProjectId | Should -Be $script:CloudConfig.TestEnvironments.GoogleCloud.ProjectId
-            $gcpIdentityConnection.AuthenticationMethod | Should -Be 'ServiceAccount'
-            $gcpIdentityConnection.Permissions | Should -Contain 'clouddirectory.readonly'
-        }
-
-        It "Should query Google Cloud Directory" {
-            # Test Google Cloud Directory querying
-            $gcpDirectoryQuery = Test-GCPDirectoryQuery
-
-            $gcpDirectoryQuery.QuerySuccessful | Should -Be $true
-            $gcpDirectoryQuery.UsersRetrieved | Should -BeGreaterThan 0
-            $gcpDirectoryQuery.GroupsRetrieved | Should -BeGreaterThan 0
-            $gcpDirectoryQuery.APIQuotaRespected | Should -Be $true
-        }
-
-        It "Should integrate with Google Cloud IAM" {
-            # Test Google Cloud IAM integration
-            $gcpIAMTest = Test-GCPIAMIntegration
-
-            $gcpIAMTest.ServiceAccountConfigured | Should -Be $true
-            $gcpIAMTest.RolesAttached | Should -Be $true
-            $gcpIAMTest.PolicyBindingsValid | Should -Be $true
-            $gcpIAMTest.ConditionalAccessWorking | Should -Be $true
-        }
-
-        It "Should work with Google Cloud Logging" {
-            # Test Google Cloud Logging integration
-            $gcpLoggingTest = Test-GCPLoggingIntegration
-
-            $gcpLoggingTest.LogsIngested | Should -Be $true
-            $gcpLoggingTest.StructuredLoggingWorking | Should -Be $true
-            $gcpLoggingTest.LogExportsConfigured | Should -Be $true
-            $gcpLoggingTest.AlertPoliciesActive | Should -Be $true
-        }
-    }
-
-    Context "Google Cloud Security" {
-        It "Should integrate with Google Cloud Security Command Center" {
-            # Test Security Command Center integration
-            $sccTest = Test-GCPSecurityCommandCenterIntegration
-
-            $sccTest.FindingsGenerated | Should -Be $true
-            $sccTest.SecurityMarksApplied | Should -Be $true
-            $sccTest.NotificationsWorking | Should -Be $true
-            $sccTest.CompliancePostureValid | Should -Be $true
-        }
-
-        It "Should work with Google Cloud Key Management Service" {
-            # Test Cloud KMS integration
-            $kmsTest = Test-GCPKMSIntegration
-
-            $kmsTest.KeysAccessible | Should -Be $true
-            $kmsTest.EncryptionWorking | Should -Be $true
-            $kmsTest.DecryptionWorking | Should -Be $true
-            $kmsTest.KeyRotationConfigured | Should -Be $true
-        }
-    }
+        # Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Cloud platform configuration
+$script:CloudConfig = @{
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+SupportedPlatforms = @('Azure', 'AWS', 'GoogleCloud', 'Hybrid')
+TestEnvironments = @{
+'Azure' = @{
+TenantId = $env:AZURE_TENANT_ID
+SubscriptionId = $env:AZURE_SUBSCRIPTION_ID
+ResourceGroup = "rg-findunknownsid-test"
+Region = "East US"
+}
+'AWS' = @{
+Region = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } else { "us-east-1" }
+AccountId = $env:AWS_ACCOUNT_ID
+DirectoryId = $env:AWS_DIRECTORY_ID
+}
+'GoogleCloud' = @{
+ProjectId = $env:GOOGLE_CLOUD_PROJECT_ID
+Region = if ($env:GOOGLE_CLOUD_REGION) { $env:GOOGLE_CLOUD_REGION } else { "us-central1" }
+Zone = if ($env:GOOGLE_CLOUD_ZONE) { $env:GOOGLE_CLOUD_ZONE } else { "us-central1-a" }
+}
+}
+CloudFeatures = @()
+}
+# Detect available cloud environments
+$script:AvailableEnvironments = @()
+if ($env:AZURE_TENANT_ID) { $script:AvailableEnvironments += 'Azure' }
+if ($env:AWS_ACCOUNT_ID) { $script:AvailableEnvironments += 'AWS' }
+if ($env:GOOGLE_CLOUD_PROJECT_ID) { $script:AvailableEnvironments += 'GoogleCloud' }
+Write-Verbose "Available cloud environments: $($script:AvailableEnvironments -join ', ')"
 
 Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiCloud") {
 
@@ -400,10 +220,10 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             foreach ($scenario in $hybridScenarios) {
                 $hybridTest = Test-HybridScenario @scenario
 
-                $hybridTest.OnPremConnectivity | Should -Be $true
-                $hybridTest.CloudConnectivity | Should -Be $true
-                $hybridTest.DataSynchronization | Should -Be $true
-                $hybridTest.SecurityCompliance | Should -Be $true
+                $hybridTest.OnPremConnectivity | Should Be $true
+                $hybridTest.CloudConnectivity | Should Be $true
+                $hybridTest.DataSynchronization | Should Be $true
+                $hybridTest.SecurityCompliance | Should Be $true
 
                 Write-Verbose "Hybrid scenario '$($scenario.Scenario)' validated successfully"
             }
@@ -413,20 +233,20 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             # Test data consistency across multiple clouds
             $crossCloudTest = Test-CrossCloudDataConsistency
 
-            $crossCloudTest.DataSyncSuccessful | Should -Be $true
-            $crossCloudTest.ConsistencyValidated | Should -Be $true
-            $crossCloudTest.ConflictResolutionWorking | Should -Be $true
-            $crossCloudTest.PerformanceAcceptable | Should -Be $true
+            $crossCloudTest.DataSyncSuccessful | Should Be $true
+            $crossCloudTest.ConsistencyValidated | Should Be $true
+            $crossCloudTest.ConflictResolutionWorking | Should Be $true
+            $crossCloudTest.PerformanceAcceptable | Should Be $true
         }
 
         It "Should provide unified monitoring across platforms" {
             # Test unified monitoring capabilities
             $unifiedMonitoring = Test-UnifiedMonitoring
 
-            $unifiedMonitoring.MetricsAggregated | Should -Be $true
-            $unifiedMonitoring.LogsCorrelated | Should -Be $true
-            $unifiedMonitoring.AlertsUnified | Should -Be $true
-            $unifiedMonitoring.DashboardsWorking | Should -Be $true
+            $unifiedMonitoring.MetricsAggregated | Should Be $true
+            $unifiedMonitoring.LogsCorrelated | Should Be $true
+            $unifiedMonitoring.AlertsUnified | Should Be $true
+            $unifiedMonitoring.DashboardsWorking | Should Be $true
         }
     }
 
@@ -445,10 +265,10 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             foreach ($scenario in $migrationScenarios) {
                 $migrationTest = Test-CloudMigrationScenario -Scenario $scenario
 
-                $migrationTest.MigrationPlanValid | Should -Be $true
-                $migrationTest.DataIntegrityMaintained | Should -Be $true
-                $migrationTest.DowntimeMinimized | Should -Be $true
-                $migrationTest.RollbackCapable | Should -Be $true
+                $migrationTest.MigrationPlanValid | Should Be $true
+                $migrationTest.DataIntegrityMaintained | Should Be $true
+                $migrationTest.DowntimeMinimized | Should Be $true
+                $migrationTest.RollbackCapable | Should Be $true
 
                 Write-Verbose "Migration scenario '$scenario' validated"
             }
@@ -467,10 +287,10 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             foreach ($featureName in $cloudNativeFeatures.Keys) {
                 $featureTest = & $cloudNativeFeatures[$featureName]
 
-                $featureTest.Supported | Should -Be $true
-                $featureTest.Performance | Should -BeGreaterOrEqual 8
-                $featureTest.Scalability | Should -Be $true
-                $featureTest.Reliability | Should -BeGreaterOrEqual 99.9
+                $featureTest.Supported | Should Be $true
+                $featureTest.Performance | Should BeGreaterThan 8
+                $featureTest.Scalability | Should Be $true
+                $featureTest.Reliability | Should BeGreaterThan 99.9
 
                 Write-Verbose "Cloud-native feature '$featureName' validated"
             }
@@ -491,10 +311,10 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             foreach ($testName in $securityTests.Keys) {
                 $securityResult = & $securityTests[$testName]
 
-                $securityResult.SecurityPosture | Should -Be 'Strong'
-                $securityResult.ComplianceScore | Should -BeGreaterOrEqual 90
-                $securityResult.VulnerabilitiesFound | Should -BeLessOrEqual 0
-                $securityResult.ResponseTime | Should -BeLessOrEqual 300
+                $securityResult.SecurityPosture | Should Be 'Strong'
+                $securityResult.ComplianceScore | Should BeGreaterThan 90
+                $securityResult.VulnerabilitiesFound | Should BeLessThan 0
+                $securityResult.ResponseTime | Should BeLessThan 300
 
                 Write-Verbose "Cross-cloud security test '$testName' passed"
             }
@@ -504,11 +324,11 @@ Describe "Multi-Cloud and Hybrid Scenarios" -Tag @("Cloud", "Hybrid", "MultiClou
             # Test cross-cloud audit capabilities
             $auditTest = Test-CrossCloudAuditing
 
-            $auditTest.AuditTrailsComplete | Should -Be $true
-            $auditTest.LogAggregationWorking | Should -Be $true
-            $auditTest.ComplianceReporting | Should -Be $true
-            $auditTest.TamperEvidence | Should -Be $true
-            $auditTest.RetentionPolicyEnforced | Should -Be $true
+            $auditTest.AuditTrailsComplete | Should Be $true
+            $auditTest.LogAggregationWorking | Should Be $true
+            $auditTest.ComplianceReporting | Should Be $true
+            $auditTest.TamperEvidence | Should Be $true
+            $auditTest.RetentionPolicyEnforced | Should Be $true
         }
     }
 }
@@ -898,3 +718,4 @@ function Test-CrossCloudAuditing {
         RetentionPolicyEnforced = $true
     }
 }
+

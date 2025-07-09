@@ -40,201 +40,172 @@
     - For module independence: .\Troubleshooting\Common\Module-Independence-Guide.md
 #>
 
-BeforeAll {
-    # Load Module Independence Framework
-    $frameworkPath = Join-Path $PSScriptRoot '..\Infrastructure\Module-Independence-Framework.ps1'
-    if (Test-Path $frameworkPath) {
-        . $frameworkPath
-        Write-Verbose " Module Independence Framework loaded"
-    } else {
-        throw " Module Independence Framework not found at: $frameworkPath"
-    }
-
-    # Initialize module-independent testing environment
-    $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
-    Initialize-MockEnvironment -TestType 'CICD' -CorrelationId $script:TestCorrelationId
-
-    #  ENTERPRISE STANDARD 1: TestHelpers Integration - CI/CD Test Data Generation
-    function New-CICDTestData {
-        param(
-            [ValidateSet('Small', 'Medium', 'Large', 'Stress')]
-            [string]$DatasetSize = 'Medium',
-            [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-        )
-
-        $baseConfig = @{
-            TestCorrelationId = $CorrelationId
-            PipelineStages = @('Build', 'Test', 'Security', 'Deploy', 'Monitor')
-            SupportedPlatforms = @('Azure DevOps', 'GitHub Actions', 'GitLab CI', 'Jenkins', 'TeamCity')
-            DeploymentTargets = @('Development', 'Testing', 'Staging', 'Production')
-            QualityGates = @{
-                CodeCoverage = 80
-                SecurityScan = 'Pass'
-                PerformanceTest = 'Pass'
-                IntegrationTest = 'Pass'
-                UnitTest = 100
-            }
-        }
-
-        switch ($DatasetSize) {
-            'Small' { 
-                $baseConfig['TestPipelines'] = 5
-                $baseConfig['ConcurrentBuilds'] = 2
-                $baseConfig['Environments'] = 2
-            }
-            'Medium' { 
-                $baseConfig['TestPipelines'] = 15
-                $baseConfig['ConcurrentBuilds'] = 5
-                $baseConfig['Environments'] = 4
-            }
-            'Large' { 
-                $baseConfig['TestPipelines'] = 50
-                $baseConfig['ConcurrentBuilds'] = 15
-                $baseConfig['Environments'] = 8
-            }
-            'Stress' { 
-                $baseConfig['TestPipelines'] = 200
-                $baseConfig['ConcurrentBuilds'] = 50
-                $baseConfig['Environments'] = 20
-            }
-        }
-
-        Write-Verbose "Generated CICD test data for $DatasetSize dataset - CorrelationId: $CorrelationId"
-        return $baseConfig
-    }
-
-    #  CI/CD specific helper functions for complete module independence
-    function Test-CICDPipelinePerformance {
-        param(
-            [string]$Operation,
-            [hashtable]$TestData,
-            [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-        )
-
-        $performanceResult = Measure-EnterprisePerformance -Operation {
-            # Simulate CI/CD pipeline execution with realistic timing
-            $pipelineMetrics = @{
-                BuildTime = (Get-Random -Minimum 60 -Maximum 150)     # 1-2.5 minutes
-                TestTime = (Get-Random -Minimum 180 -Maximum 300)     # 3-5 minutes  
-                SecurityScanTime = (Get-Random -Minimum 30 -Maximum 90)   # 0.5-1.5 minutes
-                DeploymentTime = (Get-Random -Minimum 45 -Maximum 90)     # 0.75-1.5 minutes
-                TotalTime = 0
-                PipelinesProcessed = $TestData.TestPipelines
-                Success = $true
-            }
-            
-            $pipelineMetrics.TotalTime = $pipelineMetrics.BuildTime + $pipelineMetrics.TestTime + 
-                                       $pipelineMetrics.SecurityScanTime + $pipelineMetrics.DeploymentTime
-
-            # Validate performance within CI/CD SLA requirements (total under 15 minutes)
-            $pipelineMetrics.BuildTime | Should -BeLessOrEqual 300
-            $pipelineMetrics.TestTime | Should -BeLessOrEqual 600
-            $pipelineMetrics.DeploymentTime | Should -BeLessOrEqual 180
-            $pipelineMetrics.TotalTime | Should -BeLessOrEqual 900  # 15 minutes total
-
-            return $pipelineMetrics
-        } -OperationName $Operation -CorrelationId $CorrelationId
-
-        return $performanceResult
-    }
-
-    function Assert-CICDQualityGates {
-        param(
-            [hashtable]$TestResults,
-            [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-        )
-
-        $qualityGates = @{
-            'PipelineCompliance' = @{ Threshold = 95; Actual = $TestResults.ComplianceScore }
-            'SecurityStandards' = @{ Threshold = 90; Actual = $TestResults.SecurityScore }
-            'PerformanceTargets' = @{ Threshold = 85; Actual = $TestResults.PerformanceScore }
-            'AutomationCoverage' = @{ Threshold = 80; Actual = $TestResults.AutomationScore }
-        }
-
-        return Assert-EnterpriseQualityGates -QualityGates $qualityGates -CorrelationId $CorrelationId
-    }
-
-    # Global CI/CD helper functions for complete module independence
-    function Global:Test-PipelineConfiguration {
-        param([string]$Platform, [string]$ConfigFile)
-        
-        Start-Sleep -Milliseconds (Get-Random -Minimum 50 -Maximum 200)
-        return @{
-            ConfigurationValid = $true
-            SyntaxCorrect = $true
-            BestPracticesFollowed = $true
-            SecurityCompliant = $true
-            SecurityScore = (Get-Random -Minimum 90 -Maximum 98)
-        }
-    }
-
-    function Global:Test-SecurityTestingIntegration {
-        Start-Sleep -Milliseconds (Get-Random -Minimum 100 -Maximum 300)
-        return @{
-            StaticAnalysisRun = $true
-            DependencyScanCompleted = $true
-            SecretsScanned = $true
-            ContainerScanned = $true
-            CriticalVulnerabilities = 0
-            HighVulnerabilities = (Get-Random -Minimum 0 -Maximum 3)
-            ComplianceScore = (Get-Random -Minimum 92 -Maximum 98)
-            SecurityGatePassed = $true
-            Compliant = $true  # Add this for Test-EnterpriseSecurityCompliance compatibility
-        }
-    }
-
-    function Global:Test-DeploymentStrategy {
-        param([string]$Strategy)
-        
-        Start-Sleep -Milliseconds (Get-Random -Minimum 80 -Maximum 250)
-        
-        $strategyData = @{
-            'BlueGreen' = @{ RiskLevel = 'Low'; MaxRollbackTime = 30 }
-            'Canary' = @{ RiskLevel = 'Very Low'; MaxRollbackTime = 60 }
-            'RollingUpdate' = @{ RiskLevel = 'Medium'; MaxRollbackTime = 300 }
-            'Recreate' = @{ RiskLevel = 'High'; MaxRollbackTime = 600 }
-        }
-        
-        $data = $strategyData[$Strategy]
-        return @{
-            StrategyImplemented = $true
-            ConfigurationValid = $true
-            AutomationWorking = $true
-            MonitoringEnabled = $true
-            RiskLevel = $data.RiskLevel
-            RollbackCapability = $true
-            MaxRollbackTime = $data.MaxRollbackTime
-        }
-    }
-
-    #  ENTERPRISE SECURITY: Block all dangerous operations
-    function Global:Invoke-Expression { 
-        throw " SECURITY VIOLATION: CI/CD pipeline attempted to execute dangerous code: $Command"
-    }
-
-    function Global:Start-Process { 
-        throw " SECURITY VIOLATION: CI/CD pipeline attempted to start unauthorized process: $FilePath"
-    }
-
-    function Global:Remove-Item { 
-        throw " SECURITY VIOLATION: CI/CD pipeline attempted unauthorized file deletion: $Path"
-    }
-
-    function Global:Invoke-WebRequest { 
-        throw " SECURITY VIOLATION: CI/CD pipeline attempted unauthorized web request: $Uri"
-    }
-
-    # Initialize global test data
-    $script:CICDTestData = New-CICDTestData -DatasetSize 'Medium'
-    $script:TestResults = @{
-        ComplianceScore = 95
-        SecurityScore = 93
-        PerformanceScore = 88
-        AutomationScore = 92
-    }
-
-    Write-Verbose " Module-Independent CI/CD Testing Environment Initialized Successfully"
+# Load Module Independence Framework
+$frameworkPath = Join-Path $PSScriptRoot '..\Infrastructure\Module-Independence-Framework.ps1'
+if (Test-Path $frameworkPath) {
+. $frameworkPath
+Write-Verbose " Module Independence Framework loaded"
+} else {
+throw " Module Independence Framework not found at: $frameworkPath"
 }
+# Initialize module-independent testing environment
+$script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
+Initialize-MockEnvironment -TestType 'CICD' -CorrelationId $script:TestCorrelationId
+#  ENTERPRISE STANDARD 1: TestHelpers Integration - CI/CD Test Data Generation
+function New-CICDTestData {
+param(
+[ValidateSet('Small', 'Medium', 'Large', 'Stress')]
+[string]$DatasetSize = 'Medium',
+[string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+)
+$baseConfig = @{
+TestCorrelationId = $CorrelationId
+PipelineStages = @('Build', 'Test', 'Security', 'Deploy', 'Monitor')
+SupportedPlatforms = @('Azure DevOps', 'GitHub Actions', 'GitLab CI', 'Jenkins', 'TeamCity')
+DeploymentTargets = @('Development', 'Testing', 'Staging', 'Production')
+QualityGates = @{
+CodeCoverage = 80
+SecurityScan = 'Pass'
+PerformanceTest = 'Pass'
+IntegrationTest = 'Pass'
+UnitTest = 100
+}
+}
+switch ($DatasetSize) {
+'Small' { 
+$baseConfig['TestPipelines'] = 5
+$baseConfig['ConcurrentBuilds'] = 2
+$baseConfig['Environments'] = 2
+}
+'Medium' { 
+$baseConfig['TestPipelines'] = 15
+$baseConfig['ConcurrentBuilds'] = 5
+$baseConfig['Environments'] = 4
+}
+'Large' { 
+$baseConfig['TestPipelines'] = 50
+$baseConfig['ConcurrentBuilds'] = 15
+$baseConfig['Environments'] = 8
+}
+'Stress' { 
+$baseConfig['TestPipelines'] = 200
+$baseConfig['ConcurrentBuilds'] = 50
+$baseConfig['Environments'] = 20
+}
+}
+Write-Verbose "Generated CICD test data for $DatasetSize dataset - CorrelationId: $CorrelationId"
+return $baseConfig
+}
+#  CI/CD specific helper functions for complete module independence
+function Test-CICDPipelinePerformance {
+param(
+[string]$Operation,
+[hashtable]$TestData,
+[string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+)
+$performanceResult = Measure-EnterprisePerformance -Operation {
+# Simulate CI/CD pipeline execution with realistic timing
+$pipelineMetrics = @{
+BuildTime = (Get-Random -Minimum 60 -Maximum 150)     # 1-2.5 minutes
+TestTime = (Get-Random -Minimum 180 -Maximum 300)     # 3-5 minutes  
+SecurityScanTime = (Get-Random -Minimum 30 -Maximum 90)   # 0.5-1.5 minutes
+DeploymentTime = (Get-Random -Minimum 45 -Maximum 90)     # 0.75-1.5 minutes
+TotalTime = 0
+PipelinesProcessed = $TestData.TestPipelines
+Success = $true
+}
+$pipelineMetrics.TotalTime = $pipelineMetrics.BuildTime + $pipelineMetrics.TestTime + 
+$pipelineMetrics.SecurityScanTime + $pipelineMetrics.DeploymentTime
+# Validate performance within CI/CD SLA requirements (total under 15 minutes)
+$pipelineMetrics.BuildTime | Should BeLessThan 300
+$pipelineMetrics.TestTime | Should BeLessThan 600
+$pipelineMetrics.DeploymentTime | Should BeLessThan 180
+$pipelineMetrics.TotalTime | Should BeLessThan 900  # 15 minutes total
+return $pipelineMetrics
+} -OperationName $Operation -CorrelationId $CorrelationId
+return $performanceResult
+}
+function Assert-CICDQualityGates {
+param(
+[hashtable]$TestResults,
+[string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+)
+$qualityGates = @{
+'PipelineCompliance' = @{ Threshold = 95; Actual = $TestResults.ComplianceScore }
+'SecurityStandards' = @{ Threshold = 90; Actual = $TestResults.SecurityScore }
+'PerformanceTargets' = @{ Threshold = 85; Actual = $TestResults.PerformanceScore }
+'AutomationCoverage' = @{ Threshold = 80; Actual = $TestResults.AutomationScore }
+}
+return Assert-EnterpriseQualityGates -QualityGates $qualityGates -CorrelationId $CorrelationId
+}
+# Global CI/CD helper functions for complete module independence
+function Global:Test-PipelineConfiguration {
+param([string]$Platform, [string]$ConfigFile)
+Start-Sleep -Milliseconds (Get-Random -Minimum 50 -Maximum 200)
+return @{
+ConfigurationValid = $true
+SyntaxCorrect = $true
+BestPracticesFollowed = $true
+SecurityCompliant = $true
+SecurityScore = (Get-Random -Minimum 90 -Maximum 98)
+}
+}
+function Global:Test-SecurityTestingIntegration {
+Start-Sleep -Milliseconds (Get-Random -Minimum 100 -Maximum 300)
+return @{
+StaticAnalysisRun = $true
+DependencyScanCompleted = $true
+SecretsScanned = $true
+ContainerScanned = $true
+CriticalVulnerabilities = 0
+HighVulnerabilities = (Get-Random -Minimum 0 -Maximum 3)
+ComplianceScore = (Get-Random -Minimum 92 -Maximum 98)
+SecurityGatePassed = $true
+Compliant = $true  # Add this for Test-EnterpriseSecurityCompliance compatibility
+}
+}
+function Global:Test-DeploymentStrategy {
+param([string]$Strategy)
+Start-Sleep -Milliseconds (Get-Random -Minimum 80 -Maximum 250)
+$strategyData = @{
+'BlueGreen' = @{ RiskLevel = 'Low'; MaxRollbackTime = 30 }
+'Canary' = @{ RiskLevel = 'Very Low'; MaxRollbackTime = 60 }
+'RollingUpdate' = @{ RiskLevel = 'Medium'; MaxRollbackTime = 300 }
+'Recreate' = @{ RiskLevel = 'High'; MaxRollbackTime = 600 }
+}
+$data = $strategyData[$Strategy]
+return @{
+StrategyImplemented = $true
+ConfigurationValid = $true
+AutomationWorking = $true
+MonitoringEnabled = $true
+RiskLevel = $data.RiskLevel
+RollbackCapability = $true
+MaxRollbackTime = $data.MaxRollbackTime
+}
+}
+#  ENTERPRISE SECURITY: Block all dangerous operations
+function Global:Invoke-Expression { 
+throw " SECURITY VIOLATION: CI/CD pipeline attempted to execute dangerous code: $Command"
+}
+function Global:Start-Process { 
+throw " SECURITY VIOLATION: CI/CD pipeline attempted to start unauthorized process: $FilePath"
+}
+function Global:Remove-Item { 
+throw " SECURITY VIOLATION: CI/CD pipeline attempted unauthorized file deletion: $Path"
+}
+function Global:Invoke-WebRequest { 
+throw " SECURITY VIOLATION: CI/CD pipeline attempted unauthorized web request: $Uri"
+}
+# Initialize global test data
+$script:CICDTestData = New-CICDTestData -DatasetSize 'Medium'
+$script:TestResults = @{
+ComplianceScore = 95
+SecurityScore = 93
+PerformanceScore = 88
+AutomationScore = 92
+}
+Write-Verbose " Module-Independent CI/CD Testing Environment Initialized Successfully"
 
 Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD", "DevOps", "Automation", "ModuleIndependent") {
 
@@ -251,11 +222,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
             #  ENTERPRISE STANDARD 3: Performance Requirements with SLA Validation
             $configValidation = Test-PipelineConfiguration -Platform $Platform -ConfigFile $ConfigFile
             
-            $configValidation.ConfigurationValid | Should -Be $true
-            $configValidation.SyntaxCorrect | Should -Be $true
-            $configValidation.BestPracticesFollowed | Should -Be $true
-            $configValidation.SecurityCompliant | Should -Be $true
-            $configValidation.SecurityScore | Should -BeGreaterThan 85
+            $configValidation.ConfigurationValid | Should Be $true
+            $configValidation.SyntaxCorrect | Should Be $true
+            $configValidation.BestPracticesFollowed | Should Be $true
+            $configValidation.SecurityCompliant | Should Be $true
+            $configValidation.SecurityScore | Should BeGreaterThan 85
 
             #  ENTERPRISE STANDARD 4: Security Validation with Compliance
             $securityResult = Test-EnterpriseSecurityCompliance -Framework 'SOX' -Context "PipelineConfig_$Platform" -Data @{
@@ -264,7 +235,7 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 SecurityScore = $configValidation.SecurityScore
             } -CorrelationId $script:TestCorrelationId
 
-            $securityResult.Compliant | Should -Be $true
+            $securityResult.Compliant | Should Be $true
         }
 
         It "Should implement quality gates for <Environment> with enterprise standards" -TestCases @(
@@ -285,11 +256,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 RequiredGates = $Gates
             }
 
-            $qualityGates.GatesConfigured | Should -Be $true
-            $qualityGates.ThresholdsSet | Should -Be $true
-            $qualityGates.AutomationWorking | Should -Be $true
-            $qualityGates.ReportingEnabled | Should -Be $true
-            $qualityGates.RequiredGates.Count | Should -BeGreaterOrEqual 2
+            $qualityGates.GatesConfigured | Should Be $true
+            $qualityGates.ThresholdsSet | Should Be $true
+            $qualityGates.AutomationWorking | Should Be $true
+            $qualityGates.ReportingEnabled | Should Be $true
+            $qualityGates.RequiredGates.Count | Should BeGreaterThan 2
         }
     }
 
@@ -300,14 +271,14 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
 
             $securityIntegration = Test-SecurityTestingIntegration
 
-            $securityIntegration.StaticAnalysisRun | Should -Be $true
-            $securityIntegration.DependencyScanCompleted | Should -Be $true
-            $securityIntegration.SecretsScanned | Should -Be $true
-            $securityIntegration.ContainerScanned | Should -Be $true
-            $securityIntegration.CriticalVulnerabilities | Should -BeLessOrEqual 0
-            $securityIntegration.HighVulnerabilities | Should -BeLessOrEqual 5
-            $securityIntegration.ComplianceScore | Should -BeGreaterOrEqual 90
-            $securityIntegration.SecurityGatePassed | Should -Be $true
+            $securityIntegration.StaticAnalysisRun | Should Be $true
+            $securityIntegration.DependencyScanCompleted | Should Be $true
+            $securityIntegration.SecretsScanned | Should Be $true
+            $securityIntegration.ContainerScanned | Should Be $true
+            $securityIntegration.CriticalVulnerabilities | Should BeLessThan 0
+            $securityIntegration.HighVulnerabilities | Should BeLessThan 5
+            $securityIntegration.ComplianceScore | Should BeGreaterThan 90
+            $securityIntegration.SecurityGatePassed | Should Be $true
 
             #  ENTERPRISE STANDARD 4: Security Validation
             $securityResult = Test-EnterpriseSecurityCompliance -Framework 'GDPR' -Context "SecurityTesting" -Data @{
@@ -316,8 +287,8 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 HighVulns = $securityIntegration.HighVulnerabilities
             } -CorrelationId $script:TestCorrelationId
 
-            $securityResult.Compliant | Should -Be $true
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $securityResult.Compliant | Should Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
 
         It "Should execute comprehensive test automation with performance monitoring" {
@@ -334,11 +305,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 CoveragePercentage = (Get-Random -Minimum 85 -Maximum 95)
             }
 
-            $testExecution.UnitTestsExecuted | Should -BeGreaterThan 500
-            $testExecution.PassRate | Should -BeGreaterOrEqual 95
-            $testExecution.CoveragePercentage | Should -BeGreaterOrEqual 80
+            $testExecution.UnitTestsExecuted | Should BeGreaterThan 500
+            $testExecution.PassRate | Should BeGreaterThan 95
+            $testExecution.CoveragePercentage | Should BeGreaterThan 80
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
     }
 
@@ -356,13 +327,13 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
 
             $deploymentStrategy = Test-DeploymentStrategy -Strategy $Strategy
 
-            $deploymentStrategy.StrategyImplemented | Should -Be $true
-            $deploymentStrategy.ConfigurationValid | Should -Be $true
-            $deploymentStrategy.AutomationWorking | Should -Be $true
-            $deploymentStrategy.MonitoringEnabled | Should -Be $true
-            $deploymentStrategy.RiskLevel | Should -Be $RiskLevel
-            $deploymentStrategy.RollbackCapability | Should -Be $true
-            $deploymentStrategy.MaxRollbackTime | Should -BeLessOrEqual $RollbackTime
+            $deploymentStrategy.StrategyImplemented | Should Be $true
+            $deploymentStrategy.ConfigurationValid | Should Be $true
+            $deploymentStrategy.AutomationWorking | Should Be $true
+            $deploymentStrategy.MonitoringEnabled | Should Be $true
+            $deploymentStrategy.RiskLevel | Should Be $RiskLevel
+            $deploymentStrategy.RollbackCapability | Should Be $true
+            $deploymentStrategy.MaxRollbackTime | Should BeLessThan $RollbackTime
 
             #  Security compliance validation for deployment
             $securityResult = Test-EnterpriseSecurityCompliance -Framework 'HIPAA' -Context "Deployment_$Strategy" -Data @{
@@ -371,8 +342,8 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 RollbackTime = $RollbackTime
             } -CorrelationId $script:TestCorrelationId
 
-            $securityResult.Compliant | Should -Be $true
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $securityResult.Compliant | Should Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
 
         It "Should handle infrastructure as code with enterprise security" {
@@ -391,11 +362,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 BestPracticesFollowed = $true
             }
 
-            $iacValidation.TemplatesValid | Should -Be $true
-            $iacValidation.SecurityCompliant | Should -Be $true
-            $iacValidation.BestPracticesFollowed | Should -Be $true
+            $iacValidation.TemplatesValid | Should Be $true
+            $iacValidation.SecurityCompliant | Should Be $true
+            $iacValidation.BestPracticesFollowed | Should Be $true
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
     }
 
@@ -416,11 +387,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 ContinuousIntegration = $true
             }
 
-            $vcsIntegration.GitHooksConfigured | Should -Be $true
-            $vcsIntegration.SecurityScanningEnabled | Should -Be $true
-            $vcsIntegration.AutomatedTesting | Should -Be $true
+            $vcsIntegration.GitHooksConfigured | Should Be $true
+            $vcsIntegration.SecurityScanningEnabled | Should Be $true
+            $vcsIntegration.AutomatedTesting | Should Be $true
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
 
         It "Should support monitoring and observability with correlation tracking" {
@@ -438,11 +409,11 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 CorrelationTracking = $correlationId
             }
 
-            $monitoring.PipelineMetrics | Should -Be $true
-            $monitoring.AlertingConfigured | Should -Be $true
-            $monitoring.CorrelationTracking | Should -Not -BeNullOrEmpty
+            $monitoring.PipelineMetrics | Should Be $true
+            $monitoring.AlertingConfigured | Should Be $true
+            $monitoring.CorrelationTracking | Should Not BeNullOrEmpty
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
     }
 
@@ -462,17 +433,17 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 EnterpriseCompliance = $true
             }
 
-            $compliance.PolicyEnforcement | Should -Be $true
-            $compliance.AuditTrails | Should -Be $true
-            $compliance.EnterpriseCompliance | Should -Be $true
+            $compliance.PolicyEnforcement | Should Be $true
+            $compliance.AuditTrails | Should Be $true
+            $compliance.EnterpriseCompliance | Should Be $true
 
             #  ENTERPRISE STANDARD 6: Quality Gates Enforcement
             $qualityResult = Assert-CICDQualityGates -TestResults $script:TestResults
             
-            $qualityResult.AllGatesPassed | Should -Be $true
-            $qualityResult.ComplianceLevel | Should -BeGreaterOrEqual 90
+            $qualityResult.AllGatesPassed | Should Be $true
+            $qualityResult.ComplianceLevel | Should BeGreaterThan 90
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
 
         It "Should provide release analytics with business intelligence integration" {
@@ -489,15 +460,15 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 UserAdoption = (Get-Random -Minimum 80 -Maximum 95) # Percentage
             }
 
-            $analytics.DeploymentFrequency | Should -BeGreaterThan 10
-            $analytics.LeadTime | Should -BeLessOrEqual 7
-            $analytics.FailureRate | Should -BeLessOrEqual 5
-            $analytics.RecoveryTime | Should -BeLessOrEqual 60
-            $analytics.BusinessValue | Should -BeGreaterThan 150000
-            $analytics.ROI | Should -BeGreaterThan 200
-            $analytics.UserAdoption | Should -BeGreaterOrEqual 75
+            $analytics.DeploymentFrequency | Should BeGreaterThan 10
+            $analytics.LeadTime | Should BeLessThan 7
+            $analytics.FailureRate | Should BeLessThan 5
+            $analytics.RecoveryTime | Should BeLessThan 60
+            $analytics.BusinessValue | Should BeGreaterThan 150000
+            $analytics.ROI | Should BeGreaterThan 200
+            $analytics.UserAdoption | Should BeGreaterThan 75
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
     }
 
@@ -505,16 +476,16 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
         It "Should operate completely independently of Find-UnknownSID module" {
             # Verify no module dependency
             $loadedModules = Get-Module | Where-Object Name -like "*UnknownSID*"
-            $loadedModules | Should -BeNullOrEmpty
+            $loadedModules | Should BeNullOrEmpty
 
             # Verify enterprise functions are working
             $testData = New-CICDTestData -DatasetSize 'Small'
-            $testData | Should -Not -BeNullOrEmpty
-            $testData.TestCorrelationId | Should -Not -BeNullOrEmpty
+            $testData | Should Not BeNullOrEmpty
+            $testData.TestCorrelationId | Should Not BeNullOrEmpty
 
             # Verify security controls are active
-            { Invoke-Expression "Get-Process" } | Should -Throw "*SECURITY VIOLATION*"
-            { Start-Process "notepad" } | Should -Throw "*SECURITY VIOLATION*"
+            { Invoke-Expression "Get-Process" } | Should Throw "*SECURITY VIOLATION*"
+            { Start-Process "notepad" } | Should Throw "*SECURITY VIOLATION*"
         }
 
         It "Should maintain enterprise compliance without external dependencies" {
@@ -524,7 +495,7 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 SecurityControlsActive = $true
             } -CorrelationId $script:TestCorrelationId
 
-            $securityResult.Compliant | Should -Be $true
+            $securityResult.Compliant | Should Be $true
 
             # Verify quality gates are enforcing standards
             $qualityResult = Assert-CICDQualityGates -TestResults @{
@@ -534,7 +505,7 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
                 AutomationScore = 93
             }
 
-            $qualityResult.AllGatesPassed | Should -Be $true
+            $qualityResult.AllGatesPassed | Should Be $true
         }
 
         It "Should provide comprehensive CI/CD testing coverage" {
@@ -551,12 +522,12 @@ Describe "CI/CD Pipeline Integration Testing - Module Independent" -Tag @("CICD"
             }
 
             $totalTests = ($coverageMetrics.Values | Measure-Object -Sum).Sum
-            $totalTests | Should -BeGreaterOrEqual 100  # Comprehensive coverage
+            $totalTests | Should BeGreaterThan 100  # Comprehensive coverage
 
             # Verify all test categories are covered
-            $coverageMetrics.PipelineConfigurationTests | Should -BeGreaterThan 20
-            $coverageMetrics.SecurityValidationTests | Should -BeGreaterThan 10
-            $coverageMetrics.ModuleIndependenceTests | Should -BeGreaterOrEqual 3
+            $coverageMetrics.PipelineConfigurationTests | Should BeGreaterThan 20
+            $coverageMetrics.SecurityValidationTests | Should BeGreaterThan 10
+            $coverageMetrics.ModuleIndependenceTests | Should BeGreaterThan 3
         }
     }
 }
@@ -570,13 +541,13 @@ Describe "CI/CD Performance and Optimization - Module Independent" -Tag @("Perfo
             
             # Verify performance is within enterprise baselines
             $pipelineMetrics = $performanceResult.TestResult
-            $pipelineMetrics.BuildTime | Should -BeLessOrEqual 300
-            $pipelineMetrics.TestTime | Should -BeLessOrEqual 600
-            $pipelineMetrics.DeploymentTime | Should -BeLessOrEqual 180
-            $pipelineMetrics.TotalTime | Should -BeLessOrEqual 900  # 15 minutes total
+            $pipelineMetrics.BuildTime | Should BeLessThan 300
+            $pipelineMetrics.TestTime | Should BeLessThan 600
+            $pipelineMetrics.DeploymentTime | Should BeLessThan 180
+            $pipelineMetrics.TotalTime | Should BeLessThan 900  # 15 minutes total
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
-            $performanceResult.Duration | Should -BeLessOrEqual 900000  # 15 minutes in milliseconds
+            $performanceResult.PerformanceWithinSLA | Should Be $true
+            $performanceResult.Duration | Should BeLessThan 900000  # 15 minutes in milliseconds
         }
 
         It "Should scale with concurrent builds using enterprise resource management" {
@@ -591,11 +562,11 @@ Describe "CI/CD Performance and Optimization - Module Independent" -Tag @("Perfo
                 PerformanceDegradation = (Get-Random -Minimum 5 -Maximum 20) # Percentage
             }
 
-            $scalingTest.ConcurrentBuilds | Should -BeGreaterThan 30
-            $scalingTest.SystemResponsive | Should -Be $true
-            $scalingTest.PerformanceDegradation | Should -BeLessOrEqual 25
+            $scalingTest.ConcurrentBuilds | Should BeGreaterThan 30
+            $scalingTest.SystemResponsive | Should Be $true
+            $scalingTest.PerformanceDegradation | Should BeLessThan 25
 
-            $performanceResult.PerformanceWithinSLA | Should -Be $true
+            $performanceResult.PerformanceWithinSLA | Should Be $true
         }
     }
 }
@@ -627,3 +598,4 @@ AfterAll {
 
     Write-Verbose " CI/CD Module Independence Testing completed successfully - Zero module dependencies confirmed"
 }
+

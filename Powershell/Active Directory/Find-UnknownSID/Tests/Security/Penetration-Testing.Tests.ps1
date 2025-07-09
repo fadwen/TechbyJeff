@@ -1,4 +1,4 @@
-﻿#Requires -Module Pester
+#Requires -Module Pester
 #Requires -Version 5.1
 
 <#
@@ -28,77 +28,66 @@
     - For false positives: .\Troubleshooting\Security\Security-Test-Troubleshooting.md
 #>
 
-BeforeAll {
-    # Get project root and initialize test environment
-    $ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
-
-    # Initialize test environment using the test bootstrapper
-    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
-    if (Test-Path $testBootstrapper) {
-        . $testBootstrapper
-        Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
-    }
-
-    # Security test configuration
-    $script:SecurityConfig = @{
-        MaxTestDuration = [TimeSpan]::FromMinutes(30)
-        AttackVectors = @(
-            'SqlInjection', 'CommandInjection', 'PathTraversal',
-            'PrivilegeEscalation', 'BufferOverflow', 'ScriptInjection'
-        )
-        ComplianceFrameworks = @('NIST', 'ISO27001', 'SOX', 'GDPR')
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-    }
-
-    # Mock security monitoring functions
-    function Start-SecurityMonitoring {
-        param([string]$TestName, [string]$CorrelationId)
-        Write-Verbose "Started security monitoring for $TestName"
-    }
-
-    function Stop-SecurityMonitoring {
-        param([string]$TestName, [string]$CorrelationId)
-        Write-Verbose "Stopped security monitoring for $TestName"
-    }
-
-    # Initialize security monitoring
-    Start-SecurityMonitoring -TestName "PenetrationTesting" -CorrelationId $script:SecurityConfig.TestCorrelationId
-
-    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations during penetration testing
-    Mock Invoke-Expression { 
-        param($Command)
-        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked during penetration test. Command: $Command"
-        throw "Security violation: Dangerous operation blocked during penetration test - $Command"
-    }
-
-    Mock Remove-Item { 
-        param($Path, [switch]$Recurse, [switch]$Force)
-        # Block any system paths or dangerous operations
-        if ($Path -match '^C:\\|^\\\\|^/|System32|Windows|\*') {
-            Write-Warning " SECURITY BLOCK: Remove-Item blocked for dangerous path during penetration test. Path: $Path"
-            throw "Security violation: Dangerous file deletion blocked during penetration test - $Path"
-        }
-        Write-Verbose "Mock Remove-Item called safely for test path: $Path"
-    }
-
-    Mock Start-Process { 
-        param($FilePath, $ArgumentList)
-        if ($FilePath -match 'calc|cmd|powershell|notepad') {
-            Write-Warning " SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
-            throw "Security violation: Process execution blocked during penetration test - $FilePath"
-        }
-        Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
-    }
-
-    Mock Stop-Process {
-        param($Name, [switch]$Force)
-        if ($Name -match 'lsass|winlogon|csrss|System') {
-            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
-            throw "Security violation: Critical process termination blocked - $Name"
-        }
-        Write-Verbose "Mock Stop-Process called safely for test process: $Name"
-    }
+# Get project root and initialize test environment
+$ModuleRoot = Split-Path -Parent $PSScriptRoot | Split-Path -Parent
+# Initialize test environment using the test bootstrapper
+$testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+if (Test-Path $testBootstrapper) {
+. $testBootstrapper
+Initialize-TestEnvironment -ProjectRoot $ModuleRoot -SuppressConsoleOutput
 }
+# Security test configuration
+$script:SecurityConfig = @{
+MaxTestDuration = [TimeSpan]::FromMinutes(30)
+AttackVectors = @(
+'SqlInjection', 'CommandInjection', 'PathTraversal',
+'PrivilegeEscalation', 'BufferOverflow', 'ScriptInjection'
+)
+ComplianceFrameworks = @('NIST', 'ISO27001', 'SOX', 'GDPR')
+TestCorrelationId = [System.Guid]::NewGuid().ToString()
+}
+# Mock security monitoring functions
+function Start-SecurityMonitoring {
+param([string]$TestName, [string]$CorrelationId)
+Write-Verbose "Started security monitoring for $TestName"
+}
+function Stop-SecurityMonitoring {
+param([string]$TestName, [string]$CorrelationId)
+Write-Verbose "Stopped security monitoring for $TestName"
+}
+# Initialize security monitoring
+Start-SecurityMonitoring -TestName "PenetrationTesting" -CorrelationId $script:SecurityConfig.TestCorrelationId
+#  CRITICAL SECURITY MOCKS - Prevent any dangerous operations during penetration testing
+Mock Invoke-Expression { 
+param($Command)
+Write-Warning " SECURITY BLOCK: Invoke-Expression blocked during penetration test. Command: $Command"
+throw "Security violation: Dangerous operation blocked during penetration test - $Command"
+}
+Mock Remove-Item { 
+param($Path, [switch]$Recurse, [switch]$Force)
+# Block any system paths or dangerous operations
+if ($Path -match '^C:\\|^\\\\|^/|System32|Windows|\*') {
+Write-Warning " SECURITY BLOCK: Remove-Item blocked for dangerous path during penetration test. Path: $Path"
+throw "Security violation: Dangerous file deletion blocked during penetration test - $Path"
+}
+Write-Verbose "Mock Remove-Item called safely for test path: $Path"
+}
+Mock Start-Process { 
+param($FilePath, $ArgumentList)
+if ($FilePath -match 'calc|cmd|powershell|notepad') {
+Write-Warning " SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
+throw "Security violation: Process execution blocked during penetration test - $FilePath"
+}
+Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
+}
+Mock Stop-Process {
+param($Name, [switch]$Force)
+if ($Name -match 'lsass|winlogon|csrss|System') {
+Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+throw "Security violation: Critical process termination blocked - $Name"
+}
+Write-Verbose "Mock Stop-Process called safely for test process: $Name"
+}
 
 AfterAll {
     # Stop security monitoring and generate report
@@ -123,18 +112,18 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             # Analyze attack surface
             $attackSurface = Measure-AttackSurface -Component $Component
 
-            $attackSurface.ExposurePoints | Should -BeLessOrEqual $MaxExposure
-            $attackSurface.VulnerabilityScore | Should -BeLessOrEqual 2.0
-            $attackSurface.HasUnauthenticatedAccess | Should -Be $false
+            $attackSurface.ExposurePoints | Should BeLessThan $MaxExposure
+            $attackSurface.VulnerabilityScore | Should BeLessThan 2.0
+            $attackSurface.HasUnauthenticatedAccess | Should Be $false
         }
 
         It "Should resist network reconnaissance attempts" {
             # Simulate network scanning
             $reconResults = Invoke-NetworkReconnaissance -Target 'Find-UnknownSID'
 
-            $reconResults.DiscoverableServices | Should -BeNullOrEmpty
-            $reconResults.OpenPorts | Should -BeNullOrEmpty
-            $reconResults.BannerInformation | Should -BeNullOrEmpty
+            $reconResults.DiscoverableServices | Should BeNullOrEmpty
+            $reconResults.OpenPorts | Should BeNullOrEmpty
+            $reconResults.BannerInformation | Should BeNullOrEmpty
         }
 
         It "Should prevent information disclosure through error messages" {
@@ -149,12 +138,12 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
                 try {
                     & $test
                     # Should not reach here
-                    $false | Should -Be $true -Because "Function should throw error"
+                    $false | Should Be $true -Because "Function should throw error"
                 } catch {
                     # Verify error doesn't leak sensitive information
-                    $_.Exception.Message | Should -Not -Match "password|credential|token|key"
-                    $_.Exception.Message | Should -Not -Match "C:\\Users\\[^\\]+\\.*"
-                    $_.Exception.Message | Should -Not -Match "Server=.*;"
+                    $_.Exception.Message | Should Not Match "password|credential|token|key"
+                    $_.Exception.Message | Should Not Match "C:\\Users\\[^\\]+\\.*"
+                    $_.Exception.Message | Should Not Match "Server=.*;"
                 }
             }
         }
@@ -175,9 +164,9 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             # Test SQL injection resistance
             $result = Test-SQLInjectionResistance -Parameter $Parameter -Payload $Payload
 
-            $result.IsVulnerable | Should -Be $false
-            $result.ExecutedQuery | Should -BeNullOrEmpty
-            $result.ErrorMessage | Should -Not -Match "SQL|Database|Table"
+            $result.IsVulnerable | Should Be $false
+            $result.ExecutedQuery | Should BeNullOrEmpty
+            $result.ErrorMessage | Should Not Match "SQL|Database|Table"
         }
 
         It "Should resist command injection in path parameters" {
@@ -190,11 +179,11 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             )
 
             foreach ($payload in $commandInjectionPayloads) {
-                { Find-UnknownSID -SearchBase $payload } | Should -Throw
+                { Find-UnknownSID -SearchBase $payload } | Should Throw
 
                 # Verify no commands were executed
                 $runningProcesses = Get-Process calc -ErrorAction SilentlyContinue
-                $runningProcesses | Should -BeNullOrEmpty
+                $runningProcesses | Should BeNullOrEmpty
             }
         }
 
@@ -206,15 +195,15 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             # Test memory exhaustion resistance
             $memoryBefore = Get-MemoryUsage
 
-            { Find-UnknownSID -SearchBase $largeString } | Should -Throw
-            { Find-UnknownSID -Filter $largeString } | Should -Throw
-            { Find-UnknownSID -SearchBase $deeplyNestedPath } | Should -Throw
+            { Find-UnknownSID -SearchBase $largeString } | Should Throw
+            { Find-UnknownSID -Filter $largeString } | Should Throw
+            { Find-UnknownSID -SearchBase $deeplyNestedPath } | Should Throw
 
             $memoryAfter = Get-MemoryUsage
             $memoryIncrease = $memoryAfter.WorkingSet - $memoryBefore.WorkingSet
 
             # Should not consume more than 100MB additional memory
-            $memoryIncrease | Should -BeLessOrEqual 100MB
+            $memoryIncrease | Should BeLessThan 100MB
         }
 
         It "Should resist PowerShell script injection" {
@@ -227,11 +216,11 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
 
             foreach ($payload in $scriptInjectionPayloads) {
                 # Should throw without executing injected code
-                { Find-UnknownSID -SearchBase $payload } | Should -Throw
+                { Find-UnknownSID -SearchBase $payload } | Should Throw
 
                 # Verify no malicious execution occurred
                 $calc = Get-Process calc -ErrorAction SilentlyContinue
-                $calc | Should -BeNullOrEmpty
+                $calc | Should BeNullOrEmpty
             }
         }
     }
@@ -256,7 +245,7 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
 
             foreach ($testName in $escalationTests.Keys) {
                 # These parameters shouldn't exist and should be rejected
-                { & $escalationTests[$testName] } | Should -Throw -Because "Invalid parameter should be rejected: $testName"
+                { & $escalationTests[$testName] } | Should Throw -Because "Invalid parameter should be rejected: $testName"
             }
         }
 
@@ -284,7 +273,7 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
 
                 # Should warn about weak credentials in enterprise mode
                 if ($env:ENTERPRISE_MODE -eq 'true') {
-                    $warningGenerated | Should -Be $true
+                    $warningGenerated | Should Be $true
                 }
             }
         }
@@ -297,11 +286,11 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             $session2 = New-FindUnknownSIDSession -Credential $credential
 
             # Each session should have unique tokens
-            $session1.SessionToken | Should -Not -Be $session2.SessionToken
-            $session1.CorrelationId | Should -Not -Be $session2.CorrelationId
+            $session1.SessionToken | Should Not Be $session2.SessionToken
+            $session1.CorrelationId | Should Not Be $session2.CorrelationId
 
             # Replaying session tokens should fail
-            { Use-SessionToken -Token $session1.SessionToken -ForSession $session2 } | Should -Throw
+            { Use-SessionToken -Token $session1.SessionToken -ForSession $session2 } | Should Throw
         }
     }
 
@@ -331,7 +320,7 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             # Check that no sensitive data appears in logs
             foreach ($log in $newLogs) {
                 foreach ($dataType in $sensitiveData.Keys) {
-                    $log.Message | Should -Not -Match $sensitiveData[$dataType] -Because "Sensitive $dataType should not appear in logs"
+                    $log.Message | Should Not Match $sensitiveData[$dataType] -Because "Sensitive $dataType should not appear in logs"
                 }
             }
         }
@@ -350,8 +339,8 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
                     # Should either be denied or require elevation
                     $result = Test-UnauthorizedAccess -Path $path
 
-                    $result.AccessGranted | Should -Be $false -Because "Access to $path should be restricted"
-                    $result.RequiredPrivileges | Should -Not -BeNullOrEmpty
+                    $result.AccessGranted | Should Be $false -Because "Access to $path should be restricted"
+                    $result.RequiredPrivileges | Should Not BeNullOrEmpty
                 }
             }
         }
@@ -375,9 +364,9 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             # Check that sensitive data is not in memory
             $memoryDump = Get-ProcessMemoryStrings -ProcessId $PID
 
-            $testData.SID | Should -Not -BeIn $memoryDump
-            $testData.DN | Should -Not -BeIn $memoryDump
-            'password' | Should -Not -BeIn $memoryDump -Because "Passwords should be cleared from memory"
+            $testData.SID | Should Not BeIn $memoryDump
+            $testData.DN | Should Not BeIn $memoryDump
+            'password' | Should Not BeIn $memoryDump -Because "Passwords should be cleared from memory"
         }
     }
 
@@ -416,18 +405,18 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             $minTiming = ($timings | Measure-Object -Minimum).Minimum
             $variance = ($maxTiming - $minTiming) / $maxTiming * 100
 
-            $variance | Should -BeLessOrEqual 10 -Because "Timing attacks should not be possible"
+            $variance | Should BeLessThan 10 -Because "Timing attacks should not be possible"
         }
 
         It "Should implement proper cryptographic practices" {
             # Test cryptographic implementation
             $cryptoResults = Test-CryptographicSecurity
 
-            $cryptoResults.UsesStrongHashing | Should -Be $true
-            $cryptoResults.HashAlgorithm | Should -BeIn @('SHA256', 'SHA384', 'SHA512')
-            $cryptoResults.UsesTLS | Should -Be $true
-            $cryptoResults.TLSVersion | Should -BeGreaterOrEqual '1.2'
-            $cryptoResults.CertificateValidation | Should -Be $true
+            $cryptoResults.UsesStrongHashing | Should Be $true
+            $cryptoResults.HashAlgorithm | Should BeIn @('SHA256', 'SHA384', 'SHA512')
+            $cryptoResults.UsesTLS | Should Be $true
+            $cryptoResults.TLSVersion | Should BeGreaterThan '1.2'
+            $cryptoResults.CertificateValidation | Should Be $true
         }
 
         It "Should prevent code injection through PowerShell constructs" {
@@ -443,11 +432,11 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
 
             foreach ($vector in $injectionVectors) {
                 # Should not execute injected PowerShell code
-                { Find-UnknownSID -SearchBase $vector } | Should -Throw
+                { Find-UnknownSID -SearchBase $vector } | Should Throw
 
                 # Verify no calc process was started
                 $calc = Get-Process calc -ErrorAction SilentlyContinue
-                $calc | Should -BeNullOrEmpty
+                $calc | Should BeNullOrEmpty
             }
         }
     }
@@ -465,12 +454,12 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
             $auditLog = Get-ComplianceAuditLog -Framework $Framework
 
             foreach ($field in $RequiredFields) {
-                $auditLog.Schema | Should -Contain $field -Because "$Framework requires $field in audit logs"
+                $auditLog.Schema | Should Contain $field -Because "$Framework requires $field in audit logs"
             }
 
-            $auditLog.Integrity | Should -Be $true
-            $auditLog.Tamper_Evidence | Should -Be $true
-            $auditLog.Retention_Policy | Should -Not -BeNullOrEmpty
+            $auditLog.Integrity | Should Be $true
+            $auditLog.Tamper_Evidence | Should Be $true
+            $auditLog.Retention_Policy | Should Not BeNullOrEmpty
         }
 
         It "Should implement proper data classification and handling" {
@@ -487,11 +476,11 @@ Describe "Find-UnknownSID Penetration Testing Suite" -Tag @("Security", "Penetra
                 $handler = Get-DataHandler -Data $testData
 
                 foreach ($operation in $classificationTests[$classification].AllowedOperations) {
-                    { $handler.Invoke($operation) } | Should -Not -Throw -Because "$operation should be allowed for $classification data"
+                    { $handler.Invoke($operation) } | Should Not Throw -Because "$operation should be allowed for $classification data"
                 }
 
                 foreach ($operation in $classificationTests[$classification].RestrictedOperations) {
-                    { $handler.Invoke($operation) } | Should -Throw -Because "$operation should be restricted for $classification data"
+                    { $handler.Invoke($operation) } | Should Throw -Because "$operation should be restricted for $classification data"
                 }
             }
         }
@@ -514,9 +503,9 @@ Describe "Red Team Security Assessment" -Tag @("Security", "RedTeam", "Critical"
             foreach ($scenario in $aptScenarios) {
                 $detection = Test-APTScenario -Scenario $scenario
 
-                $detection.ThreatDetected | Should -Be $true -Because "APT scenario $scenario should be detected"
-                $detection.ResponseTime | Should -BeLessOrEqual 30 -Because "Detection should be rapid"
-                $detection.Mitigated | Should -Be $true -Because "Threat should be automatically mitigated"
+                $detection.ThreatDetected | Should Be $true -Because "APT scenario $scenario should be detected"
+                $detection.ResponseTime | Should BeLessThan 30 -Because "Detection should be rapid"
+                $detection.Mitigated | Should Be $true -Because "Threat should be automatically mitigated"
             }
         }
 
@@ -533,9 +522,9 @@ Describe "Red Team Security Assessment" -Tag @("Security", "RedTeam", "Critical"
             foreach ($channel in $covertChannels) {
                 $exfiltrationAttempt = Test-CovertChannel -Channel $channel
 
-                $exfiltrationAttempt.Blocked | Should -Be $true
-                $exfiltrationAttempt.DataLeaked | Should -Be $false
-                $exfiltrationAttempt.AlertGenerated | Should -Be $true
+                $exfiltrationAttempt.Blocked | Should Be $true
+                $exfiltrationAttempt.DataLeaked | Should Be $false
+                $exfiltrationAttempt.AlertGenerated | Should Be $true
             }
         }
     }
@@ -549,9 +538,9 @@ Describe "Red Team Security Assessment" -Tag @("Security", "RedTeam", "Critical"
                 $defense = Test-UnknownAttackDefense -Attack $attack
 
                 # Should fail safely without compromise
-                $defense.SystemCompromised | Should -Be $false
-                $defense.DataIntegrityMaintained | Should -Be $true
-                $defense.ServiceAvailability | Should -BeGreaterOrEqual 0.95
+                $defense.SystemCompromised | Should Be $false
+                $defense.DataIntegrityMaintained | Should Be $true
+                $defense.ServiceAvailability | Should BeGreaterThan 0.95
             }
         }
     }
@@ -760,3 +749,4 @@ function Test-UnknownAttackDefense {
         ServiceAvailability = 0.99
     }
 }
+
