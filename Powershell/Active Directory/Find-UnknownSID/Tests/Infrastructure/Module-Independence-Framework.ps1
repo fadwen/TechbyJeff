@@ -235,7 +235,7 @@ function Global:New-EnterpriseTestData {
             Environment = @('Production', 'Development', 'Testing')[(Get-Random -Maximum 3)]
             OperatingSystem = "Windows Server 2019"
             LastContact = (Get-Date).AddMinutes(-(Get-Random -Maximum 1440))
-            HealthStatus = @('Healthy', 'Warning', 'Critical')[($i % 10 -lt 8) ? 0 : (($i % 10 -lt 9) ? 1 : 2)]
+            HealthStatus = if ($i % 10 -lt 8) { 'Healthy' } elseif ($i % 10 -lt 9) { 'Warning' } else { 'Critical' }
         }
     }
 

@@ -1,4 +1,4 @@
-﻿#Requires -Module Pester
+#Requires -Module Pester
 
 <#
 .SYNOPSIS
@@ -54,98 +54,97 @@
     - Data retention: Follows organizational policy for performance metrics
 #>
 
-BeforeAll {
-    # Load Module Independence Framework
-    $frameworkPath = Join-Path $PSScriptRoot "..\Infrastructure\Module-Independence-Framework.ps1"
-    . $frameworkPath
+# Load Module Independence Framework (moved from BeforeAll for Pester 3.x compatibility)
+$frameworkPath = Join-Path $PSScriptRoot "..\Infrastructure\Module-Independence-Framework.ps1"
+. $frameworkPath
 
-    # Initialize mock environment for memory profiling testing
-    Initialize-MockEnvironment
+# Initialize mock environment for memory profiling testing
+Initialize-MockEnvironment
 
-    Write-Host "Memory Profiling Testing - Module Independence Framework" -ForegroundColor Cyan
-    Write-Host "Enterprise Compliance: All 6 Standards Implemented" -ForegroundColor Green
-    Write-Host "Zero External Dependencies - Complete Module Independence" -ForegroundColor Green
+Write-Host "Memory Profiling Testing - Module Independence Framework" -ForegroundColor Cyan
+Write-Host "Enterprise Compliance: All 6 Standards Implemented" -ForegroundColor Green
+Write-Host "Zero External Dependencies - Complete Module Independence" -ForegroundColor Green
 
-    # Memory Profiling Test Data Generation (Enterprise Standard 1: TestHelpers Integration)
-    function New-MemoryProfilingTestData {
-        param(
-            [ValidateSet('Small', 'Medium', 'Large', 'ExtraLarge')]
-            [string]$Scale = 'Medium',
-            [ValidateSet('Valid', 'Invalid', 'Mixed')]
-            [string]$DataType = 'Valid',
-            [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-        )
+# Memory Profiling Test Data Generation (Enterprise Standard 1: TestHelpers Integration)
+function New-MemoryProfilingTestData {
+    param(
+        [ValidateSet('Small', 'Medium', 'Large', 'ExtraLarge')]
+        [string]$Scale = 'Medium',
+        [ValidateSet('Valid', 'Invalid', 'Mixed')]
+        [string]$DataType = 'Valid',
+        [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+    )
 
-        Write-Verbose "Generating memory profiling test data - Scale: $Scale, Type: $DataType, CorrelationId: $CorrelationId"
+    Write-Verbose "Generating memory profiling test data - Scale: $Scale, Type: $DataType, CorrelationId: $CorrelationId"
 
-        $datasetSizes = @{
-            Small = 100
-            Medium = 1000  
-            Large = 10000
-            ExtraLarge = 50000
-        }
-
-        $targetSize = $datasetSizes[$Scale]
-        
-        $testData = @{
-            SIDs = @()
-            Scale = $Scale
-            DataType = $DataType
-            TotalCount = $targetSize
-            GeneratedAt = Get-Date
-            CorrelationId = $CorrelationId
-            MemoryFootprint = 0
-        }
-
-        # Generate SIDs based on type
-        switch ($DataType) {
-            'Valid' {
-                for ($i = 1; $i -le $targetSize; $i++) {
-                    $testData.SIDs += "S-1-5-21-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$i"
-                    
-                    if ($i % 1000 -eq 0) {
-                        Write-Verbose "Generated $i valid SIDs for memory profiling..."
-                    }
-                }
-            }
-            'Invalid' {
-                for ($i = 1; $i -le $targetSize; $i++) {
-                    $invalidSID = switch (Get-Random -Minimum 1 -Maximum 6) {
-                        1 { "INVALID-SID-$i" }
-                        2 { "S-1-5-$i" }  # Incomplete SID
-                        3 { "S-$i-5-21-123-456-789-$i" }  # Invalid revision
-                        4 { "" }  # Empty string
-                        5 { "S-1-5-21-123-456-789-$i-EXTRA" }  # Too many parts
-                        default { "MALFORMED-$i" }
-                    }
-                    $testData.SIDs += $invalidSID
-                }
-            }
-            'Mixed' {
-                $validCount = [int]($targetSize * 0.7)
-                $invalidCount = $targetSize - $validCount
-                
-                # Generate valid SIDs
-                for ($i = 1; $i -le $validCount; $i++) {
-                    $testData.SIDs += "S-1-5-21-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$i"
-                }
-                
-                # Generate invalid SIDs
-                for ($i = 1; $i -le $invalidCount; $i++) {
-                    $testData.SIDs += "INVALID-SID-$i"
-                }
-                
-                # Shuffle the array for realistic mixed processing
-                $testData.SIDs = $testData.SIDs | Sort-Object {Get-Random}
-            }
-        }
-
-        # Calculate estimated memory footprint
-        $testData.MemoryFootprint = ($testData.SIDs | Measure-Object -Property Length -Sum).Sum / 1024  # Approximate KB
-
-        Write-Verbose "Memory profiling test data generated - Scale: $Scale, Count: $targetSize, EstimatedMemory: $($testData.MemoryFootprint) KB"
-        return $testData
+    $datasetSizes = @{
+        Small = 100
+        Medium = 1000  
+        Large = 10000
+        ExtraLarge = 50000
     }
+
+    $targetSize = $datasetSizes[$Scale]
+    
+    $testData = @{
+        SIDs = @()
+        Scale = $Scale
+        DataType = $DataType
+        TotalCount = $targetSize
+        GeneratedAt = Get-Date
+        CorrelationId = $CorrelationId
+        MemoryFootprint = 0
+    }
+
+    # Generate SIDs based on type
+    switch ($DataType) {
+        'Valid' {
+            for ($i = 1; $i -le $targetSize; $i++) {
+                $testData.SIDs += "S-1-5-21-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$i"
+                
+                if ($i % 1000 -eq 0) {
+                    Write-Verbose "Generated $i valid SIDs for memory profiling..."
+                }
+            }
+        }
+        'Invalid' {
+            for ($i = 1; $i -le $targetSize; $i++) {
+                $invalidSID = switch (Get-Random -Minimum 1 -Maximum 6) {
+                    1 { "INVALID-SID-$i" }
+                    2 { "S-1-5-$i" }  # Incomplete SID
+                    3 { "S-$i-5-21-123-456-789-$i" }  # Invalid revision
+                    4 { "" }  # Empty string
+                    5 { "S-1-5-21-123-456-789-$i-EXTRA" }  # Too many parts
+                    default { "MALFORMED-$i" }
+                }
+                $testData.SIDs += $invalidSID
+            }
+        }
+        'Mixed' {
+            $validCount = [int]($targetSize * 0.7)
+            $invalidCount = $targetSize - $validCount
+            
+            # Generate valid SIDs
+            for ($i = 1; $i -le $validCount; $i++) {
+                $testData.SIDs += "S-1-5-21-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$(Get-Random -Minimum 100000000 -Maximum 999999999)-$i"
+            }
+            
+            # Generate invalid SIDs
+            for ($i = 1; $i -le $invalidCount; $i++) {
+                $testData.SIDs += "INVALID-SID-$i"
+            }
+            
+            # Shuffle the array for realistic mixed processing
+            $testData.SIDs = $testData.SIDs | Sort-Object {Get-Random}
+        }
+    }
+
+    # Calculate estimated memory footprint
+    $testData.MemoryFootprint = ($testData.SIDs | Measure-Object -Property Length -Sum).Sum / 1024  # Approximate KB
+
+    Write-Verbose "Memory profiling test data generated - Scale: $Scale, Count: $targetSize, EstimatedMemory: $($testData.MemoryFootprint) KB"
+    return $testData
+}
 
     # Memory Measurement and Profiling (Enterprise Standard 3: Performance Requirements)
     function Test-MemoryUsageProfile {
@@ -553,7 +552,6 @@ BeforeAll {
     Write-Host "Test Data Generation: Ready for all memory scenarios" -ForegroundColor Yellow
     Write-Host "Memory Measurement: Enterprise profiling configured" -ForegroundColor Yellow
     Write-Host "Quality Gates: Comprehensive memory governance enabled" -ForegroundColor Yellow
-}
 
 Describe "ENTERPRISE STANDARD 1: TestHelpers Integration - Memory Profiling Test Data Framework" -Tag "Enterprise", "TestHelpers", "Memory" {
 
@@ -562,38 +560,38 @@ Describe "ENTERPRISE STANDARD 1: TestHelpers Integration - Memory Profiling Test
         It "Should generate comprehensive small-scale memory test datasets" {
             $testData = New-MemoryProfilingTestData -Scale 'Small' -DataType 'Valid'
 
-            $testData | Should -Not -BeNullOrEmpty
-            $testData.Scale | Should -Be 'Small'
-            $testData.TotalCount | Should -Be 100
-            $testData.DataType | Should -Be 'Valid'
-            $testData.SIDs.Count | Should -Be 100
-            $testData.MemoryFootprint | Should -BeGreaterThan 0
-            $testData.CorrelationId | Should -Not -BeNullOrEmpty
+            $testData | Should Not BeNullOrEmpty
+            $testData.Scale | Should Be 'Small'
+            $testData.TotalCount | Should Be 100
+            $testData.DataType | Should Be 'Valid'
+            $testData.SIDs.Count | Should Be 100
+            $testData.MemoryFootprint | Should BeGreaterThan 0
+            $testData.CorrelationId | Should Not BeNullOrEmpty
         }
 
         It "Should generate mixed data types for comprehensive memory testing" {
             $testData = New-MemoryProfilingTestData -Scale 'Medium' -DataType 'Mixed'
 
-            $testData | Should -Not -BeNullOrEmpty
-            $testData.Scale | Should -Be 'Medium'
-            $testData.TotalCount | Should -Be 1000
-            $testData.DataType | Should -Be 'Mixed'
-            $testData.SIDs.Count | Should -Be 1000
+            $testData | Should Not BeNullOrEmpty
+            $testData.Scale | Should Be 'Medium'
+            $testData.TotalCount | Should Be 1000
+            $testData.DataType | Should Be 'Mixed'
+            $testData.SIDs.Count | Should Be 1000
             
             # Verify mixed data contains both valid and invalid SIDs
             $validSIDs = $testData.SIDs | Where-Object { $_ -match '^S-1-5-21-\d+-\d+-\d+-\d+$' }
             $invalidSIDs = $testData.SIDs | Where-Object { $_ -notmatch '^S-1-5-21-\d+-\d+-\d+-\d+$' }
             
-            $validSIDs.Count | Should -BeGreaterThan 0
-            $invalidSIDs.Count | Should -BeGreaterThan 0
+            $validSIDs.Count | Should BeGreaterThan 0
+            $invalidSIDs.Count | Should BeGreaterThan 0
         }
 
         It "Should estimate memory footprint accurately" {
             $testData = New-MemoryProfilingTestData -Scale 'Large' -DataType 'Valid'
 
-            $testData.MemoryFootprint | Should -BeGreaterThan 0
+            $testData.MemoryFootprint | Should BeGreaterThan 0
             # For 10,000 SIDs with average length ~50 chars, expect significant memory footprint
-            $testData.MemoryFootprint | Should -BeGreaterThan 400  # >400KB
+            $testData.MemoryFootprint | Should BeGreaterThan 400  # >400KB
         }
     }
 
@@ -604,13 +602,13 @@ Describe "ENTERPRISE STANDARD 1: TestHelpers Integration - Memory Profiling Test
             
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData -OperationName 'SmallScaleMemoryTest'
 
-            $memoryProfile | Should -Not -BeNullOrEmpty
-            $memoryProfile.Profile | Should -Not -BeNullOrEmpty
-            $memoryProfile.Results | Should -Not -BeNullOrEmpty
-            $memoryProfile.Profile.Success | Should -Be $true
-            $memoryProfile.Profile.MemoryUsed | Should -BeGreaterOrEqual 0
-            $memoryProfile.Profile.GCEfficiency | Should -BeGreaterOrEqual 0
-            $memoryProfile.Profile.GCEfficiency | Should -BeLessOrEqual 1.0
+            $memoryProfile | Should Not BeNullOrEmpty
+            $memoryProfile.Profile | Should Not BeNullOrEmpty
+            $memoryProfile.Results | Should Not BeNullOrEmpty
+            $memoryProfile.Profile.Success | Should Be $true
+            $memoryProfile.Profile.MemoryUsed | Should BeGreaterThan 0
+            $memoryProfile.Profile.GCEfficiency | Should BeGreaterThan 0
+            $memoryProfile.Profile.GCEfficiency | Should BeLessThan 1.0
         }
 
         It "Should track garbage collection efficiency" {
@@ -618,9 +616,9 @@ Describe "ENTERPRISE STANDARD 1: TestHelpers Integration - Memory Profiling Test
             
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
 
-            $memoryProfile.Profile.GCEfficiency | Should -BeGreaterOrEqual 0
-            $memoryProfile.Profile.GCEfficiency | Should -BeLessOrEqual 1.0
-            $memoryProfile.Profile.MemoryReclaimed | Should -BeGreaterOrEqual 0
+            $memoryProfile.Profile.GCEfficiency | Should BeGreaterThan 0
+            $memoryProfile.Profile.GCEfficiency | Should BeLessThan 1.0
+            $memoryProfile.Profile.MemoryReclaimed | Should BeGreaterThan 0
         }
     }
 }
@@ -634,9 +632,9 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
 
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
 
-            $memoryProfile.Profile.MemoryUsed | Should -BeLessThan 100  # Under 100MB
-            $memoryProfile.Profile.WithinThreshold | Should -Be $true
-            $memoryProfile.Results.Count | Should -Be 100
+            $memoryProfile.Profile.MemoryUsed | Should BeLessThan 100  # Under 100MB
+            $memoryProfile.Profile.WithinThreshold | Should Be $true
+            $memoryProfile.Results.Count | Should Be 100
         }
 
         It "Should demonstrate efficient memory usage with tracking" {
@@ -644,15 +642,15 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
             
             $results = & $Global:MemoryFunctions.ProcessSIDsWithMemoryTracking -TestData $testData
 
-            $results.Results | Should -Not -BeNullOrEmpty
-            $results.Results.Count | Should -Be 100
-            $results.MemorySnapshots | Should -Not -BeNullOrEmpty
-            $results.TotalBatches | Should -BeGreaterThan 0
+            $results.Results | Should Not BeNullOrEmpty
+            $results.Results.Count | Should Be 100
+            $results.MemorySnapshots | Should Not BeNullOrEmpty
+            $results.TotalBatches | Should BeGreaterThan 0
             
             # Verify memory tracking
             $results.MemorySnapshots | ForEach-Object {
-                $_.MemoryDelta | Should -BeGreaterOrEqual 0
-                $_.ItemsProcessed | Should -BeGreaterThan 0
+                $_.MemoryDelta | Should BeGreaterThan 0
+                $_.ItemsProcessed | Should BeGreaterThan 0
             }
         }
     }
@@ -664,9 +662,9 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
 
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
 
-            $memoryProfile.Profile.MemoryUsed | Should -BeLessThan 250  # Under 250MB
-            $memoryProfile.Profile.WithinThreshold | Should -Be $true
-            $memoryProfile.Results.Count | Should -Be 1000
+            $memoryProfile.Profile.MemoryUsed | Should BeLessThan 250  # Under 250MB
+            $memoryProfile.Profile.WithinThreshold | Should Be $true
+            $memoryProfile.Results.Count | Should Be 1000
         }
 
         It "Should maintain stable memory usage across batches" {
@@ -674,8 +672,8 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
             
             $results = & $Global:MemoryFunctions.ProcessSIDsWithMemoryTracking -TestData $testData
 
-            $results.MemorySnapshots | Should -Not -BeNullOrEmpty
-            $results.TotalBatches | Should -BeGreaterThan 1
+            $results.MemorySnapshots | Should Not BeNullOrEmpty
+            $results.TotalBatches | Should BeGreaterThan 1
             
             # Memory deltas should be relatively consistent
             $memoryDeltas = $results.MemorySnapshots | ForEach-Object { $_.MemoryDelta }
@@ -684,7 +682,7 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
             
             # Max delta shouldn't be more than 5x average delta
             if ($avgDelta -gt 0) {
-                ($maxDelta / $avgDelta) | Should -BeLessThan 5
+                ($maxDelta / $avgDelta) | Should BeLessThan 5
             }
         }
     }
@@ -696,9 +694,9 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
 
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
 
-            $memoryProfile.Profile.MemoryUsed | Should -BeLessThan 500  # Under 500MB
-            $memoryProfile.Profile.WithinThreshold | Should -Be $true
-            $memoryProfile.Results.Count | Should -Be 10000
+            $memoryProfile.Profile.MemoryUsed | Should BeLessThan 500  # Under 500MB
+            $memoryProfile.Profile.WithinThreshold | Should Be $true
+            $memoryProfile.Results.Count | Should Be 10000
         }
 
         It "Should demonstrate effective garbage collection for large datasets" {
@@ -707,8 +705,8 @@ Describe "ENTERPRISE STANDARD 2: TestCases Patterns - Memory Usage Validation" -
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
             
             # Should reclaim significant memory through GC
-            $memoryProfile.Profile.MemoryReclaimed | Should -BeGreaterThan 0
-            $memoryProfile.Profile.GCEfficiency | Should -BeGreaterThan 0.3  # At least 30% efficiency
+            $memoryProfile.Profile.MemoryReclaimed | Should BeGreaterThan 0
+            $memoryProfile.Profile.GCEfficiency | Should BeGreaterThan 0.3  # At least 30% efficiency
         }
     }
 }
@@ -722,9 +720,9 @@ Describe "ENTERPRISE STANDARD 3: Performance Requirements - Memory Performance V
             
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData
 
-            $memoryProfile.Profile.WithinThreshold | Should -Be $true
-            $memoryProfile.Profile.MemoryUsed | Should -BeLessThan 100
-            $memoryProfile.Profile.ProcessingRate | Should -BeGreaterThan 10
+            $memoryProfile.Profile.WithinThreshold | Should Be $true
+            $memoryProfile.Profile.MemoryUsed | Should BeLessThan 100
+            $memoryProfile.Profile.ProcessingRate | Should BeGreaterThan 10
         }
 
         It "Should scale memory usage appropriately with dataset size" {
@@ -735,12 +733,12 @@ Describe "ENTERPRISE STANDARD 3: Performance Requirements - Memory Performance V
             $mediumProfile = Test-MemoryUsageProfile -TestData $mediumData
 
             # Medium dataset should use more memory but not excessively
-            $mediumProfile.Profile.MemoryUsed | Should -BeGreaterThan $smallProfile.Profile.MemoryUsed
+            $mediumProfile.Profile.MemoryUsed | Should BeGreaterThan $smallProfile.Profile.MemoryUsed
             
             # But not more than 10x for 10x data size
             if ($smallProfile.Profile.MemoryUsed -gt 0) {
                 $memoryScalingRatio = $mediumProfile.Profile.MemoryUsed / $smallProfile.Profile.MemoryUsed
-                $memoryScalingRatio | Should -BeLessThan 15
+                $memoryScalingRatio | Should BeLessThan 15
             }
         }
     }
@@ -750,23 +748,23 @@ Describe "ENTERPRISE STANDARD 3: Performance Requirements - Memory Performance V
         It "Should demonstrate efficient garbage collection" {
             $gcResults = & $Global:MemoryFunctions.ValidateGarbageCollectionEfficiency -TestData (New-MemoryProfilingTestData -Scale 'Medium')
 
-            $gcResults | Should -Not -BeNullOrEmpty
-            $gcResults.IsEfficient | Should -Be $true
-            $gcResults.MemoryReclaimed | Should -BeGreaterThan 0
-            $gcResults.GCEfficiency | Should -BeGreaterThan 0.6  # >60% efficiency
+            $gcResults | Should Not BeNullOrEmpty
+            $gcResults.IsEfficient | Should Be $true
+            $gcResults.MemoryReclaimed | Should BeGreaterThan 0
+            $gcResults.GCEfficiency | Should BeGreaterThan 0.6  # >60% efficiency
         }
 
         It "Should handle memory-intensive operations efficiently" {
             $operations = & $Global:MemoryFunctions.SimulateMemoryIntensiveOperations -Scale 'Medium' -Duration 10
 
-            $operations | Should -Not -BeNullOrEmpty
-            $operations.TotalOperations | Should -BeGreaterThan 5  # Reduced expectation
-            $operations.FinalMemoryArrays | Should -BeLessOrEqual 2  # Should cleanup to 1-2 arrays
+            $operations | Should Not BeNullOrEmpty
+            $operations.TotalOperations | Should BeGreaterThan 5  # Reduced expectation
+            $operations.FinalMemoryArrays | Should BeLessThan 2  # Should cleanup to 1-2 arrays
             
             # Verify operations were tracked properly
             $operations.Operations | ForEach-Object {
-                $_.MemorySnapshot | Should -BeGreaterThan 0
-                $_.ArraySize | Should -BeGreaterThan 0
+                $_.MemorySnapshot | Should BeGreaterThan 0
+                $_.ArraySize | Should BeGreaterThan 0
             }
         }
     }
@@ -778,10 +776,10 @@ Describe "ENTERPRISE STANDARD 3: Performance Requirements - Memory Performance V
             
             $leakResults = & $Global:MemoryFunctions.MeasureMemoryLeaks -TestData $testData -Iterations 3
 
-            $leakResults | Should -Not -BeNullOrEmpty
-            $leakResults.MemoryLeakDetected | Should -Be $false
-            $leakResults.AverageMemoryDelta | Should -BeLessThan 5  # <5MB average increase
-            $leakResults.Measurements.Count | Should -Be 3
+            $leakResults | Should Not BeNullOrEmpty
+            $leakResults.MemoryLeakDetected | Should Be $false
+            $leakResults.AverageMemoryDelta | Should BeLessThan 5  # <5MB average increase
+            $leakResults.Measurements.Count | Should Be 3
         }
 
         It "Should provide comprehensive leak analysis" {
@@ -789,14 +787,14 @@ Describe "ENTERPRISE STANDARD 3: Performance Requirements - Memory Performance V
             
             $leakResults = & $Global:MemoryFunctions.MeasureMemoryLeaks -TestData $testData -Iterations 5
 
-            $leakResults.Measurements | Should -Not -BeNullOrEmpty
-            $leakResults.TotalIterations | Should -Be 5
-            $leakResults.MaxMemoryDelta | Should -BeGreaterOrEqual $leakResults.MinMemoryDelta
+            $leakResults.Measurements | Should Not BeNullOrEmpty
+            $leakResults.TotalIterations | Should Be 5
+            $leakResults.MaxMemoryDelta | Should BeGreaterThan $leakResults.MinMemoryDelta
             
             # All measurements should have proper correlation IDs
             $leakResults.Measurements | ForEach-Object {
-                $_.CorrelationId | Should -Not -BeNullOrEmpty
-                $_.ItemsProcessed | Should -Be $testData.TotalCount
+                $_.CorrelationId | Should Not BeNullOrEmpty
+                $_.ItemsProcessed | Should Be $testData.TotalCount
             }
         }
     }
@@ -813,15 +811,15 @@ Describe "ENTERPRISE STANDARD 4: Security Validation - Memory Security Complianc
             $memoryProfile = Test-MemoryUsageProfile -TestData $testData -CorrelationId $correlationId
 
             # Verify correlation ID tracking
-            $memoryProfile.Profile.CorrelationId | Should -Be $correlationId
+            $memoryProfile.Profile.CorrelationId | Should Be $correlationId
 
             # Verify security validation during processing
             $validSIDs = $memoryProfile.Results | Where-Object IsValid -eq $true
             $invalidSIDs = $memoryProfile.Results | Where-Object IsValid -eq $false
 
-            $validSIDs.Count | Should -BeGreaterThan 0
-            $invalidSIDs.Count | Should -BeGreaterThan 0
-            ($validSIDs.Count + $invalidSIDs.Count) | Should -Be $testData.TotalCount
+            $validSIDs.Count | Should BeGreaterThan 0
+            $invalidSIDs.Count | Should BeGreaterThan 0
+            ($validSIDs.Count + $invalidSIDs.Count) | Should Be $testData.TotalCount
         }
 
         It "Should prevent memory-based injection attacks" {
@@ -841,12 +839,12 @@ Describe "ENTERPRISE STANDARD 4: Security Validation - Memory Security Complianc
 
             # All malicious SIDs should be marked as invalid
             $memoryProfile.Results | ForEach-Object {
-                $_.IsValid | Should -Be $false
+                $_.IsValid | Should Be $false
             }
             
             # Process should still be running (no injection executed)
             $currentProcess = Get-Process -Id $PID
-            $currentProcess | Should -Not -BeNullOrEmpty
+            $currentProcess | Should Not BeNullOrEmpty
         }
     }
 
@@ -874,7 +872,7 @@ Describe "ENTERPRISE STANDARD 4: Security Validation - Memory Security Complianc
             
             # Memory should be reclaimed (allow some variance)
             $memoryDifference = ($memoryAfter - $memoryBefore) / 1MB
-            $memoryDifference | Should -BeLessThan 50  # Less than 50MB persistent increase
+            $memoryDifference | Should BeLessThan 50  # Less than 50MB persistent increase
         }
     }
 }
@@ -888,34 +886,34 @@ Describe "ENTERPRISE STANDARD 5: Advanced Mocking - Memory Operation Simulation"
 
             $results = & $Global:MemoryFunctions.ProcessSIDsWithMemoryTracking -TestData $testData
 
-            $results | Should -Not -BeNullOrEmpty
-            $results.Results.Count | Should -Be 10000
-            $results.MemorySnapshots | Should -Not -BeNullOrEmpty
-            $results.TotalBatches | Should -BeGreaterThan 1
+            $results | Should Not BeNullOrEmpty
+            $results.Results.Count | Should Be 10000
+            $results.MemorySnapshots | Should Not BeNullOrEmpty
+            $results.TotalBatches | Should BeGreaterThan 1
 
             # Verify realistic memory usage patterns (allow for memory reclamation)
             $results.MemorySnapshots | ForEach-Object {
-                $_.MemoryDelta | Should -BeGreaterOrEqual 0  # Memory should not decrease in batch
-                $_.ItemsProcessed | Should -BeGreaterThan 0
-                $_.BatchNumber | Should -BeGreaterThan 0
+                $_.MemoryDelta | Should BeGreaterThan 0  # Memory should not decrease in batch
+                $_.ItemsProcessed | Should BeGreaterThan 0
+                $_.BatchNumber | Should BeGreaterThan 0
             }
         }
 
         It "Should simulate memory-intensive operations with proper cleanup" {
             $operations = & $Global:MemoryFunctions.SimulateMemoryIntensiveOperations -Scale 'Medium' -Duration 15
 
-            $operations | Should -Not -BeNullOrEmpty
-            $operations.TotalOperations | Should -BeGreaterThan 10  # Reduced expectation
-            $operations.Operations | Should -Not -BeNullOrEmpty
+            $operations | Should Not BeNullOrEmpty
+            $operations.TotalOperations | Should BeGreaterThan 10  # Reduced expectation
+            $operations.Operations | Should Not BeNullOrEmpty
 
             # Verify memory cleanup happened (more lenient)
-            $operations.FinalMemoryArrays | Should -BeLessOrEqual 2  # Should cleanup to 1-2 arrays
+            $operations.FinalMemoryArrays | Should BeLessThan 2  # Should cleanup to 1-2 arrays
 
             # Verify operation tracking
             $operations.Operations | ForEach-Object {
-                $_.MemorySnapshot | Should -BeGreaterThan 0
-                $_.ProcessedCount | Should -BeGreaterOrEqual 0
-                $_.CorrelationId | Should -Not -BeNullOrEmpty
+                $_.MemorySnapshot | Should BeGreaterThan 0
+                $_.ProcessedCount | Should BeGreaterThan 0
+                $_.CorrelationId | Should Not BeNullOrEmpty
             }
         }
     }
@@ -925,13 +923,13 @@ Describe "ENTERPRISE STANDARD 5: Advanced Mocking - Memory Operation Simulation"
         It "Should simulate realistic garbage collection scenarios" {
             $gcResults = & $Global:MemoryFunctions.ValidateGarbageCollectionEfficiency
 
-            $gcResults | Should -Not -BeNullOrEmpty
-            $gcResults.MemoryWithTempData | Should -BeGreaterThan 0
-            $gcResults.MemoryBeforeGC | Should -BeGreaterThan 0
-            $gcResults.MemoryAfterGC | Should -BeGreaterThan 0
-            $gcResults.MemoryReclaimed | Should -BeGreaterOrEqual 0
-            $gcResults.GCEfficiency | Should -BeGreaterOrEqual 0
-            $gcResults.GCEfficiency | Should -BeLessOrEqual 1.0
+            $gcResults | Should Not BeNullOrEmpty
+            $gcResults.MemoryWithTempData | Should BeGreaterThan 0
+            $gcResults.MemoryBeforeGC | Should BeGreaterThan 0
+            $gcResults.MemoryAfterGC | Should BeGreaterThan 0
+            $gcResults.MemoryReclaimed | Should BeGreaterThan 0
+            $gcResults.GCEfficiency | Should BeGreaterThan 0
+            $gcResults.GCEfficiency | Should BeLessThan 1.0
         }
     }
 }
@@ -946,10 +944,10 @@ Describe "ENTERPRISE STANDARD 6: Quality Gates - Memory Operations Governance" -
 
             $qualityGates = Assert-MemoryQualityGates -MemoryProfile $memoryProfile
 
-            $qualityGates | Should -Not -BeNullOrEmpty
-            $qualityGates.OverallCompliance | Should -Be $true
-            $qualityGates.QualityStandards.Count | Should -BeGreaterThan 0
-            $qualityGates.Violations | Should -BeNullOrEmpty
+            $qualityGates | Should Not BeNullOrEmpty
+            $qualityGates.OverallCompliance | Should Be $true
+            $qualityGates.QualityStandards.Count | Should BeGreaterThan 0
+            $qualityGates.Violations | Should BeNullOrEmpty
         }
 
         It "Should provide comprehensive memory governance reporting" {
@@ -967,11 +965,11 @@ Describe "ENTERPRISE STANDARD 6: Quality Gates - Memory Operations Governance" -
                 GeneratedAt = Get-Date
             }
 
-            $governanceReport.TestType | Should -Be 'MemoryProfiling'
-            $governanceReport.Scale | Should -Be 'Large'
-            $governanceReport.MemoryProfile | Should -Not -BeNullOrEmpty
-            $governanceReport.QualityGates | Should -Not -BeNullOrEmpty
-            $governanceReport.ComplianceStatus | Should -Be $true
+            $governanceReport.TestType | Should Be 'MemoryProfiling'
+            $governanceReport.Scale | Should Be 'Large'
+            $governanceReport.MemoryProfile | Should Not BeNullOrEmpty
+            $governanceReport.QualityGates | Should Not BeNullOrEmpty
+            $governanceReport.ComplianceStatus | Should Be $true
         }
     }
 }
@@ -984,16 +982,16 @@ Describe "Memory Profiling Module Independence Validation" -Tag "ModuleIndepende
             # Verify no external module dependencies
             $loadedModules = Get-Module | Where-Object Name -ne 'Pester'
             $findUnknownSIDModule = $loadedModules | Where-Object Name -like '*Find-UnknownSID*'
-            $findUnknownSIDModule | Should -BeNullOrEmpty
+            $findUnknownSIDModule | Should BeNullOrEmpty
 
             # Verify global functions are available
-            $Global:MemoryFunctions | Should -Not -BeNullOrEmpty
-            $Global:MemoryFunctions.Keys.Count | Should -BeGreaterThan 0
+            $Global:MemoryFunctions | Should Not BeNullOrEmpty
+            $Global:MemoryFunctions.Keys.Count | Should BeGreaterThan 0
 
             # Test each global function
             $Global:MemoryFunctions.Keys | ForEach-Object {
-                $Global:MemoryFunctions[$_] | Should -Not -BeNullOrEmpty
-                $Global:MemoryFunctions[$_].GetType().Name | Should -Be 'ScriptBlock'
+                $Global:MemoryFunctions[$_] | Should Not BeNullOrEmpty
+                $Global:MemoryFunctions[$_].GetType().Name | Should Be 'ScriptBlock'
             }
         }
 
@@ -1006,10 +1004,10 @@ Describe "Memory Profiling Module Independence Validation" -Tag "ModuleIndepende
             $qualityGates = Assert-MemoryQualityGates -MemoryProfile $memoryProfile
 
             # Verify complete functionality
-            $memoryProfile | Should -Not -BeNullOrEmpty
-            $memoryProfile.Profile.Success | Should -Be $true
-            $leakResults.MemoryLeakDetected | Should -Be $false
-            $qualityGates.OverallCompliance | Should -Be $true
+            $memoryProfile | Should Not BeNullOrEmpty
+            $memoryProfile.Profile.Success | Should Be $true
+            $leakResults.MemoryLeakDetected | Should Be $false
+            $qualityGates.OverallCompliance | Should Be $true
         }
     }
 }
@@ -1038,8 +1036,8 @@ Describe "Memory Profiling Benchmarks" -Tag "Benchmarks", "Performance", "Memory
 
         # Verify all benchmarks are met
         $benchmarkResults | ForEach-Object {
-            $_.WithinThreshold | Should -Be $true
-            $_.GCEfficiency | Should -BeGreaterThan 0.3
+            $_.WithinThreshold | Should Be $true
+            $_.GCEfficiency | Should BeGreaterThan 0.3
             Write-Host "$($_.Scale) Scale: $($_.ItemCount) items using $([math]::Round($_.MemoryUsed, 2)) MB with $([math]::Round($_.GCEfficiency * 100, 2))% GC efficiency in $([math]::Round($_.Duration, 2))s" -ForegroundColor Green
         }
 
@@ -1053,8 +1051,8 @@ Describe "Memory Profiling Benchmarks" -Tag "Benchmarks", "Performance", "Memory
             $mediumToSmallRatio = $mediumBenchmark.MemoryUsed / $smallBenchmark.MemoryUsed
             $largeToMediumRatio = $largeBenchmark.MemoryUsed / $mediumBenchmark.MemoryUsed
             
-            $mediumToSmallRatio | Should -BeLessThan 15  # 10x data shouldn't use more than 15x memory
-            $largeToMediumRatio | Should -BeLessThan 15  # 10x data shouldn't use more than 15x memory
+            $mediumToSmallRatio | Should BeLessThan 15  # 10x data shouldn't use more than 15x memory
+            $largeToMediumRatio | Should BeLessThan 15  # 10x data shouldn't use more than 15x memory
         }
 
         Write-Host "Memory Profiling Benchmarks: ALL PASSED" -ForegroundColor Green
