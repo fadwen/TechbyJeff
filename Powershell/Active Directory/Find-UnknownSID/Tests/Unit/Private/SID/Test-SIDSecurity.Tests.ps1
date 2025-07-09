@@ -229,8 +229,8 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             $result.IsValid | Should Be $false
             $result.RiskLevel | Should Be "Critical"
-            $result.BlockedSIDs -contains $systemSID | Should Be $true
-            $result.Issues -contains "SID is in protected SIDs list - removal blocked by security policy" | Should Be $true
+            ($result.BlockedSIDs -contains $systemSID) | Should Be $true
+            ($result.Issues -contains "SID is in protected SIDs list - removal blocked by security policy") | Should Be $true
         }
 
         It "Should block Administrators group SID (S-1-5-32-544)" {
@@ -239,7 +239,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             $result.IsValid | Should Be $false
             $result.RiskLevel | Should Be "Critical"
-            $result.BlockedSIDs -contains $adminSID | Should Be $true
+            ($result.BlockedSIDs -contains $adminSID) | Should Be $true
         }
 
         It "Should block all configured protected SIDs" {
@@ -249,11 +249,12 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 $result = Test-SIDSecurity -SIDString $sid
                 $result.IsValid | Should Be $false
                 $result.RiskLevel | Should Be "Critical"
-                $result.BlockedSIDs -contains $sid | Should Be $true
+                ($result.BlockedSIDs -contains $sid) | Should Be $true
             }
         }
 
         It "Should log security blocking events for protected SIDs" {
+            $global:SecurityLogCalls = @()
             $protectedSID = "S-1-5-18"
             Test-SIDSecurity -SIDString $protectedSID
             
@@ -285,7 +286,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             # Should be blocked due to well-known status - but risk level should be High, not Critical
             $result.IsValid | Should Be $false
             $result.RiskLevel | Should Be "High"
-            $result.Issues -contains "Well-known SID detected - removal may impact system security" | Should Be $true
+            ($result.Issues -contains "Well-known SID detected - removal may impact system security") | Should Be $true
         }
 
         It "Should detect and handle well-known SIDs with Strict validation" {
@@ -294,7 +295,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             $result.IsValid | Should Be $false
             $result.RiskLevel | Should Be "High"
-            $result.BlockedSIDs -contains $wellKnownSID | Should Be $true
+            ($result.BlockedSIDs -contains $wellKnownSID) | Should Be $true
         }
 
         It "Should allow well-known SIDs with Basic validation" {
@@ -330,7 +331,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             # Updated expectations based on actual function behavior
             $result.RiskLevel | Should Be "High"
             # Note: RequiresElevatedConfirmation depends on actual implementation
-            $result.Issues -contains "High-risk SID requires elevated confirmation for removal" | Should Be $true
+            ($result.Issues -contains "High-risk SID requires elevated confirmation for removal") | Should Be $true
         }
 
         It "Should handle Medium risk SIDs appropriately" {
@@ -346,7 +347,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $result = Test-SIDSecurity -SIDString $lowRiskSID
             
             $result.RiskLevel | Should Be "Low"
-            $result.AllowedSIDs -contains $lowRiskSID | Should Be $true
+            ($result.AllowedSIDs -contains $lowRiskSID) | Should Be $true
             $result.IsValid | Should Be $true
         }
 
@@ -384,7 +385,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $result = Test-SIDSecurity -SIDString $testSID -ObjectDN $criticalObjectDN
             
             $result.RequiresElevatedConfirmation | Should Be $true
-            $result.Issues | Should Contain "SID is on critical object: $criticalObjectDN"
+            ($result.Issues -contains "SID is on critical object: $criticalObjectDN") | Should Be $true
             $result.RiskLevel | Should Be "High"
         }
 
@@ -509,14 +510,14 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $result = Test-SIDSecurity -SIDString $testSID
             
             # Required properties based on SecurityValidationResult class
-            $result.PSObject.Properties.Name | Should Contain 'IsValid'
-            $result.PSObject.Properties.Name | Should Contain 'RiskLevel'
-            $result.PSObject.Properties.Name | Should Contain 'Issues'
-            $result.PSObject.Properties.Name | Should Contain 'RequiresElevatedConfirmation'
-            $result.PSObject.Properties.Name | Should Contain 'BlockedSIDs'
-            $result.PSObject.Properties.Name | Should Contain 'AllowedSIDs'
-            $result.PSObject.Properties.Name | Should Contain 'ValidatedAt'
-            $result.PSObject.Properties.Name | Should Contain 'ValidatorVersion'
+            ($result.PSObject.Properties.Name -contains 'IsValid') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'RiskLevel') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'Issues') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'RequiresElevatedConfirmation') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'BlockedSIDs') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'AllowedSIDs') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'ValidatedAt') | Should Be $true
+            ($result.PSObject.Properties.Name -contains 'ValidatorVersion') | Should Be $true
         }
 
         It "Should have valid RiskLevel values" {
@@ -531,7 +532,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             foreach ($sid in $testSIDs) {
                 $result = Test-SIDSecurity -SIDString $sid
-                $validRiskLevels | Should Contain $result.RiskLevel
+                $result.RiskLevel | Should BeIn $validRiskLevels
             }
         }
 
@@ -584,7 +585,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $result = Test-SIDSecurity -SIDString $testSID
             $result.IsValid | Should Be $false
             $result.RiskLevel | Should Be "Critical"
-            $result.Issues | Should Contain "Validation error: Analysis service unavailable"
+            ($result.Issues -contains "Validation error: Analysis service unavailable") | Should Be $true
         }
 
         It "Should log errors for audit trail" {
@@ -723,7 +724,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $result = Get-SIDRiskAssessment -SIDList $testSIDs
             
             $result | Should Not Be $null
-            $result.PSTypeName | Should Be 'SIDRiskAssessment'
+            $result.PSObject.TypeNames[0] | Should Be 'SIDRiskAssessment'
             $result.TotalSIDs | Should Be 2
             $result.AssessmentId | Should Not BeNullOrEmpty
             $result.AssessedAt | Should Not BeNullOrEmpty
@@ -917,7 +918,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 $result = Test-SIDSecurity -SIDString $sid
                 $result.IsValid | Should Be $false
                 $result.RiskLevel | Should Be "Critical"
-                $result.BlockedSIDs | Should Contain $sid
+                ($result.BlockedSIDs -contains $sid) | Should Be $true
             }
         }
 
@@ -939,7 +940,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $securitySettings.RequireElevatedConfirmation | Should Be $true
             $securitySettings.AllowWellKnownSIDRemoval | Should Be $false
             $securitySettings.ComplianceFrameworks | Should Not BeNullOrEmpty
-            $securitySettings.ComplianceFrameworks -contains 'SOX' | Should Be $true
+            ($securitySettings.ComplianceFrameworks -contains 'SOX') | Should Be $true
         }
 
         It "Should integrate with enterprise compliance frameworks" {

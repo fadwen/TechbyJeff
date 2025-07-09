@@ -126,6 +126,12 @@ function Test-SIDSecurity {
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [ValidateNotNullOrEmpty()]
+        [ValidateScript({
+            if ([string]::IsNullOrWhiteSpace($_)) {
+                throw "SIDString cannot be null, empty, or whitespace only"
+            }
+            return $true
+        })]
         [string]$SIDString,
 
         [Parameter()]
@@ -256,11 +262,11 @@ function Test-SIDSecurity {
             # Risk-based validation
             switch ($sidAnalysis.RiskLevel) {
                 'High' {
+                    $validation.RiskLevel = "High"
+                    $validation.Issues += "High-risk SID requires elevated confirmation for removal"
                     if ($ValidationLevel -eq 'Strict') {
                         $validation.RequiresElevatedConfirmation = $true
-                        $validation.Issues += "High-risk SID requires elevated confirmation for removal"
                     }
-                    $validation.RiskLevel = "High"
 
                     # Log high-risk SID validation
                     Write-SecurityLog -SecurityEventType 'DataValidation' -Message "High-risk SID identified - elevated validation required" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
@@ -449,7 +455,6 @@ function Get-SIDRiskAssessment {
                 Write-StructuredLog "Empty SID list provided - returning safe assessment" -Level Debug -Component 'SIDSecurity' -CorrelationId $CorrelationId
 
                 $assessment = [PSCustomObject]@{
-                    PSTypeName = 'SIDRiskAssessment'
                     AssessmentId = $CorrelationId
                     AssessedAt = Get-Date
                     TotalSIDs = 0
@@ -462,6 +467,7 @@ function Get-SIDRiskAssessment {
                     ObjectContext = $ObjectContext
                     SafeForAutomation = $true
                 }
+                $assessment.PSObject.TypeNames.Insert(0, 'SIDRiskAssessment')
 
                 Write-SecurityLog -SecurityEventType 'RiskAssessment' -Message "Empty SID list risk assessment completed" -Outcome 'Success' -CorrelationId $CorrelationId -SecurityContext @{
                     TotalSIDs = 0
@@ -527,7 +533,6 @@ function Get-SIDRiskAssessment {
 
             # Create assessment report
             $assessment = [PSCustomObject]@{
-                PSTypeName = 'SIDRiskAssessment'
                 AssessmentId = $CorrelationId
                 AssessedAt = Get-Date
                 TotalSIDs = $SIDList.Count
@@ -540,6 +545,7 @@ function Get-SIDRiskAssessment {
                 ObjectContext = $ObjectContext
                 SafeForAutomation = ($blockedSIDs.Count -eq 0 -and $requiresApproval.Count -eq 0)
             }
+            $assessment.PSObject.TypeNames.Insert(0, 'SIDRiskAssessment')
 
             # Log comprehensive risk assessment
             Write-SecurityLog -SecurityEventType 'RiskAssessment' -Message "SID batch risk assessment completed" -Outcome 'Success' -CorrelationId $CorrelationId -SecurityContext @{
