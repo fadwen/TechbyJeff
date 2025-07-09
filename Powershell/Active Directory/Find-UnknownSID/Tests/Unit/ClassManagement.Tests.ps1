@@ -8,10 +8,12 @@ if (Test-Path $testBootstrapper) {
 # Import ClassManagement module functions for testing
 $ClassManagementModulePath = Join-Path $PSScriptRoot '..\..\Private\ClassManagement'
 Get-ChildItem -Path $ClassManagementModulePath -Filter '*.ps1' | ForEach-Object {
-. #Requires -Module Pester
+    . $_.FullName
+}
 
+#Requires -Module Pester
 
-    # Import test bootstrapper first
+# Import test bootstrapper first
     $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
     if (Test-Path $testBootstrapper) {
         . $testBootstrapper
@@ -45,7 +47,8 @@ Get-ChildItem -Path $ClassManagementModulePath -Filter '*.ps1' | ForEach-Object 
     Mock Write-StructuredLog { }
 
     # Mock security operations
-    Mock Get-AuthenticodeSignature { return @{ Status = 'Valid'; SignerCertificate = @{ Subject = 'CN=Test' } } }
+    Mock Get-AuthenticodeSignature { return @{ Status = 'Valid'; SignerCertificate = @{ Subject = 'CN=Test' } } }
+
 
 Describe "Get-ApprovedClassList" -Tag "Unit", "ClassManagement", "Security" {
 
@@ -279,7 +282,8 @@ Describe "Get-ApprovedClassList" -Tag "Unit", "ClassManagement", "Security" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*signature validation*" }
         }
-    }
+    }
+
 
 Describe "Import-SecureClasses" -Tag "Unit", "ClassManagement", "Import" {
 
@@ -545,7 +549,8 @@ Describe "Import-SecureClasses" -Tag "Unit", "ClassManagement", "Import" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*import completed*" -and $Message -like "*milliseconds*" }
         }
-    }
+    }
+
 
 Describe "Test-ClassInstantiation" -Tag "Unit", "ClassManagement", "Validation" {
 
@@ -828,7 +833,8 @@ Mock Import-Module { }
 # Mock logging function
 Mock Write-StructuredLog { }
 # Mock security operations
-Mock Get-AuthenticodeSignature { return @{ Status = 'Valid'; SignerCertificate = @{ Subject = 'CN=Test' } } }
+Mock Get-AuthenticodeSignature { return @{ Status = 'Valid'; SignerCertificate = @{ Subject = 'CN=Test' } } }
+
 
 Describe "Get-ApprovedClassList" -Tag "Unit", "ClassManagement", "Security" {
 
@@ -1062,7 +1068,8 @@ Describe "Get-ApprovedClassList" -Tag "Unit", "ClassManagement", "Security" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*signature validation*" }
         }
-    }
+    }
+
 
 Describe "Import-SecureClasses" -Tag "Unit", "ClassManagement", "Import" {
 
@@ -1328,7 +1335,8 @@ Describe "Import-SecureClasses" -Tag "Unit", "ClassManagement", "Import" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*import completed*" -and $Message -like "*milliseconds*" }
         }
-    }
+    }
+
 
 Describe "Test-ClassInstantiation" -Tag "Unit", "ClassManagement", "Validation" {
 

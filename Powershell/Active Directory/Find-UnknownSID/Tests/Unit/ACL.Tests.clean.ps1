@@ -93,22 +93,22 @@ Describe "Get-ACLForRemoval" -Tag "Unit", "ACL", "Security" {
             param($Pattern, $Type)
             
             try {
-                { Get-ACLForRemoval -TargetPath $Pattern -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should Throw
+                { Get-ACLForRemoval -TargetPath $Pattern -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should -Throw
             }
             catch {
-                $_.Exception.Message | Should Match "(invalid|malicious|security|validation)"
+                $_.Exception.Message | Should -Match "(invalid|malicious|security|validation)"
             }
         }
 
         It "Should validate required parameters are provided" {
-            { Get-ACLForRemoval -TargetPath "" -OrphanedSIDs @() } | Should Throw
-            { Get-ACLForRemoval -TargetPath $null -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should Throw
-            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @() } | Should Throw
+            { Get-ACLForRemoval -TargetPath "" -OrphanedSIDs @() } | Should -Throw
+            { Get-ACLForRemoval -TargetPath $null -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should -Throw
+            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @() } | Should -Throw
         }
 
         It "Should validate SID format in OrphanedSIDs parameter" {
-            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @('InvalidSID') } | Should Throw
-            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21') } | Should Throw
+            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @('InvalidSID') } | Should -Throw
+            { Get-ACLForRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21') } | Should -Throw
         }
     }
 
@@ -116,24 +116,24 @@ Describe "Get-ACLForRemoval" -Tag "Unit", "ACL", "Security" {
         It "Should retrieve ACL for valid AD path" {
             $result = Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-123456789-987654321-456789123-1001')
             
-            $result | Should Not BeNullOrEmpty
-            $result.Path | Should Be "CN=TestUser,OU=Users,DC=contoso,DC=com"
-            $result.OrphanedEntries | Should Not BeNullOrEmpty
+            $result | Should -Not -BeNullOrEmpty
+            $result.Path | Should -Be "CN=TestUser,OU=Users,DC=contoso,DC=com"
+            $result.OrphanedEntries | Should -Not -BeNullOrEmpty
         }
 
         It "Should identify orphaned SIDs in ACL entries" {
             $orphanedSIDs = @('S-1-5-21-123456789-987654321-456789123-1001')
             $result = Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs $orphanedSIDs
             
-            $result.OrphanedEntries | Should Not BeNullOrEmpty
-            $result.OrphanedEntries[0].IdentityReference.Value | Should Be $orphanedSIDs[0]
+            $result.OrphanedEntries | Should -Not -BeNullOrEmpty
+            $result.OrphanedEntries[0].IdentityReference.Value | Should -Be $orphanedSIDs[0]
         }
 
         It "Should handle paths without orphaned SIDs gracefully" {
             $result = Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-999999999-888888888-777777777-9999')
             
-            $result | Should Not BeNullOrEmpty
-            $result.OrphanedEntries | Should BeNullOrEmpty
+            $result | Should -Not -BeNullOrEmpty
+            $result.OrphanedEntries | Should -BeNullOrEmpty
         }
     }
 
@@ -143,7 +143,7 @@ Describe "Get-ACLForRemoval" -Tag "Unit", "ACL", "Security" {
                 Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-123456789-987654321-456789123-1001')
             }
             
-            $executionTime | Should BeLessThan $script:PerformanceBaseline.ACLRetrievalMaxTime
+            $executionTime | Should -BeLessThan $script:PerformanceBaseline.ACLRetrievalMaxTime
         }
 
         It "Should handle multiple orphaned SIDs efficiently" {
@@ -157,7 +157,7 @@ Describe "Get-ACLForRemoval" -Tag "Unit", "ACL", "Security" {
                 Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs $multipleOrphanedSIDs
             }
             
-            $executionTime | Should BeLessThan $script:PerformanceBaseline.ACLRetrievalMaxTime
+            $executionTime | Should -BeLessThan $script:PerformanceBaseline.ACLRetrievalMaxTime
         }
     }
 
@@ -166,17 +166,17 @@ Describe "Get-ACLForRemoval" -Tag "Unit", "ACL", "Security" {
             Mock Get-Acl { throw "Cannot find path 'AD:\CN=NonExistent' because it does not exist." } -ParameterFilter { $Path -eq "AD:\CN=NonExistent,DC=contoso,DC=com" }
             
             try {
-                { Get-ACLForRemoval -TargetPath "AD:\CN=NonExistent,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should Throw
+                { Get-ACLForRemoval -TargetPath "AD:\CN=NonExistent,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-123-456-789-1001') } | Should -Throw
             }
             catch {
-                $_.Exception.Message | Should Match "(path|not exist|cannot find)"
+                $_.Exception.Message | Should -Match "(path|not exist|cannot find)"
             }
         }
 
         It "Should log ACL retrieval operations with correlation ID" {
             Get-ACLForRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -OrphanedSIDs @('S-1-5-21-123456789-987654321-456789123-1001')
             
-            Should Invoke Write-Verbose -Times 1 -ParameterFilter { $Message -like "*ACL*" }
+            Should -Invoke Write-Verbose -Times 1 -ParameterFilter { $Message -like "*ACL*" }
         }
     }
 }
@@ -197,15 +197,15 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
     } -ParameterFilter { $Path -like "AD:*" }
 
     # Mock backup operations
-    Mock New-Item {
-        param($Path, $ItemType, $Force)
+    Mock Export-ACL {
+        param($ACLObject, $BackupPath)
         # Simulate successful backup creation
         return @{
-            BackupPath = $Path
+            BackupPath = $BackupPath
             BackupSize = 1024
             Timestamp = Get-Date
         }
-    } -ParameterFilter { $ItemType -eq 'File' }
+    }
 
     Context "Parameter Validation and Security" {
         It "Should reject malicious input in removal operations: <Pattern>" -TestCases @(
@@ -216,21 +216,21 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             param($Pattern, $Type)
             
             try {
-                { Invoke-SIDRemoval -TargetPath $Pattern -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should Throw
+                { Invoke-SIDRemoval -TargetPath $Pattern -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should -Throw
             }
             catch {
-                $_.Exception.Message | Should Match "(invalid|malicious|security|validation)"
+                $_.Exception.Message | Should -Match "(invalid|malicious|security|validation)"
             }
         }
 
         It "Should validate SID format in SIDsToRemove parameter" {
-            { Invoke-SIDRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -SIDsToRemove @('InvalidSID') } | Should Throw
-            { Invoke-SIDRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21') } | Should Throw
+            { Invoke-SIDRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -SIDsToRemove @('InvalidSID') } | Should -Throw
+            { Invoke-SIDRemoval -TargetPath "AD:\CN=Test,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21') } | Should -Throw
         }
 
         It "Should require valid target path" {
-            { Invoke-SIDRemoval -TargetPath "" -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should Throw
-            { Invoke-SIDRemoval -TargetPath $null -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should Throw
+            { Invoke-SIDRemoval -TargetPath "" -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should -Throw
+            { Invoke-SIDRemoval -TargetPath $null -SIDsToRemove @('S-1-5-21-123-456-789-1001') } | Should -Throw
         }
     }
 
@@ -239,16 +239,16 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             $sidsToRemove = @('S-1-5-21-123456789-987654321-456789123-1001')
             $result = Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -SIDsToRemove $sidsToRemove
             
-            $result | Should Not BeNullOrEmpty
-            $result.Success | Should Be $true
-            $result.RemovedSIDs | Should Contain $sidsToRemove[0]
+            $result | Should -Not -BeNullOrEmpty
+            $result.Success | Should -Be $true
+            $result.RemovedSIDs | Should -Contain $sidsToRemove[0]
         }
 
         It "Should create backup before removal when specified" {
             $result = Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21-123456789-987654321-456789123-1001') -CreateBackup
             
-            $result.BackupCreated | Should Be $true
-            $result.BackupPath | Should Not BeNullOrEmpty
+            $result.BackupCreated | Should -Be $true
+            $result.BackupPath | Should -Not -BeNullOrEmpty
         }
 
         It "Should handle removal of multiple SIDs" {
@@ -259,8 +259,8 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             
             $result = Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -SIDsToRemove $multipleSIDs
             
-            $result.Success | Should Be $true
-            $result.RemovedSIDs.Count | Should Be 2
+            $result.Success | Should -Be $true
+            $result.RemovedSIDs.Count | Should -Be 2
         }
     }
 
@@ -270,7 +270,7 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
                 Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21-123456789-987654321-456789123-1001')
             }
             
-            $executionTime | Should BeLessThan $script:PerformanceBaseline.SIDRemovalMaxTime
+            $executionTime | Should -BeLessThan $script:PerformanceBaseline.SIDRemovalMaxTime
         }
 
         It "Should manage memory efficiently during batch operations" {
@@ -285,7 +285,7 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             $afterMemory = [System.GC]::GetTotalMemory($true)
             $memoryUsed = ($afterMemory - $beforeMemory) / 1MB
             
-            $memoryUsed | Should BeLessThan $script:PerformanceBaseline.MemoryUsageMaxMB
+            $memoryUsed | Should -BeLessThan $script:PerformanceBaseline.MemoryUsageMaxMB
         }
     }
 
@@ -295,11 +295,11 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             
             try {
                 $result = Invoke-SIDRemoval -TargetPath "AD:\CN=ProtectedUser,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21-123-456-789-1001')
-                $result.Success | Should Be $false
-                $result.Error | Should Match "Access denied"
+                $result.Success | Should -Be $false
+                $result.Error | Should -Match "Access denied"
             }
             catch {
-                $_.Exception.Message | Should Match "(access|denied|permission)"
+                $_.Exception.Message | Should -Match "(access|denied|permission)"
             }
         }
 
@@ -308,8 +308,8 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             
             try {
                 $result = Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21-123-456-789-1001')
-                $result.Error | Should Not BeNullOrEmpty
-                $result.CorrelationId | Should Not BeNullOrEmpty
+                $result.Error | Should -Not -BeNullOrEmpty
+                $result.CorrelationId | Should -Not -BeNullOrEmpty
             }
             catch {
                 # Expected behavior for testing error handling
@@ -319,7 +319,7 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
         It "Should log removal operations with correlation ID for audit trail" {
             Invoke-SIDRemoval -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com" -SIDsToRemove @('S-1-5-21-123456789-987654321-456789123-1001')
             
-            Should Invoke Write-Verbose -Times 1 -ParameterFilter { $Message -like "*SID*" -or $Message -like "*removal*" }
+            Should -Invoke Write-Verbose -Times 1 -ParameterFilter { $Message -like "*SID*" -or $Message -like "*removal*" }
         }
     }
 
@@ -331,7 +331,7 @@ Describe "Invoke-SIDRemoval" -Tag "Unit", "SIDRemoval", "Security" {
             # Then test rollback capability
             $rollbackResult = Restore-ACLFromBackup -BackupPath $removalResult.BackupPath -TargetPath "AD:\CN=TestUser,OU=Users,DC=contoso,DC=com"
             
-            $rollbackResult.Success | Should Be $true
+            $rollbackResult.Success | Should -Be $true
         }
     }
 }

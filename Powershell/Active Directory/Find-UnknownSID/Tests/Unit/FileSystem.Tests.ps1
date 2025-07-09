@@ -8,8 +8,10 @@ if (Test-Path $testBootstrapper) {
 # Import FileSystem module functions for testing
 $FileSystemModulePath = Join-Path $PSScriptRoot '..\..\Private\FileSystem'
 Get-ChildItem -Path $FileSystemModulePath -Filter '*.ps1' | ForEach-Object {
-. #Requires -Module Pester
+    . $_.FullName
+}
 
+#Requires -Module Pester
 
     # Import test bootstrapper first
     $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
@@ -54,7 +56,8 @@ Get-ChildItem -Path $FileSystemModulePath -Filter '*.ps1' | ForEach-Object {
     # Mock security operations
     Mock [System.Security.Principal.WindowsIdentity]::GetCurrent {
         return @{ Name = 'DOMAIN\TestUser'; Groups = @(@{ Value = 'S-1-5-32-544' }) }
-    }
+    }
+
 
 Describe "Get-SafeFileName" -Tag "Unit", "FileSystem", "Security" {
 
@@ -278,7 +281,8 @@ Describe "Get-SafeFileName" -Tag "Unit", "FileSystem", "Security" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*characters sanitized*" }
         }
-    }
+    }
+
 
 Describe "Initialize-LogDirectory" -Tag "Unit", "FileSystem", "Logging" {
 
@@ -515,7 +519,8 @@ Describe "Initialize-LogDirectory" -Tag "Unit", "FileSystem", "Logging" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*directory size*" -or $Message -like "*file count*" }
         }
-    }
+    }
+
 
 Describe "Test-DirectoryAccess" -Tag "Unit", "FileSystem", "Access" {
 
@@ -845,7 +850,9 @@ Mock Set-Acl { }
 Mock Write-StructuredLog { }
 # Mock security operations
 Mock [System.Security.Principal.WindowsIdentity]::GetCurrent {
-return @{ Name = 'DOMAIN\TestUser'; Groups = @(@{ Value = 'S-1-5-32-544' }) }
+return @{ Name = 'DOMAIN\TestUser'; Groups = @(@{ Value = 'S-1-5-32-544' }) }
+
+
 
 Describe "Get-SafeFileName" -Tag "Unit", "FileSystem", "Security" {
 
@@ -1069,7 +1076,8 @@ Describe "Get-SafeFileName" -Tag "Unit", "FileSystem", "Security" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*characters sanitized*" }
         }
-    }
+    }
+
 
 Describe "Initialize-LogDirectory" -Tag "Unit", "FileSystem", "Logging" {
 
@@ -1306,7 +1314,8 @@ Describe "Initialize-LogDirectory" -Tag "Unit", "FileSystem", "Logging" {
 
             Should Invoke Write-StructuredLog -ParameterFilter { $Message -like "*directory size*" -or $Message -like "*file count*" }
         }
-    }
+    }
+
 
 Describe "Test-DirectoryAccess" -Tag "Unit", "FileSystem", "Access" {
 

@@ -24,10 +24,12 @@ function Compress-Archive { param($Path, $DestinationPath, $CompressionLevel) }
 # Import Reporting module functions for testing
 $ReportingModulePath = Join-Path $PSScriptRoot '..\..\Private\Reporting'
 Get-LogFileSummary -Path $ReportingModulePath -Filter '*.ps1' | ForEach-Object {
-. #Requires -Module Pester
+    . $_.FullName
+}
 
+#Requires -Module Pester
 
-    # Import test bootstrapper first
+# Import test bootstrapper first
     $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
     if (Test-Path $testBootstrapper) {
         . $testBootstrapper
@@ -56,7 +58,8 @@ Get-LogFileSummary -Path $ReportingModulePath -Filter '*.ps1' | ForEach-Object {
     $ReportingModulePath = Join-Path $PSScriptRoot '..\..\Private\Reporting'
     Get-LogFileSummary -Path $ReportingModulePath -Filter '*.ps1' | ForEach-Object {
         . $_.FullName
-    }
+    }
+
 
 Describe "Write-ProcessingSummary" -Tag "Unit", "Reporting", "Summary" {
 
@@ -289,7 +292,8 @@ Success Rate: {SuccessRate}%
 
             Should Invoke Write-StructuredLog -ParameterFilter { $CorrelationId -eq $script:TestCorrelationId -and $Message -like "*summary generated*" }
         }
-    }
+    }
+
 
 Describe "Export-DiagnosticData" -Tag "Unit", "Reporting", "Diagnostics" {
 
@@ -835,7 +839,9 @@ Describe "Get-LogFileSummary" -Tag "Unit", "Reporting", "Analysis" {
 
 }
 
-.FullName
+.FullName
+
+
 
 Describe "Write-ProcessingSummary" -Tag "Unit", "Reporting", "Summary" {
 
@@ -1068,7 +1074,8 @@ Success Rate: {SuccessRate}%
 
             Should Invoke Write-StructuredLog -ParameterFilter { $CorrelationId -eq $script:TestCorrelationId -and $Message -like "*summary generated*" }
         }
-    }
+    }
+
 
 Describe "Export-DiagnosticData" -Tag "Unit", "Reporting", "Diagnostics" {
 

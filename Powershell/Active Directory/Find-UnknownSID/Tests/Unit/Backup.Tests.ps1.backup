@@ -3,20 +3,52 @@
 # Import test bootstrapper first
 $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
 if (Test-Path $testBootstrapper) {
-    . $testBootstrapper
+. $testBootstrapper
 }
-
 # Import Backup module functions for testing
 $BackupModulePath = Join-Path $PSScriptRoot '..\..\Private\Backup'
 Get-ChildItem -Path $BackupModulePath -Filter '*.ps1' | ForEach-Object {
     . $_.FullName
 }
 
-# Import test helpers if they exist
-$TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
-if (Test-Path $TestHelpersPath) {
-    . $TestHelpersPath
-}
+#Requires -Module Pester
+
+    # Import test bootstrapper first
+    $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
+    if (Test-Path $testBootstrapper) {
+        . $testBootstrapper
+    }
+
+    # Import Backup module functions for testing
+    $BackupModulePath = Join-Path $PSScriptRoot '..\..\Private\Backup'
+    Get-ChildItem -Path $BackupModulePath -Filter '*.ps1' | ForEach-Object {
+        . $_.FullName
+    }
+
+    # Import test helpers if they exist
+    $TestHelpersPath = Join-Path $PSScriptRoot '..\TestHelpers\TestHelpers.ps1'
+    if (Test-Path $TestHelpersPath) {
+        . $TestHelpersPath
+    }
+
+    # Mock external dependencies
+    Mock Write-Verbose { }
+    Mock Write-Information { }
+    Mock Write-Warning { }
+    Mock Write-Error { }
+
+    # Mock file system operations
+    Mock Test-Path { return $true }
+    Mock Get-Item { return @{ FullName = 'MockPath'; LastWriteTime = (Get-Date) } }
+    Mock Get-ChildItem { return @() }
+    Mock New-Item { return @{ FullName = 'MockPath' } }
+    Mock Copy-Item { }
+    Mock Remove-Item { }
+    Mock Out-File { }
+    Mock Get-Content { return @() }
+
+    # Mock ACL operations
+    Mock Get-Acl { return @{ Access = @(); Owner = 'BUILTIN\Administrators' } }
     Mock Set-Acl { }
 
     # Mock logging function
