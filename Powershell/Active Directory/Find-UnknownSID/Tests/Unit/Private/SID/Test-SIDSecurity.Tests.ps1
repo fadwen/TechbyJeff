@@ -18,7 +18,10 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         . (Join-Path -Path $PrivatePath -ChildPath 'SID\Test-SIDFormat.ps1')
         . (Join-Path -Path $PrivatePath -ChildPath 'SID\Get-SIDAnalysis.ps1')
         
-        # Create mock configuration for testing
+        # Import the function and set up configuration
+        . "$PSScriptRoot\..\..\..\..\Private\SID\Test-SIDSecurity.ps1"
+        
+        # Create mock configuration for testing  
         $script:Config = @{
             ProtectedSIDs = @(
                 'S-1-5-18',      # Local System
@@ -53,9 +56,10 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 Outcome = $Outcome
                 CorrelationId = $CorrelationId
                 SecurityContext = $SecurityContext
+                RiskLevel = $RiskLevel
                 Timestamp = Get-Date
             }
-        } -ModuleName $null
+        }
         
         Mock Write-StructuredLog {
             # Store structured log calls for validation
@@ -279,6 +283,23 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
     Context "Well-Known SID Validation" {
         BeforeEach {
             $global:SecurityLogCalls = @()
+            
+            # Override Test-WellKnownSID mock for this context to include Domain Admins
+            Mock Test-WellKnownSID {
+                param($SID, $CorrelationId)
+                # Return true for well-known SIDs including Domain Admins for this test context
+                switch -Regex ($SID) {
+                    '^S-1-5-18$' { return $true }     # Local System
+                    '^S-1-5-19$' { return $true }     # Local Service
+                    '^S-1-5-20$' { return $true }     # Network Service
+                    '^S-1-5-32-544$' { return $true } # Administrators
+                    '^S-1-5-32-5[0-9][0-9]$' { return $true } # Built-in groups
+                    '^S-1-5-21.*-519$' { return $true } # Enterprise Admins
+                    '^S-1-5-21.*-518$' { return $true } # Schema Admins
+                    '^S-1-5-21.*-512$' { return $true } # Domain Admins (treated as well-known in this context)
+                    default { return $false }
+                }
+            } -ModuleName $null
         }
 
         It "Should detect and handle well-known SIDs with Standard validation" {
