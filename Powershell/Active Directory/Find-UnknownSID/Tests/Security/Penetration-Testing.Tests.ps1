@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 #Requires -Version 5.1
 
 <#
@@ -64,10 +64,10 @@ BeforeAll {
     # Initialize security monitoring
     Start-SecurityMonitoring -TestName "PenetrationTesting" -CorrelationId $script:SecurityConfig.TestCorrelationId
 
-    # 🛡️ CRITICAL SECURITY MOCKS - Prevent any dangerous operations during penetration testing
+    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations during penetration testing
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked during penetration test. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked during penetration test. Command: $Command"
         throw "Security violation: Dangerous operation blocked during penetration test - $Command"
     }
 
@@ -75,7 +75,7 @@ BeforeAll {
         param($Path, [switch]$Recurse, [switch]$Force)
         # Block any system paths or dangerous operations
         if ($Path -match '^C:\\|^\\\\|^/|System32|Windows|\*') {
-            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for dangerous path during penetration test. Path: $Path"
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for dangerous path during penetration test. Path: $Path"
             throw "Security violation: Dangerous file deletion blocked during penetration test - $Path"
         }
         Write-Verbose "Mock Remove-Item called safely for test path: $Path"
@@ -84,7 +84,7 @@ BeforeAll {
     Mock Start-Process { 
         param($FilePath, $ArgumentList)
         if ($FilePath -match 'calc|cmd|powershell|notepad') {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
             throw "Security violation: Process execution blocked during penetration test - $FilePath"
         }
         Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
@@ -93,7 +93,7 @@ BeforeAll {
     Mock Stop-Process {
         param($Name, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System') {
-            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
             throw "Security violation: Critical process termination blocked - $Name"
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"

@@ -116,12 +116,12 @@ Describe "PowerShell Version Compatibility Testing" -Tag @("Compatibility", "Ver
                     $result = & $featureTests[$featureName]
                     if ($result) {
                         $compatibleFeatures++
-                        Write-Verbose "✓ $featureName compatible"
+                        Write-Verbose " $featureName compatible"
                     } else {
-                        Write-Warning "✗ $featureName not compatible"
+                        Write-Warning " $featureName not compatible"
                     }
                 } catch {
-                    Write-Warning "✗ $featureName failed: $($_.Exception.Message)"
+                    Write-Warning " $featureName failed: $($_.Exception.Message)"
                 }
             }
 

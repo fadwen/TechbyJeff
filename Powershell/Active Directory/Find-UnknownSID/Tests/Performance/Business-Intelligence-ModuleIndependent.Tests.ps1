@@ -24,12 +24,12 @@
     Version: 2.0.0 - Module Independent
 
     ENTERPRISE STANDARDS IMPLEMENTED:
-    ✅ TestHelpers.ps1 Integration
-    ✅ TestCases Patterns  
-    ✅ Performance Requirements Context
-    ✅ Security Validation Context
-    ✅ Advanced Mocking
-    ✅ Quality Gates
+     TestHelpers.ps1 Integration
+     TestCases Patterns  
+     Performance Requirements Context
+     Security Validation Context
+     Advanced Mocking
+     Quality Gates
 
     TROUBLESHOOTING:
     - For BI issues: .\Troubleshooting\Analytics\Business-Intelligence-Issues.md
@@ -42,9 +42,9 @@ BeforeAll {
     $frameworkPath = Join-Path $PSScriptRoot '..\Infrastructure\Module-Independence-Framework.ps1'
     if (Test-Path $frameworkPath) {
         . $frameworkPath
-        Write-Verbose "✅ Module Independence Framework loaded"
+        Write-Verbose " Module Independence Framework loaded"
     } else {
-        throw "❌ Module Independence Framework not found at: $frameworkPath"
+        throw " Module Independence Framework not found at: $frameworkPath"
     }
 
     # Initialize module-independent testing environment
@@ -78,11 +78,11 @@ BeforeAll {
     $script:MediumDataset = New-EnterpriseTestData -DataSize 'Medium' -TestType 'Performance' -CorrelationId $script:TestCorrelationId  
     $script:LargeDataset = New-EnterpriseTestData -DataSize 'Large' -TestType 'Performance' -CorrelationId $script:TestCorrelationId
 
-    Write-Verbose "🎯 BI Testing Environment Initialized - CorrelationId: $script:TestCorrelationId"
+    Write-Verbose " BI Testing Environment Initialized - CorrelationId: $script:TestCorrelationId"
 }
 
 # ========================================================================================
-# 🎯 ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
+#  ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
 # ========================================================================================
 
 function Global:New-BITestData {
@@ -198,7 +198,7 @@ function Global:Assert-BIQualityGates {
 }
 
 # ========================================================================================
-# 🎯 ENTERPRISE STANDARD 2: TestCases Patterns
+#  ENTERPRISE STANDARD 2: TestCases Patterns
 # ========================================================================================
 
 Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performance", "ModuleIndependent" {
@@ -272,7 +272,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
     }
 
     # ========================================================================================
-    # 🎯 ENTERPRISE STANDARD 3: Performance Requirements Context
+    #  ENTERPRISE STANDARD 3: Performance Requirements Context
     # ========================================================================================
 
     Context "BI Performance Requirements" -Tag "Performance" {
@@ -322,7 +322,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
     }
 
     # ========================================================================================
-    # 🎯 ENTERPRISE STANDARD 4: Security Validation Context
+    #  ENTERPRISE STANDARD 4: Security Validation Context
     # ========================================================================================
 
     Context "BI Security Validation" -Tag "Security" {
@@ -344,7 +344,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
         It "Should prevent unauthorized report access" {
             # Test unauthorized access attempt
             $unauthorizedOperation = {
-                throw "🛡️ Access denied: Insufficient privileges for sensitive report"
+                throw " Access denied: Insufficient privileges for sensitive report"
             }
 
             { & $unauthorizedOperation } | Should -Throw "*Access denied*"
@@ -363,7 +363,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
     }
 
     # ========================================================================================
-    # 🎯 ENTERPRISE STANDARD 5: Advanced Mocking
+    #  ENTERPRISE STANDARD 5: Advanced Mocking
     # ========================================================================================
 
     Context "BI Integration Mocking" -Tag "Integration" {
@@ -392,7 +392,7 @@ Describe "Module-Independent Business Intelligence Testing" -Tag "BI", "Performa
     }
 
     # ========================================================================================
-    # 🎯 ENTERPRISE STANDARD 6: Quality Gates
+    #  ENTERPRISE STANDARD 6: Quality Gates
     # ========================================================================================
 
     Context "BI Quality Gates Validation" -Tag "QualityGates" {
@@ -495,5 +495,5 @@ AfterAll {
         EnterpriseCompliant = $true
     }
     
-    Write-Verbose "🎯 Module-Independent BI Testing Suite completed - CorrelationId: $script:TestCorrelationId"
+    Write-Verbose " Module-Independent BI Testing Suite completed - CorrelationId: $script:TestCorrelationId"
 }

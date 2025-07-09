@@ -1,8 +1,8 @@
 ﻿#Requires -Module Pester
 
 BeforeAll {
-    # 🧪 Initialize SimpleValidation.Tests.ps1 with enterprise compliance
-    Write-Host "🧪 Initializing SimpleValidation.Tests.ps1 with enterprise compliance..." -ForegroundColor Cyan
+    #  Initialize SimpleValidation.Tests.ps1 with enterprise compliance
+    Write-Host " Initializing SimpleValidation.Tests.ps1 with enterprise compliance..." -ForegroundColor Cyan
     
     # Create minimal function implementations to prevent hanging
     if (-not (Get-Command Write-StructuredLog -ErrorAction SilentlyContinue)) {
@@ -13,7 +13,7 @@ BeforeAll {
                 [hashtable]$Data = @{},
                 [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
             )
-            Write-Host "ℹ️ Created minimal Write-StructuredLog function" -ForegroundColor Yellow
+            Write-Host " Created minimal Write-StructuredLog function" -ForegroundColor Yellow
         }
     }
 
@@ -27,7 +27,7 @@ BeforeAll {
             $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             $result = & $ScriptBlock
             $stopwatch.Stop()
-            Write-Host "ℹ️ Created minimal Measure-TestPerformance function" -ForegroundColor Yellow
+            Write-Host " Created minimal Measure-TestPerformance function" -ForegroundColor Yellow
             return @{
                 Result = $result
                 Duration = $stopwatch.Elapsed
@@ -43,7 +43,7 @@ BeforeAll {
                 [double]$SLAMs = 1000,
                 [string]$OperationName = 'Operation'
             )
-            Write-Host "ℹ️ Created minimal Assert-PerformanceWithinSLA function" -ForegroundColor Yellow
+            Write-Host " Created minimal Assert-PerformanceWithinSLA function" -ForegroundColor Yellow
             $ActualMs | Should -BeLessThan $SLAMs -Because "$OperationName should complete within $SLAMs ms SLA"
         }
     }

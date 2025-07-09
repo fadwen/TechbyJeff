@@ -194,7 +194,7 @@ function Invoke-TestCategory {
         Join-Path $testsRoot $relativePath
     }
     
-    Write-Host "📧 Executing $Category Tests..." -ForegroundColor Yellow
+    Write-Host " Executing $Category Tests..." -ForegroundColor Yellow
     Write-Host "   $($Config.Description)" -ForegroundColor Gray
     Write-Host "   Path: $resolvedPath" -ForegroundColor Gray
     Write-Host "   Timeout: $($Config.TimeoutMinutes) minutes" -ForegroundColor Gray
@@ -409,7 +409,7 @@ Write-Host "Detailed results saved to: $summaryPath" -ForegroundColor Gray
 # Final status
 if ($executionSummary.TotalFailed -eq 0 -and $executionSummary.TotalTests -gt 0) {
     Write-Host ""
-    Write-Host "ðŸŽ‰ All tests passed! Gap resolution implementation validated." -ForegroundColor Green
+    Write-Host " All tests passed! Gap resolution implementation validated." -ForegroundColor Green
     $exitCode = 0
 } elseif ($executionSummary.TotalTests -eq 0) {
     Write-Host ""
@@ -417,7 +417,7 @@ if ($executionSummary.TotalFailed -eq 0 -and $executionSummary.TotalTests -gt 0)
     $exitCode = 1
 } else {
     Write-Host ""
-    Write-Host "âŒ Some tests failed. Gap resolution implementation needs attention." -ForegroundColor Red
+    Write-Host " Some tests failed. Gap resolution implementation needs attention." -ForegroundColor Red
     $exitCode = 1
 }
 

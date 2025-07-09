@@ -1,7 +1,7 @@
 ﻿#Requires -Module Pester
 
 BeforeAll {
-    Write-Host "🧪 Initializing Security.Tests.ps1 with enterprise compliance..."
+    Write-Host " Initializing Security.Tests.ps1 with enterprise compliance..."
     
     # Initialize test correlation ID for enterprise tracing
     $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
@@ -15,7 +15,7 @@ BeforeAll {
             param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
             Write-Verbose "$Level`: $Message (CorrelationId: $CorrelationId)"
         }
-        Write-Host "ℹ️ Created minimal Write-StructuredLog function"
+        Write-Host " Created minimal Write-StructuredLog function"
     }
     
     if (-not (Get-Command "Test-ClassIntegrity" -ErrorAction SilentlyContinue)) {
@@ -28,7 +28,7 @@ BeforeAll {
             Write-StructuredLog -Level "Information" -Message "Testing class integrity for $Class" -CorrelationId $CorrelationId
             return $true
         }
-        Write-Host "ℹ️ Created minimal Test-ClassIntegrity function"
+        Write-Host " Created minimal Test-ClassIntegrity function"
     }
     
     if (-not (Get-Command "Measure-TestPerformance" -ErrorAction SilentlyContinue)) {
@@ -48,7 +48,7 @@ BeforeAll {
                 MemoryUsedMB = [math]::Round(($memoryAfter - $memoryBefore) / 1MB, 2)
             }
         }
-        Write-Host "ℹ️ Created minimal Measure-TestPerformance function"
+        Write-Host " Created minimal Measure-TestPerformance function"
     }
     
     if (-not (Get-Command "Assert-PerformanceWithinSLA" -ErrorAction SilentlyContinue)) {
@@ -60,7 +60,7 @@ BeforeAll {
                 $memoryIncreaseMB | Should -BeLessThan $MaxMemoryIncreaseMB
             }
         }
-        Write-Host "ℹ️ Created minimal Assert-PerformanceWithinSLA function"
+        Write-Host " Created minimal Assert-PerformanceWithinSLA function"
     }
     
     # Set performance baselines for security operations
@@ -89,17 +89,17 @@ BeforeAll {
     Mock Write-Warning { param($Message) }
     Mock Write-Error { param($Message, $ErrorAction) }
     
-    # 🛡️ CRITICAL SECURITY MOCKS - Prevent any dangerous operations
+    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
         throw "Security violation: Dangerous operation blocked - $Command"
     }
     
     Mock Start-Process { 
         param($FilePath, $ArgumentList, [switch]$PassThru)
         if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
             throw "Security violation: Process execution blocked - $FilePath"
         }
         Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
@@ -108,7 +108,7 @@ BeforeAll {
     Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
             throw "Security violation: Critical process termination blocked - $Name"
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"
@@ -117,7 +117,7 @@ BeforeAll {
     Mock Remove-Item { 
         param($Path, [switch]$Recurse, [switch]$Force)
         if ($Path -match '^C:\\|^\\\\|^/') {
-            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
             throw "Security violation: System file deletion blocked - $Path"
         }
         Write-Verbose "Mock Remove-Item called safely for test path: $Path"

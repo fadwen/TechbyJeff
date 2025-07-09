@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 <#
 .SYNOPSIS
@@ -17,7 +17,7 @@
 Describe "Operations Quick Test - Safe Execution" -Tag "QuickTest" {
     BeforeAll {
         # Simple, safe initialization without complex loading
-        Write-Host "🧪 Starting safe Operations quick test..."
+        Write-Host " Starting safe Operations quick test..."
         
         # Create minimal test correlation ID
         $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
@@ -28,20 +28,20 @@ Describe "Operations Quick Test - Safe Execution" -Tag "QuickTest" {
         Mock Write-Error { }
         Mock Start-Sleep { }
         
-        Write-Host "✅ Basic mocks initialized"
+        Write-Host " Basic mocks initialized"
     }
 
     Context "Basic Function Existence" {
         It "Should not hang during basic test execution" {
             # This test just verifies we can run without hanging
             $true | Should -Be $true
-            Write-Host "✅ Basic test execution successful"
+            Write-Host " Basic test execution successful"
         }
 
         It "Should handle correlation ID safely" {
             $script:TestCorrelationId | Should -Not -BeNullOrEmpty
             $script:TestCorrelationId.Length | Should -Be 36  # GUID length
-            Write-Host "✅ Correlation ID handling safe"
+            Write-Host " Correlation ID handling safe"
         }
 
         It "Should complete within reasonable time" {
@@ -52,7 +52,7 @@ Describe "Operations Quick Test - Safe Execution" -Tag "QuickTest" {
             
             $stopwatch.Stop()
             $stopwatch.ElapsedMilliseconds | Should -BeLessThan 1000  # Should complete under 1 second
-            Write-Host "✅ Performance within acceptable range: $($stopwatch.ElapsedMilliseconds)ms"
+            Write-Host " Performance within acceptable range: $($stopwatch.ElapsedMilliseconds)ms"
         }
     }
 
@@ -63,11 +63,11 @@ Describe "Operations Quick Test - Safe Execution" -Tag "QuickTest" {
             { Write-Warning "Test warning" } | Should -Not -Throw
             { Start-Sleep -Seconds 1 } | Should -Not -Throw
             
-            Write-Host "✅ All mocks functioning properly"
+            Write-Host " All mocks functioning properly"
         }
     }
 
     AfterAll {
-        Write-Host "🏁 Quick test completed successfully - no hanging detected"
+        Write-Host " Quick test completed successfully - no hanging detected"
     }
 }

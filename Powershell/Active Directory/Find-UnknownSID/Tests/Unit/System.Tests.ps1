@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 <#
 .SYNOPSIS
     Comprehensive Pester tests for System module functions
@@ -17,7 +17,7 @@
 #>
 
 BeforeAll {
-    Write-Host "🧪 Initializing System.Tests.ps1 with Enterprise-First Approach..." -ForegroundColor Cyan
+    Write-Host " Initializing System.Tests.ps1 with Enterprise-First Approach..." -ForegroundColor Cyan
     
     # Import test helpers following enterprise standards
     . $PSScriptRoot\..\TestHelpers\TestHelpers.ps1
@@ -454,17 +454,17 @@ BeforeAll {
         }
     }
     
-    # 🛡️ CRITICAL SECURITY MOCKS - Enterprise security standards
+    #  CRITICAL SECURITY MOCKS - Enterprise security standards
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
         throw "Security violation: Dangerous code execution blocked - $Command"
     }
     
     Mock Remove-Item { 
         param($Path, [switch]$Recurse, [switch]$Force)
         if ($Path -match '^C:\\|^\\\\|^/') {
-            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
             throw "Security violation: System file deletion blocked - $Path"
         }
         Write-Verbose "Mock Remove-Item called safely for test path: $Path"
@@ -473,7 +473,7 @@ BeforeAll {
     Mock Start-Process { 
         param($FilePath, $ArgumentList, [switch]$PassThru)
         if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
             throw "Security violation: Process execution blocked - $FilePath"
         }
         Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
@@ -482,13 +482,13 @@ BeforeAll {
     Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
             throw "Security violation: Critical process termination blocked - $Name"
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"
     }
     
-    Write-Host "✅ Enterprise-First System.Tests.ps1 initialization completed" -ForegroundColor Green
+    Write-Host " Enterprise-First System.Tests.ps1 initialization completed" -ForegroundColor Green
 }
 
 Describe "Get-MemoryStatistics" -Tag "Unit", "System", "Performance" {
@@ -966,7 +966,7 @@ Describe "Write-StatusMessage" -Tag "Unit", "System", "Logging" {
     }
 }
 
-# 🎯 ENTERPRISE COMPLIANCE CONTEXTS - Enterprise-First Approach Implementation
+#  ENTERPRISE COMPLIANCE CONTEXTS - Enterprise-First Approach Implementation
 
 Describe "System Module - Performance Requirements" -Tag "Unit", "System", "Performance" {
     
@@ -1224,7 +1224,7 @@ Describe "System Module - Advanced Enterprise Patterns" -Tag "Unit", "System", "
 
 # Test cleanup and summary reporting
 AfterAll {
-    Write-Host "🎯 Enterprise-First System.Tests.ps1 - Implementation Completed" -ForegroundColor Green
+    Write-Host " Enterprise-First System.Tests.ps1 - Implementation Completed" -ForegroundColor Green
     
     # Enterprise compliance validation summary
     $enterpriseFeatures = @{
@@ -1238,13 +1238,13 @@ AfterAll {
     
     Write-Host "Enterprise Compliance Status:" -ForegroundColor Cyan
     $enterpriseFeatures.GetEnumerator() | ForEach-Object {
-        $status = if ($_.Value) { "✅" } else { "❌" }
+        $status = if ($_.Value) { "" } else { "" }
         Write-Host "  $status $($_.Key)" -ForegroundColor White
     }
     
     Write-Host "Test Correlation ID: $TestCorrelationId" -ForegroundColor Gray
     Write-Host "Coverage Areas: Memory Management, Resource Disposal, Status Messaging, Performance, Security" -ForegroundColor Gray
-    Write-Host "🚀 Ready for enterprise deployment with full compliance standards" -ForegroundColor Green
+    Write-Host " Ready for enterprise deployment with full compliance standards" -ForegroundColor Green
 }
 
 

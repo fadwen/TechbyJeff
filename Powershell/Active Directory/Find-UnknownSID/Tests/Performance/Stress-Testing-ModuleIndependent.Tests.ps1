@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 #Requires -Version 5.1
 
 <#
@@ -36,46 +36,46 @@
     - Module independence: .\Troubleshooting\Common\Module-Independence-Guide.md
 #>
 
-BeforeAll {
-    # =======================================================================================
-    # MODULE INDEPENDENCE FRAMEWORK - ENTERPRISE STRESS TESTING
-    # =======================================================================================
-    # This framework provides comprehensive stress testing capabilities without requiring
-    # any external module dependencies. All Find-UnknownSID functionality is simulated
-    # through sophisticated mocking and in-memory test structures.
-    # =======================================================================================
+# PowerShell 5.1 / Pester 3.x Compatibility Initialization
+# =======================================================================================
+# MODULE INDEPENDENCE FRAMEWORK - ENTERPRISE STRESS TESTING
+# =======================================================================================
+# This framework provides comprehensive stress testing capabilities without requiring
+# any external module dependencies. All Find-UnknownSID functionality is simulated
+# through sophisticated mocking and in-memory test structures.
+# =======================================================================================
 
-    Write-Host "🎯 Stress Testing Module Independence Framework" -ForegroundColor Cyan
-    Write-Host "📊 Enterprise Compliance: All 6 Standards Implemented" -ForegroundColor Green
-    Write-Host "🔧 Zero External Dependencies - Complete Module Independence" -ForegroundColor Yellow
+Write-Host "Stress Testing Module Independence Framework" -ForegroundColor Cyan
+Write-Host " Enterprise Compliance: All 6 Standards Implemented" -ForegroundColor Green
+Write-Host " Zero External Dependencies - Complete Module Independence" -ForegroundColor Yellow
 
-    # Load Module Independence Framework
-    $FrameworkPath = Join-Path $PSScriptRoot "Module-Independence-Framework.ps1"
-    if (Test-Path $FrameworkPath) {
-        . $FrameworkPath
-        Write-Host "✅ Module Independence Framework Loaded Successfully" -ForegroundColor Green
-    } else {
-        Write-Warning "Module Independence Framework not found. Tests may have limited capabilities."
-    }
+# Load Module Independence Framework
+$FrameworkPath = Join-Path $PSScriptRoot "Module-Independence-Framework.ps1"
+if (Test-Path $FrameworkPath) {
+    . $FrameworkPath
+    Write-Host " Module Independence Framework Loaded Successfully" -ForegroundColor Green
+} else {
+    Write-Warning "Module Independence Framework not found. Tests may have limited capabilities."
+}
 
-    # Initialize stress testing environment (Enterprise Standard 1: TestHelpers Integration)
-    $script:StressConfig = @{
-        MaxTestDuration = [TimeSpan]::FromMinutes(30)  # Reduced for CI/CD compatibility
-        MaxConcurrentOperations = 50    # Reasonable for test environment
-        MaxMemoryUsage = 2GB           # Conservative memory limit
-        MaxCPUUsage = 85              # Leave headroom for system stability
-        TestDataSizeGB = 1            # Manageable test data size
-        TestCorrelationId = [System.Guid]::NewGuid().ToString()
-        StressTestResults = @()
-        StartTime = Get-Date
-    }
+# Initialize stress testing environment (Enterprise Standard 1: TestHelpers Integration)
+$script:StressConfig = @{
+    MaxTestDuration = [TimeSpan]::FromMinutes(30)  # Reduced for CI/CD compatibility
+    MaxConcurrentOperations = 50    # Reasonable for test environment
+    MaxMemoryUsage = 2GB           # Conservative memory limit
+    MaxCPUUsage = 85              # Leave headroom for system stability
+    TestDataSizeGB = 1            # Manageable test data size
+    TestCorrelationId = [System.Guid]::NewGuid().ToString()
+    StressTestResults = @()
+    StartTime = Get-Date
+}
 
-    Write-Host "📊 Platform: $($env:OS) | PowerShell: $($PSVersionTable.PSVersion) | Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Blue
-    Write-Host "⚡ Stress Testing: Maximum load validation configured" -ForegroundColor Magenta
-    Write-Host "🔒 Quality Gates: Comprehensive resilience governance enabled" -ForegroundColor Red
+Write-Host " Platform: $($env:OS) | PS: $($PSVersionTable.PSVersion) | Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Blue
+Write-Host " Stress Testing: Maximum load validation configured" -ForegroundColor Magenta
+Write-Host " Quality Gates: Comprehensive resilience governance enabled" -ForegroundColor Red
 
-    # Enterprise Standard 1: TestHelpers Integration - Advanced Stress Test Utilities
-    function New-StressTestData {
+# Enterprise Standard 1: TestHelpers Integration - Advanced Stress Test Utilities
+function New-StressTestData {
         param(
             [ValidateSet('Light', 'Medium', 'Heavy', 'Extreme')]
             [string]$LoadLevel = 'Medium',
@@ -144,7 +144,7 @@ BeforeAll {
         return $stressData
     }
 
-    function Measure-StressPerformance {
+function Measure-StressPerformance {
         param(
             [Parameter(Mandatory = $true)]
             [ScriptBlock]$StressOperation,
@@ -236,7 +236,7 @@ BeforeAll {
         }
     }
 
-    function Assert-StressQualityGates {
+function Assert-StressQualityGates {
         param(
             [Parameter(Mandatory = $true)]
             [object[]]$StressResults,
@@ -327,8 +327,8 @@ BeforeAll {
         return $qualityGates
     }
 
-    # Enterprise Standard 2: TestCases Patterns - Comprehensive Stress Test Cases
-    $Global:StressTestFunctions = @{
+# Enterprise Standard 2: TestCases Patterns - Comprehensive Stress Test Cases
+$Global:StressTestFunctions = @{
         
         # Maximum Load Testing
         TestMaximumLoad = {
@@ -586,11 +586,10 @@ BeforeAll {
         }
     }
 
-    Write-Host "✅ Stress Testing Module Independence Framework Loaded Successfully" -ForegroundColor Green
-}
+Write-Host " Stress Testing Module Independence Framework Loaded Successfully" -ForegroundColor Green
 
 # Enterprise Standard 3: Performance Requirements - Maximum Load Testing
-Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Testing" -Tag "Performance", "MaxLoad", "Enterprise" {
+Describe " ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Testing" -Tag "Performance", "MaxLoad", "Enterprise" {
 
     Context "High-Volume Stress Testing" {
 
@@ -601,10 +600,10 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
                 & $Global:StressTestFunctions.TestMaximumLoad -TestData $testData -LoadLevel 'Light'
             } -OperationName 'LightLoadStress' -TestData $testData
 
-            $stressResult | Should -Not -BeNullOrEmpty
-            $stressResult.QualityGates.OverallStressCompliance | Should -Be $true
-            $stressResult.ProcessingRate | Should -BeGreaterThan 100
-            $stressResult.MemoryUsage.DeltaMB | Should -BeLessThan 100
+            $stressResult | Should Not BeNullOrEmpty
+            $stressResult.QualityGates.OverallStressCompliance | Should Be $true
+            $stressResult.ProcessingRate | Should BeGreaterThan 100
+            $stressResult.MemoryUsage.DeltaMB | Should BeLessThan 100
         }
 
         It "Should handle medium load stress testing effectively" {
@@ -614,10 +613,10 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
                 & $Global:StressTestFunctions.TestMaximumLoad -TestData $testData -LoadLevel 'Medium'
             } -OperationName 'MediumLoadStress' -TestData $testData
 
-            $stressResult | Should -Not -BeNullOrEmpty
-            $stressResult.QualityGates.OverallStressCompliance | Should -Be $true
-            $stressResult.ProcessingRate | Should -BeGreaterThan 50
-            $stressResult.MemoryUsage.DeltaMB | Should -BeLessThan 250
+            $stressResult | Should Not BeNullOrEmpty
+            $stressResult.QualityGates.OverallStressCompliance | Should Be $true
+            $stressResult.ProcessingRate | Should BeGreaterThan 50
+            $stressResult.MemoryUsage.DeltaMB | Should BeLessThan 250
         }
 
         It "Should maintain stability under heavy load conditions" {
@@ -627,9 +626,9 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
                 & $Global:StressTestFunctions.TestMaximumLoad -TestData $testData -LoadLevel 'Heavy'
             } -OperationName 'HeavyLoadStress' -TestData $testData
 
-            $stressResult | Should -Not -BeNullOrEmpty
-            $stressResult.ProcessingRate | Should -BeGreaterThan 25
-            $stressResult.MemoryUsage.DeltaMB | Should -BeLessThan 500
+            $stressResult | Should Not BeNullOrEmpty
+            $stressResult.ProcessingRate | Should BeGreaterThan 25
+            $stressResult.MemoryUsage.DeltaMB | Should BeLessThan 500
             # Heavy load may not meet all quality gates, but should remain functional
         }
     }
@@ -641,15 +640,15 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
             
             $resourceResult = & $Global:StressTestFunctions.TestResourceExhaustion -TestData $testData -ResourceType 'Memory'
 
-            $resourceResult | Should -Not -BeNullOrEmpty
+            $resourceResult | Should Not BeNullOrEmpty
             $resourceResult.TestType | Should -Be 'ResourceExhaustion'
             $resourceResult.ResourceType | Should -Be 'Memory'
-            $resourceResult.OperationsCompleted | Should -BeGreaterThan 0
+            $resourceResult.OperationsCompleted | Should BeGreaterThan 0
             # More lenient memory test for CI/CD environment
             if (-not $resourceResult.ResourceStability) {
                 Write-Warning "Memory stability test failed but continuing (CI/CD environment)"
             }
-            $resourceResult.MemoryDeltaMB | Should -BeLessThan 150  # Increased tolerance
+            $resourceResult.MemoryDeltaMB | Should BeLessThan 150  # Increased tolerance
         }
 
         It "Should handle CPU-intensive operations under stress" {
@@ -657,11 +656,11 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
             
             $resourceResult = & $Global:StressTestFunctions.TestResourceExhaustion -TestData $testData -ResourceType 'CPU'
 
-            $resourceResult | Should -Not -BeNullOrEmpty
+            $resourceResult | Should Not BeNullOrEmpty
             $resourceResult.TestType | Should -Be 'ResourceExhaustion'
             $resourceResult.ResourceType | Should -Be 'CPU'
-            $resourceResult.OperationsCompleted | Should -BeGreaterThan 0
-            $resourceResult.ResourceStability | Should -Be $true
+            $resourceResult.OperationsCompleted | Should BeGreaterThan 0
+            $resourceResult.ResourceStability | Should Be $true
         }
 
         It "Should manage I/O operations efficiently under stress" {
@@ -669,17 +668,17 @@ Describe "🎯 ENTERPRISE STANDARD 3: Performance Requirements - Maximum Load Te
             
             $resourceResult = & $Global:StressTestFunctions.TestResourceExhaustion -TestData $testData -ResourceType 'IO'
 
-            $resourceResult | Should -Not -BeNullOrEmpty
+            $resourceResult | Should Not BeNullOrEmpty
             $resourceResult.TestType | Should -Be 'ResourceExhaustion'
             $resourceResult.ResourceType | Should -Be 'IO'
-            $resourceResult.OperationsCompleted | Should -BeGreaterThan 0
-            $resourceResult.ResourceStability | Should -Be $true
+            $resourceResult.OperationsCompleted | Should BeGreaterThan 0
+            $resourceResult.ResourceStability | Should Be $true
         }
     }
 }
 
 # Enterprise Standard 4: Security Validation - Concurrent Operations and Thread Safety
-Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operations Testing" -Tag "Security", "Concurrency", "Enterprise" {
+Describe " ENTERPRISE STANDARD 4: Security Validation - Concurrent Operations Testing" -Tag "Security", "Concurrency", "Enterprise" {
 
     Context "Thread Safety Validation" {
 
@@ -688,11 +687,11 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
             
             $concurrentResult = & $Global:StressTestFunctions.TestConcurrentOperations -TestData $testData -ConcurrentLevel 5
 
-            $concurrentResult | Should -Not -BeNullOrEmpty
+            $concurrentResult | Should Not BeNullOrEmpty
             $concurrentResult.TestType | Should -Be 'ConcurrentOperations'
             $concurrentResult.ConcurrentLevel | Should -Be 5
-            $concurrentResult.ThreadSafety | Should -Be $true
-            $concurrentResult.SuccessfulChunks | Should -BeGreaterThan 3
+            $concurrentResult.ThreadSafety | Should Be $true
+            $concurrentResult.SuccessfulChunks | Should BeGreaterThan 3
         }
 
         It "Should maintain integrity under medium concurrency" {
@@ -700,11 +699,11 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
             
             $concurrentResult = & $Global:StressTestFunctions.TestConcurrentOperations -TestData $testData -ConcurrentLevel 10
 
-            $concurrentResult | Should -Not -BeNullOrEmpty
+            $concurrentResult | Should Not BeNullOrEmpty
             $concurrentResult.TestType | Should -Be 'ConcurrentOperations'
             $concurrentResult.ConcurrentLevel | Should -Be 10
-            $concurrentResult.ThreadSafety | Should -Be $true
-            $concurrentResult.ChunksProcessed | Should -BeGreaterThan 8
+            $concurrentResult.ThreadSafety | Should Be $true
+            $concurrentResult.ChunksProcessed | Should BeGreaterThan 8
         }
 
         It "Should remain stable under high concurrency stress" {
@@ -712,12 +711,12 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
             
             $concurrentResult = & $Global:StressTestFunctions.TestConcurrentOperations -TestData $testData -ConcurrentLevel 20
 
-            $concurrentResult | Should -Not -BeNullOrEmpty
+            $concurrentResult | Should Not BeNullOrEmpty
             $concurrentResult.TestType | Should -Be 'ConcurrentOperations'
             $concurrentResult.ConcurrentLevel | Should -Be 20
-            $concurrentResult.ThreadSafety | Should -Be $true
+            $concurrentResult.ThreadSafety | Should Be $true
             # Under high stress, some chunks may fail but overall system should remain stable
-            $concurrentResult.ChunksProcessed | Should -BeGreaterThan 15
+            $concurrentResult.ChunksProcessed | Should BeGreaterThan 15
         }
     }
 
@@ -738,7 +737,7 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
                 $readOperations += $readResult
             }
 
-            $readOperations | Should -Not -BeNullOrEmpty
+            $readOperations | Should Not BeNullOrEmpty
             $readOperations.Count | Should -Be 5
             ($readOperations | Where-Object DataIntegrity -eq $true).Count | Should -Be 5
             # All read operations should see the same data count
@@ -761,7 +760,7 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
                 $modificationResults += $modResult
             }
 
-            $modificationResults | Should -Not -BeNullOrEmpty
+            $modificationResults | Should Not BeNullOrEmpty
             $modificationResults.Count | Should -Be 3
             ($modificationResults | Where-Object Success -eq $true).Count | Should -Be 3
             # No conflicts should occur in properly implemented concurrent operations
@@ -771,7 +770,7 @@ Describe "🎯 ENTERPRISE STANDARD 4: Security Validation - Concurrent Operation
 }
 
 # Enterprise Standard 5: Advanced Mocking - System Breaking Point Analysis
-Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point Analysis" -Tag "AdvancedMocking", "BreakingPoint", "Enterprise" {
+Describe " ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point Analysis" -Tag "AdvancedMocking", "BreakingPoint", "Enterprise" {
 
     Context "Gradual Load Increase Testing" {
 
@@ -780,12 +779,12 @@ Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point A
             
             $breakingPointResult = & $Global:StressTestFunctions.TestBreakingPoint -TestData $testData -StressLevel 'Gradual'
 
-            $breakingPointResult | Should -Not -BeNullOrEmpty
+            $breakingPointResult | Should Not BeNullOrEmpty
             $breakingPointResult.TestType | Should -Be 'BreakingPoint'
             $breakingPointResult.StressLevel | Should -Be 'Gradual'
-            $breakingPointResult.MaxItemsProcessed | Should -BeGreaterThan 0
+            $breakingPointResult.MaxItemsProcessed | Should BeGreaterThan 0
             # Gradual load should process significant portion before breaking
-            $breakingPointResult.MaxItemsProcessed | Should -BeGreaterThan ($testData.DataSize * 0.8)
+            $breakingPointResult.MaxItemsProcessed | Should BeGreaterThan ($testData.DataSize * 0.8)
         }
 
         It "Should handle rapid load increase scenarios" {
@@ -793,10 +792,10 @@ Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point A
             
             $breakingPointResult = & $Global:StressTestFunctions.TestBreakingPoint -TestData $testData -StressLevel 'Rapid'
 
-            $breakingPointResult | Should -Not -BeNullOrEmpty
+            $breakingPointResult | Should Not BeNullOrEmpty
             $breakingPointResult.TestType | Should -Be 'BreakingPoint'
             $breakingPointResult.StressLevel | Should -Be 'Rapid'
-            $breakingPointResult.MaxItemsProcessed | Should -BeGreaterThan 0
+            $breakingPointResult.MaxItemsProcessed | Should BeGreaterThan 0
             # Rapid load may reach breaking point sooner
         }
 
@@ -805,14 +804,14 @@ Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point A
             
             $breakingPointResult = & $Global:StressTestFunctions.TestBreakingPoint -TestData $testData -StressLevel 'Extreme'
 
-            $breakingPointResult | Should -Not -BeNullOrEmpty
+            $breakingPointResult | Should Not BeNullOrEmpty
             $breakingPointResult.TestType | Should -Be 'BreakingPoint'
             $breakingPointResult.StressLevel | Should -Be 'Extreme'
             
             if ($breakingPointResult.BreakingPointReached) {
-                $breakingPointResult.SystemRecovered | Should -Be $true
-                $breakingPointResult.RecoveryTime | Should -Not -BeNullOrEmpty
-                $breakingPointResult.RecoveryTime.TotalSeconds | Should -BeLessThan 5
+                $breakingPointResult.SystemRecovered | Should Be $true
+                $breakingPointResult.RecoveryTime | Should Not BeNullOrEmpty
+                $breakingPointResult.RecoveryTime.TotalSeconds | Should BeLessThan 5
             }
         }
     }
@@ -833,13 +832,13 @@ Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point A
                 DataIntegrityMaintained = $true
             }
 
-            $degradationResult | Should -Not -BeNullOrEmpty
-            $degradationResult.SystemStable | Should -Be $true
-            $degradationResult.ServicesActive | Should -Be $true
-            $degradationResult.DataIntegrityMaintained | Should -Be $true
+            $degradationResult | Should Not BeNullOrEmpty
+            $degradationResult.SystemStable | Should Be $true
+            $degradationResult.ServicesActive | Should Be $true
+            $degradationResult.DataIntegrityMaintained | Should Be $true
             # Performance should degrade but remain functional
-            $degradationResult.DegradedPerformance | Should -BeGreaterThan 0
-            $degradationResult.DegradedPerformance | Should -BeLessThan $degradationResult.InitialPerformance
+            $degradationResult.DegradedPerformance | Should BeGreaterThan 0
+            $degradationResult.DegradedPerformance | Should BeLessThan $degradationResult.InitialPerformance
         }
 
         It "Should maintain essential functionality during stress events" {
@@ -854,17 +853,17 @@ Describe "🎯 ENTERPRISE STANDARD 5: Advanced Mocking - System Breaking Point A
                 DataPersistence = $true
             }
 
-            $essentialFunctions.BasicSIDProcessing | Should -Be $true
-            $essentialFunctions.ErrorReporting | Should -Be $true
-            $essentialFunctions.StatusMonitoring | Should -Be $true
-            $essentialFunctions.EmergencyShutdown | Should -Be $true
-            $essentialFunctions.DataPersistence | Should -Be $true
+            $essentialFunctions.BasicSIDProcessing | Should Be $true
+            $essentialFunctions.ErrorReporting | Should Be $true
+            $essentialFunctions.StatusMonitoring | Should Be $true
+            $essentialFunctions.EmergencyShutdown | Should Be $true
+            $essentialFunctions.DataPersistence | Should Be $true
         }
     }
 }
 
 # Enterprise Standard 6: Quality Gates - Long-Running Operations Testing
-Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Testing" -Tag "QualityGates", "LongRunning", "Enterprise" {
+Describe " ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Testing" -Tag "QualityGates", "LongRunning", "Enterprise" {
 
     Context "Extended Duration Stress Testing" {
 
@@ -874,11 +873,11 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
             
             $longRunResult = & $Global:StressTestFunctions.TestLongRunningOperations -TestData $testData -Duration $duration
 
-            $longRunResult | Should -Not -BeNullOrEmpty
+            $longRunResult | Should Not BeNullOrEmpty
             $longRunResult.TestType | Should -Be 'LongRunningOperations'
-            $longRunResult.SystemStability | Should -Be $true
-            $longRunResult.ItemsProcessed | Should -BeGreaterThan 0
-            $longRunResult.ProcessingRate | Should -BeGreaterThan 10
+            $longRunResult.SystemStability | Should Be $true
+            $longRunResult.ItemsProcessed | Should BeGreaterThan 0
+            $longRunResult.ProcessingRate | Should BeGreaterThan 10
         }
 
         It "Should handle medium-duration operations efficiently" {
@@ -887,12 +886,12 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
             
             $longRunResult = & $Global:StressTestFunctions.TestLongRunningOperations -TestData $testData -Duration $duration
 
-            $longRunResult | Should -Not -BeNullOrEmpty
+            $longRunResult | Should Not BeNullOrEmpty
             $longRunResult.TestType | Should -Be 'LongRunningOperations'
-            $longRunResult.SystemStability | Should -Be $true
-            $longRunResult.ItemsProcessed | Should -BeGreaterThan 100
-            $longRunResult.ProcessingRate | Should -BeGreaterThan 5
-            $longRunResult.MemoryGrowth.Count | Should -BeGreaterThan 0
+            $longRunResult.SystemStability | Should Be $true
+            $longRunResult.ItemsProcessed | Should BeGreaterThan 100
+            $longRunResult.ProcessingRate | Should BeGreaterThan 5
+            $longRunResult.MemoryGrowth.Count | Should BeGreaterThan 0
         }
 
         It "Should demonstrate memory stability over extended periods" {
@@ -901,13 +900,13 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
             
             $longRunResult = & $Global:StressTestFunctions.TestLongRunningOperations -TestData $testData -Duration $duration
 
-            $longRunResult | Should -Not -BeNullOrEmpty
+            $longRunResult | Should Not BeNullOrEmpty
             $longRunResult.TestType | Should -Be 'LongRunningOperations'
-            $longRunResult.SystemStability | Should -Be $true
+            $longRunResult.SystemStability | Should Be $true
             
             if ($longRunResult.MemoryGrowth.Count -gt 0) {
                 $maxMemoryGrowth = ($longRunResult.MemoryGrowth | ForEach-Object DeltaMB | Measure-Object -Maximum).Maximum
-                $maxMemoryGrowth | Should -BeLessThan 200  # Less than 200MB growth indicates good memory management
+                $maxMemoryGrowth | Should BeLessThan 200  # Less than 200MB growth indicates good memory management
             }
         }
     }
@@ -933,11 +932,11 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
 
             $qualityGates = Assert-StressQualityGates -StressResults $stressResults -LoadLevel 'Medium'
 
-            $qualityGates | Should -Not -BeNullOrEmpty
-            $qualityGates.OverallCompliance | Should -Be $true
+            $qualityGates | Should Not BeNullOrEmpty
+            $qualityGates.OverallCompliance | Should Be $true
             $qualityGates.StressMetrics.TotalTests | Should -Be 2
-            $qualityGates.StressMetrics.PassedTests | Should -BeGreaterThan 0
-            $qualityGates.QualityStandards.Count | Should -BeGreaterThan 0
+            $qualityGates.StressMetrics.PassedTests | Should BeGreaterThan 0
+            $qualityGates.QualityStandards.Count | Should BeGreaterThan 0
         }
 
         It "Should provide comprehensive stress governance reporting" {
@@ -970,10 +969,10 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
 
             $governanceReport.TestType | Should -Be 'StressTesting'
             $governanceReport.LoadLevel | Should -Be 'Heavy'
-            $governanceReport.ComplianceStatus | Should -Not -BeNullOrEmpty
-            $governanceReport.MaxLoadResults | Should -Not -BeNullOrEmpty
-            $governanceReport.ConcurrentResults | Should -Not -BeNullOrEmpty
-            $governanceReport.ResourceResults | Should -Not -BeNullOrEmpty
+            $governanceReport.ComplianceStatus | Should Not BeNullOrEmpty
+            $governanceReport.MaxLoadResults | Should Not BeNullOrEmpty
+            $governanceReport.ConcurrentResults | Should Not BeNullOrEmpty
+            $governanceReport.ResourceResults | Should Not BeNullOrEmpty
         }
     }
 }
@@ -981,23 +980,23 @@ Describe "🎯 ENTERPRISE STANDARD 6: Quality Gates - Long-Running Operations Te
 # Module Independence Validation Tests
 Describe "Stress Testing Module Independence Validation" -Tag "ModuleIndependence", "Validation" {
 
-    Context "🎯 Module Independence Validation" {
+    Context " Module Independence Validation" {
 
         It "Should provide complete stress testing without Find-UnknownSID module" {
             # Verify no external module dependencies
             $loadedModules = Get-Module | Where-Object Name -like "*Find-UnknownSID*"
-            $loadedModules | Should -BeNullOrEmpty
+            $loadedModules | Should BeNullOrEmpty
 
             # Test all stress testing capabilities
             $testData = New-StressTestData -LoadLevel 'Medium' -Duration 'Short'
             
             # Verify all stress functions are available
-            $Global:StressTestFunctions | Should -Not -BeNullOrEmpty
-            $Global:StressTestFunctions.TestMaximumLoad | Should -Not -BeNullOrEmpty
-            $Global:StressTestFunctions.TestResourceExhaustion | Should -Not -BeNullOrEmpty
-            $Global:StressTestFunctions.TestConcurrentOperations | Should -Not -BeNullOrEmpty
-            $Global:StressTestFunctions.TestBreakingPoint | Should -Not -BeNullOrEmpty
-            $Global:StressTestFunctions.TestLongRunningOperations | Should -Not -BeNullOrEmpty
+            $Global:StressTestFunctions | Should Not BeNullOrEmpty
+            $Global:StressTestFunctions.TestMaximumLoad | Should Not BeNullOrEmpty
+            $Global:StressTestFunctions.TestResourceExhaustion | Should Not BeNullOrEmpty
+            $Global:StressTestFunctions.TestConcurrentOperations | Should Not BeNullOrEmpty
+            $Global:StressTestFunctions.TestBreakingPoint | Should Not BeNullOrEmpty
+            $Global:StressTestFunctions.TestLongRunningOperations | Should Not BeNullOrEmpty
 
             # Execute comprehensive stress test
             $stressResults = @()
@@ -1010,28 +1009,28 @@ Describe "Stress Testing Module Independence Validation" -Tag "ModuleIndependenc
             $qualityGates = Assert-StressQualityGates -StressResults $stressResults -LoadLevel 'Medium'
 
             # Validate complete functionality
-            $qualityGates | Should -Not -BeNullOrEmpty
-            $qualityGates.OverallCompliance | Should -Be $true
-            $maxLoadResult.QualityGates.OverallStressCompliance | Should -Be $true
-            $maxLoadResult.ProcessingRate | Should -BeGreaterThan 50
+            $qualityGates | Should Not BeNullOrEmpty
+            $qualityGates.OverallCompliance | Should Be $true
+            $maxLoadResult.QualityGates.OverallStressCompliance | Should Be $true
+            $maxLoadResult.ProcessingRate | Should BeGreaterThan 50
         }
 
         It "Should demonstrate enterprise compliance without external dependencies" {
             # Verify Enterprise Standard 1: TestHelpers Integration
             $testData = New-StressTestData -LoadLevel 'Light' -Duration 'Short'
-            $testData | Should -Not -BeNullOrEmpty
-            $testData.SIDs.Count | Should -BeGreaterThan 0
+            $testData | Should Not BeNullOrEmpty
+            $testData.SIDs.Count | Should BeGreaterThan 0
 
             # Verify Enterprise Standard 2: TestCases Patterns
             $Global:StressTestFunctions.Keys.Count | Should -BeGreaterOrEqual 5
 
             # Verify Enterprise Standard 3: Performance Requirements
             $perfResult = Measure-StressPerformance -StressOperation { Start-Sleep -Milliseconds 100 } -OperationName 'ComplianceTest'
-            $perfResult.QualityGates | Should -Not -BeNullOrEmpty
+            $perfResult.QualityGates | Should Not BeNullOrEmpty
 
             # Verify Enterprise Standard 4: Security Validation (thread safety)
             $concurrentResult = & $Global:StressTestFunctions.TestConcurrentOperations -TestData $testData -ConcurrentLevel 5
-            $concurrentResult.ThreadSafety | Should -Be $true
+            $concurrentResult.ThreadSafety | Should Be $true
 
             # Verify Enterprise Standard 5: Advanced Mocking (system simulation)
             $breakingResult = & $Global:StressTestFunctions.TestBreakingPoint -TestData $testData -StressLevel 'Gradual'
@@ -1040,9 +1039,9 @@ Describe "Stress Testing Module Independence Validation" -Tag "ModuleIndependenc
             # Verify Enterprise Standard 6: Quality Gates (more lenient for compliance test)
             $qualityGates = Assert-StressQualityGates -StressResults @($perfResult) -LoadLevel 'Light'
             # Accept compliance even if not perfect for this validation test
-            $qualityGates.OverallCompliance | Should -Not -BeNullOrEmpty
+            $qualityGates.OverallCompliance | Should Not BeNullOrEmpty
 
-            Write-Host "✅ All Enterprise Standards Validated Successfully" -ForegroundColor Green
+            Write-Host " All Enterprise Standards Validated Successfully" -ForegroundColor Green
         }
     }
 }
@@ -1065,10 +1064,10 @@ Describe "Stress Testing Performance Benchmarks" -Tag "Performance", "Benchmarks
                 & $Global:StressTestFunctions.TestMaximumLoad -TestData $testData -LoadLevel $LoadLevel
             } -OperationName "$($LoadLevel)LoadBenchmark" -TestData $testData
 
-            $stressResult.ProcessingRate | Should -BeGreaterThan $MinRate
-            $stressResult.MemoryUsage.DeltaMB | Should -BeLessThan $MaxMemoryMB
+            $stressResult.ProcessingRate | Should BeGreaterThan $MinRate
+            $stressResult.MemoryUsage.DeltaMB | Should BeLessThan $MaxMemoryMB
             
-            Write-Host "✅ $LoadLevel Complexity: $($testData.DataSize) items with $([math]::Round($stressResult.ProcessingRate, 1)) items/sec on $($env:OS) PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Green
+            Write-Host " $LoadLevel Complexity: $($testData.DataSize) items with $([math]::Round($stressResult.ProcessingRate, 1)) items/sec on $($env:OS) PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Green
         }
     }
 
@@ -1082,7 +1081,11 @@ Describe "Stress Testing Performance Benchmarks" -Tag "Performance", "Benchmarks
             Results = 'ALL PASSED'
         }
         
-        Write-Host "🎯 Stress Testing Benchmarks: ALL PASSED" -ForegroundColor Green
-        Write-Host "📊 Platform: $($env:OS) | PowerShell: $($PSVersionTable.PSVersion) | Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Blue
+        Write-Host " Stress Testing Benchmarks: ALL PASSED" -ForegroundColor Green
+        Write-Host " Platform: $($env:OS) | PS: $($PSVersionTable.PSVersion) | Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Blue
     }
 }
+        Write-Host " Platform: $($env:OS) | PS: $($PSVersionTable.PSVersion) | Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Blue
+    }
+}
+

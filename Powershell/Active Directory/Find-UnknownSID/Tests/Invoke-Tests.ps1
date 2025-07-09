@@ -1,4 +1,4 @@
-# Invoke-Tests.ps1
+﻿# Invoke-Tests.ps1
 # Enterprise test runner following pester.instructions.md standards
 
 [CmdletBinding()]
@@ -23,7 +23,7 @@ param(
     [switch]$PassThru
 )
 
-Write-Host "🚀 Enterprise Test Runner Started" -ForegroundColor Green
+Write-Host " Enterprise Test Runner Started" -ForegroundColor Green
 Write-Host "TestType: $TestType, ShowSummary: $ShowSummary" -ForegroundColor Gray
 
 # Ensure output directory exists
@@ -39,22 +39,22 @@ switch ($TestType) {
     'Unit' {
         $testPaths = @(Join-Path $basePath "Tests\Unit")
         if (-not $Tag) { $Tag = @('Unit') }
-        Write-Host "🧪 Executing Unit Tests..." -ForegroundColor Cyan
+        Write-Host " Executing Unit Tests..." -ForegroundColor Cyan
     }
     'Integration' {
         $testPaths = @(Join-Path $basePath "Tests\Integration")
         if (-not $Tag) { $Tag = @('Integration') }
-        Write-Host "🔗 Executing Integration Tests..." -ForegroundColor Cyan
+        Write-Host " Executing Integration Tests..." -ForegroundColor Cyan
     }
     'Performance' {
         $testPaths = @(Join-Path $basePath "Tests\Performance")
         if (-not $Tag) { $Tag = @('Performance') }
-        Write-Host "🚀 Executing Performance Tests..." -ForegroundColor Cyan
+        Write-Host " Executing Performance Tests..." -ForegroundColor Cyan
     }
     'Security' {
         $testPaths = @(Join-Path $basePath "Tests\Security")
         if (-not $Tag) { $Tag = @('Security') }
-        Write-Host "🔒 Executing Security Tests..." -ForegroundColor Cyan
+        Write-Host " Executing Security Tests..." -ForegroundColor Cyan
     }
     'All' {
         $testPaths = @(
@@ -63,7 +63,7 @@ switch ($TestType) {
             (Join-Path $basePath "Tests\Performance"), 
             (Join-Path $basePath "Tests\Security")
         )
-        Write-Host "🎯 Executing All Tests..." -ForegroundColor Blue
+        Write-Host " Executing All Tests..." -ForegroundColor Blue
     }
 }
 
@@ -105,7 +105,7 @@ if ($CodeCoverage) {
     )
     $pesterParams.CodeCoverage = $coveragePaths
     $pesterParams.CodeCoverageOutputFile = Join-Path $OutputPath "Coverage-$TestType-$(Get-Date -Format 'yyyyMMdd-HHmmss').xml"
-    Write-Host "📊 Code coverage enabled with $CoverageThreshold% threshold" -ForegroundColor Yellow
+    Write-Host " Code coverage enabled with $CoverageThreshold% threshold" -ForegroundColor Yellow
 }
 
 # Execute tests
@@ -116,7 +116,7 @@ Write-Host "Test paths: $($testPaths -join ', ')" -ForegroundColor Gray
 # Set output verbosity for CI/CD environments
 if ($env:CI -or $env:TF_BUILD -or $env:GITHUB_ACTIONS) {
     $pesterParams.Output = 'Normal'
-    Write-Host "🤖 CI/CD environment detected, adjusting output format" -ForegroundColor Blue
+    Write-Host " CI/CD environment detected, adjusting output format" -ForegroundColor Blue
 }
 
 $result = Invoke-Pester @pesterParams
@@ -131,7 +131,7 @@ $duration = $endTime - $startTime
 if ($ShowSummary -eq $true) {
     Write-Output ""
     Write-Output "================================================================================"
-    Write-Output "📊 FIND-UNKNOWNSID TEST EXECUTION SUMMARY"
+    Write-Output " FIND-UNKNOWNSID TEST EXECUTION SUMMARY"
     Write-Output "================================================================================"
     Write-Output "Test Type: $TestType"
     Write-Output "Execution Time: $($duration.ToString('hh\:mm\:ss\.fff'))"
@@ -155,11 +155,11 @@ if ($ShowSummary -eq $true) {
 
 # Handle test failures with quality gate enforcement
 if ($result.FailedCount -gt 0) {
-    Write-Host "`n❌ FAILED TESTS DETECTED:" -ForegroundColor Red
+    Write-Host "`n FAILED TESTS DETECTED:" -ForegroundColor Red
     Write-Host "-" * 50 -ForegroundColor Red
     
     foreach ($test in $result.Failed) {
-        Write-Host "• $($test.ExpandedPath)" -ForegroundColor White
+        Write-Host " $($test.ExpandedPath)" -ForegroundColor White
         if ($test.ErrorRecord) {
             Write-Host "  Error: $($test.ErrorRecord.Exception.Message)" -ForegroundColor Yellow
         }
@@ -169,7 +169,7 @@ if ($result.FailedCount -gt 0) {
     if ($result.TotalCount -gt 0) {
         $passRate = ($result.PassedCount / $result.TotalCount) * 100
         if ($passRate -lt 80) {
-            Write-Host "🚫 Quality Gate Failed: Pass rate ($([math]::Round($passRate, 2))%) below minimum threshold (80%)" -ForegroundColor Red
+            Write-Host " Quality Gate Failed: Pass rate ($([math]::Round($passRate, 2))%) below minimum threshold (80%)" -ForegroundColor Red
             if (-not $PassThru) {
                 exit 1
             }
@@ -180,15 +180,15 @@ if ($result.FailedCount -gt 0) {
         exit 1
     }
 } else {
-    Write-Host "`n✅ All tests passed successfully!" -ForegroundColor Green
+    Write-Host "`n All tests passed successfully!" -ForegroundColor Green
     
     # Validate quality gates for successful runs
     if ($result.TotalCount -gt 0) {
         $passRate = ($result.PassedCount / $result.TotalCount) * 100
         if ($passRate -ge 95) {
-            Write-Host "🏆 Excellence achieved: $([math]::Round($passRate, 2))% pass rate exceeds enterprise standards!" -ForegroundColor Green
+            Write-Host " Excellence achieved: $([math]::Round($passRate, 2))% pass rate exceeds enterprise standards!" -ForegroundColor Green
         } elseif ($passRate -ge 80) {
-            Write-Host "✅ Quality gate passed: $([math]::Round($passRate, 2))% pass rate meets enterprise standards" -ForegroundColor Yellow
+            Write-Host " Quality gate passed: $([math]::Round($passRate, 2))% pass rate meets enterprise standards" -ForegroundColor Yellow
         }
     }
 }
@@ -197,4 +197,4 @@ if ($PassThru) {
     return $result
 }
 
-Write-Host "`n🎉 Test execution completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')!" -ForegroundColor Green
+Write-Host "`n Test execution completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')!" -ForegroundColor Green

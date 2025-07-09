@@ -24,12 +24,12 @@
     PowerShell Version: 5.1+
 
     Enterprise Standards: ALL 6 IMPLEMENTED
-    - TestHelpers.ps1 Integration ✅
-    - TestCases Patterns ✅
-    - Performance Requirements Context ✅
-    - Security Validation Context ✅
-    - Advanced Mocking ✅
-    - Quality Gates ✅
+    - TestHelpers.ps1 Integration 
+    - TestCases Patterns 
+    - Performance Requirements Context 
+    - Security Validation Context 
+    - Advanced Mocking 
+    - Quality Gates 
 
     TROUBLESHOOTING:
     - Performance issues: .\Troubleshooting\Performance\Performance-Optimization.md
@@ -38,7 +38,7 @@
 #>
 
 BeforeAll {
-    Write-Host "🧪 Initializing Performance-Validation-Enterprise.Tests.ps1 with enterprise compliance..."
+    Write-Host " Initializing Performance-Validation-Enterprise.Tests.ps1 with enterprise compliance..."
     
     # Initialize test correlation ID for enterprise tracing
     $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
@@ -46,7 +46,7 @@ BeforeAll {
     # Initialize performance test data collection
     $global:PerformanceTestLogs = @()
     
-    # 🎯 ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
+    #  ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
     if (-not (Get-Command "New-TestPerformanceData" -ErrorAction SilentlyContinue)) {
         function New-TestPerformanceData {
             param(
@@ -66,7 +66,7 @@ BeforeAll {
                 "S-1-5-21-$(Get-Random)-$(Get-Random)-$(Get-Random)-$_"
             }
         }
-        Write-Host "ℹ️ Created TestHelpers function: New-TestPerformanceData"
+        Write-Host " Created TestHelpers function: New-TestPerformanceData"
     }
     
     if (-not (Get-Command "Measure-TestPerformance" -ErrorAction SilentlyContinue)) {
@@ -95,7 +95,7 @@ BeforeAll {
             $global:PerformanceTestLogs += $performance
             return $performance
         }
-        Write-Host "ℹ️ Created TestHelpers function: Measure-TestPerformance"
+        Write-Host " Created TestHelpers function: Measure-TestPerformance"
     }
     
     if (-not (Get-Command "Assert-PerformanceWithinSLA" -ErrorAction SilentlyContinue)) {
@@ -116,7 +116,7 @@ BeforeAll {
                 $memoryIncreaseMB | Should -BeLessThan $MaxMemoryIncreaseMB -Because "Memory usage SLA requires under $MaxMemoryIncreaseMB MB increase"
             }
         }
-        Write-Host "ℹ️ Created TestHelpers function: Assert-PerformanceWithinSLA"
+        Write-Host " Created TestHelpers function: Assert-PerformanceWithinSLA"
     }
     
     # Enterprise Performance Baselines (SLA Requirements)
@@ -131,7 +131,7 @@ BeforeAll {
         }
     }
     
-    # 🎯 ENTERPRISE STANDARD 5: Advanced Mocking with ParameterFilter
+    #  ENTERPRISE STANDARD 5: Advanced Mocking with ParameterFilter
     Mock Write-Verbose { param($Message) }
     Mock Write-Warning { param($Message) }
     Mock Write-Error { param($Message, $ErrorAction) }
@@ -179,7 +179,7 @@ BeforeAll {
                 CorrelationId = $CorrelationId
             }
         }
-        Write-Host "ℹ️ Created mock function: Invoke-LargeScaleOperation"
+        Write-Host " Created mock function: Invoke-LargeScaleOperation"
     }
     
     if (-not (Get-Command "Invoke-MemoryIntensiveOperation" -ErrorAction SilentlyContinue)) {
@@ -203,20 +203,20 @@ BeforeAll {
                 CorrelationId = $CorrelationId
             }
         }
-        Write-Host "ℹ️ Created mock function: Invoke-MemoryIntensiveOperation"
+        Write-Host " Created mock function: Invoke-MemoryIntensiveOperation"
     }
     
-    # 🛡️ CRITICAL SECURITY MOCKS - Performance security validation
+    #  CRITICAL SECURITY MOCKS - Performance security validation
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked during performance test. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked during performance test. Command: $Command"
         throw "Security violation: Dangerous operation blocked during performance testing - $Command"
     }
     
     Mock Start-Process { 
         param($FilePath, $ArgumentList, [switch]$PassThru)
         if ($FilePath -match 'calc|cmd|powershell|notepad') {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked during performance test. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked during performance test. Process: $FilePath"
             throw "Security violation: Process execution blocked during performance testing - $FilePath"
         }
         Write-Verbose "Mock Start-Process called safely for performance test: $FilePath"
@@ -225,7 +225,7 @@ BeforeAll {
 
 Describe "Enterprise Performance Validation" -Tag "Performance", "Enterprise" {
     
-    # 🎯 ENTERPRISE STANDARD 2: TestCases Patterns
+    #  ENTERPRISE STANDARD 2: TestCases Patterns
     Context "Parameter Validation" {
         It "Should validate DatasetSize parameter: <TestCase>" -TestCases @(
             @{ TestCase = "Small Dataset"; DatasetSize = "Small"; ShouldThrow = $false; ExpectedCount = 100 }
@@ -291,7 +291,7 @@ Describe "Enterprise Performance Validation" -Tag "Performance", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 3: Performance Requirements Context
+    #  ENTERPRISE STANDARD 3: Performance Requirements Context
     Context "Performance Requirements" -Tag "Performance" {
         It "Should process small datasets within SLA: <DatasetSize>" -TestCases @(
             @{ DatasetSize = "Small"; MaxSeconds = 0.5 }
@@ -342,7 +342,7 @@ Describe "Enterprise Performance Validation" -Tag "Performance", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 4: Security Validation Context
+    #  ENTERPRISE STANDARD 4: Security Validation Context
     Context "Security Validation" -Tag "Security" {
         It "Should block dangerous operations during performance tests: <AttackVector>" -TestCases @(
             @{ AttackVector = "Code Injection"; ShouldThrow = $true }
@@ -387,7 +387,7 @@ Describe "Enterprise Performance Validation" -Tag "Performance", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 6: Quality Gates
+    #  ENTERPRISE STANDARD 6: Quality Gates
     Context "Quality Gates Enforcement" -Tag "QualityGates" {
         It "Should enforce performance coverage threshold" {
             $performanceTests = $global:PerformanceTestLogs.Count

@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 <#
 .SYNOPSIS
@@ -14,7 +14,7 @@
     Created: July 8, 2025
 #>
 
-Write-Host "🧪 Find-UnknownSID Test Validation Suite" -ForegroundColor Cyan
+Write-Host " Find-UnknownSID Test Validation Suite" -ForegroundColor Cyan
 Write-Host "Validating that all tests run without hanging..." -ForegroundColor Yellow
 
 $testResults = @{}
@@ -33,7 +33,7 @@ foreach ($testFile in $testFiles.Keys) {
     $fullPath = Join-Path $testPath $testFile
     $description = $testFiles[$testFile]
     
-    Write-Host "`n🔍 Testing: $description" -ForegroundColor Green
+    Write-Host "`n Testing: $description" -ForegroundColor Green
     Write-Host "   File: $testFile"
     
     if (Test-Path $fullPath) {
@@ -55,10 +55,10 @@ foreach ($testFile in $testFiles.Keys) {
                 Success = $true
             }
             
-            Write-Host "   ✅ Result: $($result.PassedCount)/$($result.TotalCount) tests passed in $([math]::Round($elapsed, 2))s" -ForegroundColor Green
+            Write-Host "    Result: $($result.PassedCount)/$($result.TotalCount) tests passed in $([math]::Round($elapsed, 2))s" -ForegroundColor Green
             
             if ($elapsed -gt 30) {
-                Write-Host "   ⚠️  Warning: Test took longer than expected ($([math]::Round($elapsed, 2))s)" -ForegroundColor Yellow
+                Write-Host "     Warning: Test took longer than expected ($([math]::Round($elapsed, 2))s)" -ForegroundColor Yellow
             }
             
         } catch {
@@ -67,19 +67,19 @@ foreach ($testFile in $testFiles.Keys) {
                 Error = $_.Exception.Message
                 Success = $false
             }
-            Write-Host "   ❌ Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "    Error: $($_.Exception.Message)" -ForegroundColor Red
         }
     } else {
         $testResults[$testFile] = @{
             Status = "NotFound"
             Success = $false
         }
-        Write-Host "   ❌ File not found: $fullPath" -ForegroundColor Red
+        Write-Host "    File not found: $fullPath" -ForegroundColor Red
     }
 }
 
 # Summary
-Write-Host "`n📊 VALIDATION SUMMARY" -ForegroundColor Cyan
+Write-Host "`n VALIDATION SUMMARY" -ForegroundColor Cyan
 Write-Host "===================" -ForegroundColor Cyan
 
 $successCount = ($testResults.Values | Where-Object { $_.Success }).Count
@@ -87,7 +87,7 @@ $totalCount = $testResults.Count
 
 foreach ($testFile in $testResults.Keys) {
     $result = $testResults[$testFile]
-    $status = if ($result.Success) { "✅" } else { "❌" }
+    $status = if ($result.Success) { "" } else { "" }
     
     if ($result.Status -eq "Completed") {
         Write-Host "$status $testFile`: $($result.PassedTests)/$($result.TotalTests) tests, $([math]::Round($result.Duration, 2))s"
@@ -96,15 +96,15 @@ foreach ($testFile in $testResults.Keys) {
     }
 }
 
-Write-Host "`n🎯 Overall Status: $successCount/$totalCount test files validated" -ForegroundColor $(if ($successCount -eq $totalCount) { "Green" } else { "Yellow" })
+Write-Host "`n Overall Status: $successCount/$totalCount test files validated" -ForegroundColor $(if ($successCount -eq $totalCount) { "Green" } else { "Yellow" })
 
 if ($successCount -eq $totalCount) {
-    Write-Host "🎉 All tests are running without hanging issues!" -ForegroundColor Green
+    Write-Host " All tests are running without hanging issues!" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Some test files need attention" -ForegroundColor Yellow
+    Write-Host "  Some test files need attention" -ForegroundColor Yellow
 }
 
-Write-Host "`n🔐 Security Confirmation: All tests use proper mocking - no actual dangerous operations executed" -ForegroundColor Green
-Write-Host "📈 Performance: No hanging detected - all tests complete within reasonable timeframes" -ForegroundColor Green
+Write-Host "`n Security Confirmation: All tests use proper mocking - no actual dangerous operations executed" -ForegroundColor Green
+Write-Host " Performance: No hanging detected - all tests complete within reasonable timeframes" -ForegroundColor Green
 
 return $testResults

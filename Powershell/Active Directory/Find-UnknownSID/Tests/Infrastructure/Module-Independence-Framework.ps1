@@ -60,7 +60,7 @@ function Global:Initialize-MockEnvironment {
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
 
-    Write-Verbose "🔧 Initializing Mock Environment - Type: $TestType, CorrelationId: $CorrelationId"
+    Write-Verbose " Initializing Mock Environment - Type: $TestType, CorrelationId: $CorrelationId"
 
     # Create mock functions as actual PowerShell functions
     
@@ -119,13 +119,13 @@ function Global:Initialize-MockEnvironment {
 
     # Create security-critical operation blockers
     function Global:Invoke-Expression { 
-        throw "🛡️ SECURITY VIOLATION: Invoke-Expression blocked in module-independent testing environment"
+        throw " SECURITY VIOLATION: Invoke-Expression blocked in module-independent testing environment"
     }
 
     function Global:Start-Process { 
         param($FilePath, $ArgumentList)
         if ($FilePath -match 'calc|cmd|powershell|notepad') {
-            throw "🛡️ SECURITY VIOLATION: Dangerous process execution blocked - $FilePath"
+            throw " SECURITY VIOLATION: Dangerous process execution blocked - $FilePath"
         }
         return [PSCustomObject]@{ Id = Get-Random -Minimum 1000 -Maximum 9999; ExitCode = 0 }
     }
@@ -133,15 +133,15 @@ function Global:Initialize-MockEnvironment {
     function Global:Remove-Item { 
         param($Path, $Force, $Recurse)
         if ($Path -match 'Windows|System32|Program Files') {
-            throw "🛡️ SECURITY VIOLATION: System file deletion blocked - $Path"
+            throw " SECURITY VIOLATION: System file deletion blocked - $Path"
         }
-        Write-Verbose "🛡️ MOCK: Simulated file removal - $Path"
+        Write-Verbose " MOCK: Simulated file removal - $Path"
     }
 
     function Global:Invoke-WebRequest { 
         param($Uri, $Method, $Body)
         if ($Uri -match 'malicious|attack|exploit') {
-            throw "🛡️ SECURITY VIOLATION: Suspicious network access blocked - $Uri"
+            throw " SECURITY VIOLATION: Suspicious network access blocked - $Uri"
         }
         return [PSCustomObject]@{
             StatusCode = 200
@@ -153,7 +153,7 @@ function Global:Initialize-MockEnvironment {
     # BI-specific mock functions
     function Global:Export-Excel {
         param($Path, $WorksheetName, $InputObject)
-        Write-Verbose "🔧 MOCK: Excel export simulated - $Path"
+        Write-Verbose " MOCK: Excel export simulated - $Path"
         return @{
             Path = $Path
             RowsExported = ($InputObject | Measure-Object).Count
@@ -163,7 +163,7 @@ function Global:Initialize-MockEnvironment {
 
     function Global:Send-MailMessage {
         param($To, $Subject, $Body, $Attachments)
-        Write-Verbose "🔧 MOCK: Email notification simulated - $Subject"
+        Write-Verbose " MOCK: Email notification simulated - $Subject"
         return @{
             Recipients = $To
             Subject = $Subject
@@ -184,7 +184,7 @@ function Global:Initialize-MockEnvironment {
         throw "Unsupported BI platform: $Uri"
     }
 
-    Write-Verbose "✅ Mock Environment Initialized Successfully - $TestType testing ready"
+    Write-Verbose " Mock Environment Initialized Successfully - $TestType testing ready"
 }
 
 # ========================================================================================
@@ -285,7 +285,7 @@ function Global:Measure-EnterprisePerformance {
     $memoryBefore = [System.GC]::GetTotalMemory($false)
     
     try {
-        Write-Verbose "📊 Starting performance measurement: $OperationName - CorrelationId: $CorrelationId"
+        Write-Verbose " Starting performance measurement: $OperationName - CorrelationId: $CorrelationId"
         
         $result = & $Operation
         
@@ -315,7 +315,7 @@ function Global:Measure-EnterprisePerformance {
             $performanceData.PerformanceWithinSLA = $false
         }
         
-        Write-Verbose "✅ Performance measurement completed: $($performanceData.Duration)ms, $($performanceData.MemoryUsedMB)MB"
+        Write-Verbose " Performance measurement completed: $($performanceData.Duration)ms, $($performanceData.MemoryUsedMB)MB"
         
         return @{
             Result = $result
@@ -325,7 +325,7 @@ function Global:Measure-EnterprisePerformance {
     }
     catch {
         $stopwatch.Stop()
-        Write-Error "❌ Performance measurement failed: $($_.Exception.Message) - CorrelationId: $CorrelationId"
+        Write-Error " Performance measurement failed: $($_.Exception.Message) - CorrelationId: $CorrelationId"
         throw
     }
 }
@@ -488,9 +488,9 @@ function Global:Assert-EnterpriseQualityGates {
     }
 
     if ($qualityGateResults.OverallPassed) {
-        Write-Verbose "✅ All enterprise quality gates passed - CorrelationId: $CorrelationId"
+        Write-Verbose " All enterprise quality gates passed - CorrelationId: $CorrelationId"
     } else {
-        Write-Warning "❌ Quality gate violations detected: $($qualityGateResults.Violations -join '; ') - CorrelationId: $CorrelationId"
+        Write-Warning " Quality gate violations detected: $($qualityGateResults.Violations -join '; ') - CorrelationId: $CorrelationId"
     }
 
     # Add alias for compatibility
@@ -504,6 +504,6 @@ function Global:Assert-EnterpriseQualityGates {
 # FRAMEWORK INITIALIZATION COMPLETE
 # ========================================================================================
 
-Write-Verbose "🎖️ Module Independence Framework loaded successfully - Enterprise testing ready"
+Write-Verbose " Module Independence Framework loaded successfully - Enterprise testing ready"
 
 # Note: Functions are available globally and don't require Export-ModuleMember when dot-sourced

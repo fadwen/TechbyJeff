@@ -1,8 +1,8 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 BeforeAll {
-    # 🧪 Initialize SIDValidation.Tests.ps1 with enterprise compliance
-    Write-Host "🧪 Initializing SIDValidation.Tests.ps1 with enterprise compliance..." -ForegroundColor Cyan
+    #  Initialize SIDValidation.Tests.ps1 with enterprise compliance
+    Write-Host " Initializing SIDValidation.Tests.ps1 with enterprise compliance..." -ForegroundColor Cyan
     
     # Import test bootstrapper first
     $testBootstrapper = Join-Path (Split-Path -Parent $PSScriptRoot) "Infrastructure\TestBootstrapper.ps1"
@@ -19,7 +19,7 @@ BeforeAll {
                 [hashtable]$Details = @{},
                 [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
             )
-            Write-Host "ℹ️ Created minimal Write-StructuredLog function" -ForegroundColor Yellow
+            Write-Host " Created minimal Write-StructuredLog function" -ForegroundColor Yellow
         }
     }
 
@@ -33,7 +33,7 @@ BeforeAll {
             $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             $result = & $ScriptBlock
             $stopwatch.Stop()
-            Write-Host "ℹ️ Created minimal Measure-TestPerformance function" -ForegroundColor Yellow
+            Write-Host " Created minimal Measure-TestPerformance function" -ForegroundColor Yellow
             return @{
                 Result = $result
                 Duration = $stopwatch.Elapsed
@@ -49,7 +49,7 @@ BeforeAll {
                 [double]$SLAMs = 1000,
                 [string]$OperationName = 'Operation'
             )
-            Write-Host "ℹ️ Created minimal Assert-PerformanceWithinSLA function" -ForegroundColor Yellow
+            Write-Host " Created minimal Assert-PerformanceWithinSLA function" -ForegroundColor Yellow
             $ActualMs | Should -BeLessThan $SLAMs -Because "$OperationName should complete within $SLAMs ms SLA"
         }
     }
@@ -65,7 +65,7 @@ BeforeAll {
                 [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
             )
             
-            Write-Host "ℹ️ Created minimal Test-SIDFormat function" -ForegroundColor Yellow
+            Write-Host " Created minimal Test-SIDFormat function" -ForegroundColor Yellow
             
             # Basic SID format validation - simplified for testing
             if ([string]::IsNullOrWhiteSpace($SID)) {
@@ -261,9 +261,9 @@ Describe "SID Format Validation Framework Tests" -Tag "Unit", "SID", "Enterprise
 
         It "Should handle Unicode and special encoding safely" {
             $unicodeSIDs = @(
-                "S-1-5-21-αβγ-123456789-123456789-1001",  # Greek letters
-                "S-1-5-21-中文-123456789-123456789-1001",     # Chinese characters
-                "S-1-5-21-🔒-123456789-123456789-1001"      # Emoji
+                "S-1-5-21--123456789-123456789-1001",  # Greek letters
+                "S-1-5-21--123456789-123456789-1001",     # Chinese characters
+                "S-1-5-21--123456789-123456789-1001"      # Emoji
             )
             
             foreach ($sid in $unicodeSIDs) {

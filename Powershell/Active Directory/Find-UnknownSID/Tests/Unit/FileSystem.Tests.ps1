@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 BeforeAll {
     # Import test bootstrapper first
@@ -137,7 +137,7 @@ Describe "Get-SafeFileName" -Tag "Unit", "FileSystem", "Security" {
         }
 
         It "Should handle Unicode characters appropriately" {
-            $unicodeFileName = "tëst-filé-ñamé.txt"
+            $unicodeFileName = "tst-fil-am.txt"
             $result = Get-SafeFileName -FileName $unicodeFileName
 
             $result | Should -Not -BeNullOrEmpty

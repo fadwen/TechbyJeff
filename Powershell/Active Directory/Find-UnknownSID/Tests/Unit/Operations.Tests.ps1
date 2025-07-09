@@ -1,7 +1,7 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 BeforeAll {
-    Write-Host "🧪 Initializing Operations.Tests.ps1 with safe loading..."
+    Write-Host " Initializing Operations.Tests.ps1 with safe loading..."
     
     # Safe initialization without complex loading that could hang
     try {
@@ -9,20 +9,20 @@ BeforeAll {
         $testHelpersPath = "$PSScriptRoot\..\TestHelpers\TestHelpers.ps1"
         if (Test-Path $testHelpersPath) {
             . $testHelpersPath
-            Write-Host "✅ TestHelpers.ps1 loaded successfully"
+            Write-Host " TestHelpers.ps1 loaded successfully"
         } else {
-            Write-Warning "⚠️ TestHelpers.ps1 not found - using minimal setup"
+            Write-Warning " TestHelpers.ps1 not found - using minimal setup"
         }
         
         # Initialize enterprise test environment
         if (Get-Command "New-TestEnvironment" -ErrorAction SilentlyContinue) {
             $global:TestEnvironment = New-TestEnvironment -CorrelationId ([System.Guid]::NewGuid().ToString())
-            Write-Host "✅ Test environment initialized"
+            Write-Host " Test environment initialized"
         } else {
-            Write-Host "ℹ️ Using minimal test environment"
+            Write-Host " Using minimal test environment"
         }
     } catch {
-        Write-Warning "⚠️ TestHelpers loading failed: $($_.Exception.Message) - using minimal setup"
+        Write-Warning " TestHelpers loading failed: $($_.Exception.Message) - using minimal setup"
     }
     
     # Initialize test correlation ID
@@ -34,7 +34,7 @@ BeforeAll {
             param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
             Write-Verbose "$Level`: $Message (CorrelationId: $CorrelationId)"
         }
-        Write-Host "ℹ️ Created minimal Write-StructuredLog function"
+        Write-Host " Created minimal Write-StructuredLog function"
     }
     
     if (-not (Get-Command "Assert-CorrelationTracked" -ErrorAction SilentlyContinue)) {
@@ -43,7 +43,7 @@ BeforeAll {
             # Minimal implementation for testing
             $true | Should -Be $true
         }
-        Write-Host "ℹ️ Created minimal Assert-CorrelationTracked function"
+        Write-Host " Created minimal Assert-CorrelationTracked function"
     }
     
     # Load the actual Invoke-OperationWithRetry function if not available
@@ -91,7 +91,7 @@ BeforeAll {
                 }
             }
         }
-        Write-Host "ℹ️ Created simple Invoke-OperationWithRetry function for testing (no actual retries)"
+        Write-Host " Created simple Invoke-OperationWithRetry function for testing (no actual retries)"
     }
     
     # Load the actual Invoke-RemovalWorkflow function if not available  
@@ -119,7 +119,7 @@ BeforeAll {
                 Timestamp = Get-Date
             }
         }
-        Write-Host "ℹ️ Created minimal Invoke-RemovalWorkflow function for testing"
+        Write-Host " Created minimal Invoke-RemovalWorkflow function for testing"
     }
     
     # Enhanced mock external dependencies with enterprise patterns
@@ -162,10 +162,10 @@ BeforeAll {
     Mock Get-Content { param($Path) return @() }
     Mock Out-File { param($InputObject, $FilePath, $Append) }
 
-    # 🛡️ CRITICAL SECURITY MOCKS - Prevent any dangerous operations
+    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
         throw "Security violation: Dangerous operation blocked - $Command"
     }
     
@@ -173,7 +173,7 @@ BeforeAll {
         param($Path, [switch]$Recurse, [switch]$Force)
         # Only allow removal in test directories or temp locations
         if ($Path -match '^C:\\|^\\\\|^/') {
-            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
             throw "Security violation: System file deletion blocked - $Path"
         }
         Write-Verbose "Mock Remove-Item called safely for test path: $Path"
@@ -181,15 +181,15 @@ BeforeAll {
     
     Mock Invoke-WebRequest { 
         param($Uri)
-        Write-Warning "🛡️ SECURITY BLOCK: Web request blocked for safety. URI: $Uri"
+        Write-Warning " SECURITY BLOCK: Web request blocked for safety. URI: $Uri"
         throw "Security violation: Network access blocked - $Uri"
     }
 
-    # 🛡️ CRITICAL MISSING SECURITY MOCKS - Add Start-Process and Stop-Process protection
+    #  CRITICAL MISSING SECURITY MOCKS - Add Start-Process and Stop-Process protection
     Mock Start-Process { 
         param($FilePath, $ArgumentList, [switch]$PassThru)
         if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for potentially dangerous executable. Process: $FilePath"
             throw "Security violation: Process execution blocked - $FilePath"
         }
         Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
@@ -198,7 +198,7 @@ BeforeAll {
     Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
             throw "Security violation: Critical process termination blocked - $Name"
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"

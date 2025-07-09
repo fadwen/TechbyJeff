@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 <#
 .SYNOPSIS
@@ -32,12 +32,12 @@
     PowerShell Version: 5.1+
 
     Enterprise Standards: ALL 6 IMPLEMENTED
-    - TestHelpers.ps1 Integration ✅
-    - TestCases Patterns ✅
-    - Performance Requirements Context ✅
-    - Security Validation Context ✅
-    - Advanced Mocking ✅
-    - Quality Gates ✅
+    - TestHelpers.ps1 Integration 
+    - TestCases Patterns 
+    - Performance Requirements Context 
+    - Security Validation Context 
+    - Advanced Mocking 
+    - Quality Gates 
 
     TROUBLESHOOTING:
     - Security issues: .\Troubleshooting\Security\Security-Compliance.md
@@ -46,7 +46,7 @@
 #>
 
 BeforeAll {
-    Write-Host "🛡️ Initializing Security-Validation-Enterprise.Tests.ps1 with enterprise compliance..."
+    Write-Host " Initializing Security-Validation-Enterprise.Tests.ps1 with enterprise compliance..."
     
     # Initialize test correlation ID for enterprise security tracing
     $script:SecurityCorrelationId = [System.Guid]::NewGuid().ToString()
@@ -55,7 +55,7 @@ BeforeAll {
     $global:SecurityTestLogs = @()
     $global:SecurityAuditTrail = @()
     
-    # 🎯 ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
+    #  ENTERPRISE STANDARD 1: TestHelpers.ps1 Integration
     if (-not (Get-Command "New-TestSecurityData" -ErrorAction SilentlyContinue)) {
         function New-TestSecurityData {
             param(
@@ -85,7 +85,7 @@ BeforeAll {
                 }
             }
         }
-        Write-Host "ℹ️ Created TestHelpers function: New-TestSecurityData"
+        Write-Host " Created TestHelpers function: New-TestSecurityData"
     }
     
     if (-not (Get-Command "Test-SecurityCompliance" -ErrorAction SilentlyContinue)) {
@@ -143,7 +143,7 @@ BeforeAll {
             $global:SecurityTestLogs += $complianceResult
             return $complianceResult
         }
-        Write-Host "ℹ️ Created TestHelpers function: Test-SecurityCompliance"
+        Write-Host " Created TestHelpers function: Test-SecurityCompliance"
     }
     
     if (-not (Get-Command "Assert-SecurityThreshold" -ErrorAction SilentlyContinue)) {
@@ -168,7 +168,7 @@ BeforeAll {
                 Result = 'Pass'
             }
         }
-        Write-Host "ℹ️ Created TestHelpers function: Assert-SecurityThreshold"
+        Write-Host " Created TestHelpers function: Assert-SecurityThreshold"
     }
     
     # Enterprise Security Baselines (SLA Requirements)
@@ -196,7 +196,7 @@ BeforeAll {
         }
     }
     
-    # 🎯 ENTERPRISE STANDARD 5: Advanced Security Mocking
+    #  ENTERPRISE STANDARD 5: Advanced Security Mocking
     Mock Write-Verbose { param($Message) }
     Mock Write-Warning { param($Message) }
     Mock Write-Error { param($Message, $ErrorAction) }
@@ -240,7 +240,7 @@ BeforeAll {
             
             return $result
         }
-        Write-Host "ℹ️ Created security mock: Invoke-AuthenticationChallenge"
+        Write-Host " Created security mock: Invoke-AuthenticationChallenge"
     }
     
     if (-not (Get-Command "Test-InputSanitization" -ErrorAction SilentlyContinue)) {
@@ -279,13 +279,13 @@ BeforeAll {
             
             return [PSCustomObject]$sanitizationResult
         }
-        Write-Host "ℹ️ Created security mock: Test-InputSanitization"
+        Write-Host " Created security mock: Test-InputSanitization"
     }
     
-    # 🛡️ CRITICAL SECURITY MOCKS - Advanced threat prevention
+    #  CRITICAL SECURITY MOCKS - Advanced threat prevention
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked during security test. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked during security test. Command: $Command"
         throw "Security violation: Dangerous code execution blocked - $Command"
     }
     
@@ -293,7 +293,7 @@ BeforeAll {
         param($FilePath, $ArgumentList, [switch]$PassThru)
         $dangerousProcesses = @('calc', 'cmd', 'powershell', 'notepad', 'regedit', 'net.exe', 'netsh', 'sc.exe')
         if ($FilePath -match ($dangerousProcesses -join '|')) {
-            Write-Warning "🛡️ SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
             throw "Security violation: Dangerous process execution blocked - $FilePath"
         }
         Write-Verbose "Security mock: Process execution simulated safely for: $FilePath"
@@ -303,7 +303,7 @@ BeforeAll {
         param($Path, [switch]$Recurse, [switch]$Force)
         $systemPaths = @('^C:\\Windows', '^C:\\Program Files', '^\\\\', '^C:\\$', '^/etc', '^/usr', '^/var')
         if ($systemPaths | Where-Object { $Path -match $_ }) {
-            Write-Warning "🛡️ SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
             throw "Security violation: System file deletion blocked - $Path"
         }
         Write-Verbose "Security mock: File removal simulated safely for: $Path"
@@ -313,7 +313,7 @@ BeforeAll {
         param($Uri, $Method = 'GET', $Body, $Headers)
         $suspiciousPatterns = @('evil\.com', 'malware\.', 'phishing\.', 'attack\.', '\.onion')
         if ($suspiciousPatterns | Where-Object { $Uri -match $_ }) {
-            Write-Warning "🛡️ SECURITY BLOCK: Web request blocked for suspicious URL. URI: $Uri"
+            Write-Warning " SECURITY BLOCK: Web request blocked for suspicious URL. URI: $Uri"
             throw "Security violation: Suspicious network access blocked - $Uri"
         }
         
@@ -328,7 +328,7 @@ BeforeAll {
 
 Describe "Enterprise Security Validation" -Tag "Security", "Enterprise" {
     
-    # 🎯 ENTERPRISE STANDARD 2: TestCases Patterns
+    #  ENTERPRISE STANDARD 2: TestCases Patterns
     Context "Security Input Validation" {
         It "Should validate security input patterns: {AttackType}" -TestCases @(
             @{ AttackType = "Valid"; ShouldPass = $true; RiskLevel = "Low" }
@@ -404,7 +404,7 @@ Describe "Enterprise Security Validation" -Tag "Security", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 3: Performance Requirements Context
+    #  ENTERPRISE STANDARD 3: Performance Requirements Context
     Context "Security Performance Requirements" -Tag "Performance" {
         It "Should complete authentication within SLA: {AuthMethod}" -TestCases @(
             @{ AuthMethod = "Basic"; MaxSeconds = 0.2 }
@@ -438,7 +438,7 @@ Describe "Enterprise Security Validation" -Tag "Security", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 4: Security Validation Context
+    #  ENTERPRISE STANDARD 4: Security Validation Context
     Context "Multi-Layer Security Validation" -Tag "Security" {
         It "Should enforce compliance framework: {Framework}" -TestCases @(
             @{ Framework = "SOX"; RequiredFields = @('AuditTrail', 'ApprovalWorkflow') }
@@ -490,7 +490,7 @@ Describe "Enterprise Security Validation" -Tag "Security", "Enterprise" {
         }
     }
 
-    # 🎯 ENTERPRISE STANDARD 6: Quality Gates
+    #  ENTERPRISE STANDARD 6: Quality Gates
     Context "Security Quality Gates Enforcement" -Tag "QualityGates" {
         It "Should enforce security baseline compliance" {
             $global:SecurityBaselines.Authentication.MaxAuthenticationSeconds | Should -BeLessThan 1.0

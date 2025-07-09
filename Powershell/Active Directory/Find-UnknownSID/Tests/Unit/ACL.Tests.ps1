@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 BeforeAll {
     # Import test helpers following enterprise standards
@@ -119,17 +119,17 @@ BeforeAll {
         throw "Security violation: Start-Process should never be called in ACL operations"
     }
 
-    # 🛡️ MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
+    #  MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
     Mock Invoke-Expression { 
         param($Command)
-        Write-Warning "🛡️ SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
         throw "Security violation: Dangerous code execution blocked - $Command"
     }
 
     Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-            Write-Warning "🛡️ SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
             throw "Security violation: Critical process termination blocked - $Name"
         }
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"
