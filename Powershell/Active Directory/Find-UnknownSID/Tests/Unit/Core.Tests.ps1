@@ -7,38 +7,38 @@
 $script:TestConfig = New-TestData -DataType 'Configuration'
 $script:TestCorrelationId = $script:TestConfig.CorrelationId
 
-    # Set up performance baselines following pester.instructions.md
-    $script:PerformanceBaseline = @{
-        InitializationMaxTime = [TimeSpan]::FromSeconds(2)
-        ConfigurationLoadMaxTime = [TimeSpan]::FromSeconds(1)
-        SingleOperationMaxTime = [TimeSpan]::FromSeconds(1)
-        MemoryUsageMaxMB = 50  # Core operations should be lightweight
-    }
+# Set up performance baselines following pester.instructions.md
+$script:PerformanceBaseline = @{
+    InitializationMaxTime = [TimeSpan]::FromSeconds(2)
+    ConfigurationLoadMaxTime = [TimeSpan]::FromSeconds(1)
+    SingleOperationMaxTime = [TimeSpan]::FromSeconds(1)
+    MemoryUsageMaxMB = 50  # Core operations should be lightweight
+}
 
-    # Security test patterns for input validation
-    $script:SecurityTestPatterns = @{
-        SQLInjection = @("'; DROP TABLE Users; --", "1' OR '1'='1", "admin'--")
-        PathTraversal = @("../../../etc/passwd", "..\..\Windows\System32\config")
-        XSSPatterns = @("<script>alert('xss')</script>", "javascript:alert('xss')")
-        InvalidChars = @("`0", "`n", "`r", "`t", [char]0x1f)
-        MaliciousInputs = @("", " ", "  ", $null)
-    }
+# Security test patterns for input validation
+$script:SecurityTestPatterns = @{
+    SQLInjection = @("'; DROP TABLE Users; --", "1' OR '1'='1", "admin'--")
+    PathTraversal = @("../../../etc/passwd", "..\..\Windows\System32\config")
+    XSSPatterns = @("<script>alert('xss')</script>", "javascript:alert('xss')")
+    InvalidChars = @("`0", "`n", "`r", "`t", [char]0x1f)
+    MaliciousInputs = @("", " ", "  ", $null)
+}
 
-    # Mock external dependencies using enterprise patterns with advanced filtering
-    Mock Write-Verbose { } -ParameterFilter { $Message -like "*Core*" }
-    Mock Write-Information { } -ParameterFilter { $MessageData -or $Message }
-    Mock Write-Warning { } -ParameterFilter { $Message -like "*Core*" }
-    Mock Write-Host { } -ParameterFilter { $Object -or $Message }
-    Mock Write-StructuredLog { } -ParameterFilter { $Message -and $Level }
+# Mock external dependencies using enterprise patterns with advanced filtering
+Mock Write-Verbose { } -ParameterFilter { $Message -like "*Core*" }
+Mock Write-Information { } -ParameterFilter { $MessageData -or $Message }
+Mock Write-Warning { } -ParameterFilter { $Message -like "*Core*" }
+Mock Write-Host { } -ParameterFilter { $Object -or $Message }
+Mock Write-StructuredLog { } -ParameterFilter { $Message -and $Level }
 
-    # Mock file system operations with realistic responses
-    Mock Test-Path { return $true } -ParameterFilter { $Path -like "*config*" }
-    Mock Test-Path { return $false } -ParameterFilter { $Path -like "*nonexistent*" }
-    Mock New-Item { return @{ FullName = $Path; Directory = (Split-Path $Path) } } -ParameterFilter { $Path -and $ItemType }
-    Mock Out-File { } -ParameterFilter { $FilePath -and $InputObject }
+# Mock file system operations with realistic responses
+Mock Test-Path { return $true } -ParameterFilter { $Path -like "*config*" }
+Mock Test-Path { return $false } -ParameterFilter { $Path -like "*nonexistent*" }
+Mock New-Item { return @{ FullName = $Path; Directory = (Split-Path $Path) } } -ParameterFilter { $Path -and $ItemType }
+Mock Out-File { } -ParameterFilter { $FilePath -and $InputObject }
 
-    # Mock complex dependencies with enterprise-grade mocking
-    Mock Initialize-MemoryManager { 
+# Mock complex dependencies with enterprise-grade mocking
+Mock Initialize-MemoryManager { 
         return [PSCustomObject]@{
             MaxMemoryMB = if ($MaxMemoryMB) { $MaxMemoryMB } else { 1024 }
             CheckInterval = if ($CheckInterval) { $CheckInterval } else { 30 }
@@ -48,8 +48,8 @@ $script:TestCorrelationId = $script:TestConfig.CorrelationId
         }
     } -ParameterFilter { $MaxMemoryMB -or $CheckInterval -or $CorrelationId }
 
-    # Mock Active Directory operations with realistic data
-    Mock Get-ADUser { 
+# Mock Active Directory operations with realistic data
+Mock Get-ADUser { 
         return @{ 
             Name = 'MockUser'
             SamAccountName = 'mockuser'
@@ -59,7 +59,7 @@ $script:TestCorrelationId = $script:TestConfig.CorrelationId
         }
     } -ParameterFilter { $Identity -or $Filter }
     
-    Mock Get-ADGroup { 
+Mock Get-ADGroup { 
         return @{ 
             Name = 'MockGroup'
             SamAccountName = 'mockgroup'
@@ -69,18 +69,18 @@ $script:TestCorrelationId = $script:TestConfig.CorrelationId
         }
     } -ParameterFilter { $Identity -or $Filter }
 
-    # Mock additional security-related functions
-    Mock Remove-Item { } -ParameterFilter { $Path -and $Recurse }
-    Mock Start-Process { } -ParameterFilter { $FilePath }
+# Mock additional security-related functions
+Mock Remove-Item { } -ParameterFilter { $Path -and $Recurse }
+Mock Start-Process { } -ParameterFilter { $FilePath }
 
-    #  MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
-    Mock Invoke-Expression { 
-        param($Command)
-        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
-        throw "Security violation: Dangerous code execution blocked - $Command"
-    }
+#  MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
+Mock Invoke-Expression { 
+    param($Command)
+    Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+    throw "Security violation: Dangerous code execution blocked - $Command"
+}
 
-    Mock Stop-Process {
+Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
             Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
