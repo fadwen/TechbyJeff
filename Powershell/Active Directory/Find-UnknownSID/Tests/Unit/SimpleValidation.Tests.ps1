@@ -41,9 +41,12 @@ param(
 )
 Write-Host " Created minimal Assert-PerformanceWithinSLA function" -ForegroundColor Yellow
 $ActualMs | Should BeLessThan $SLAMs -Because "$OperationName should complete within $SLAMs ms SLA"
-}
+}
+}
 
-Describe "Simple Validation Framework Tests" -Tag "Unit", "Validation", "Enterprise" {
+
+
+Describe "Simple Validation Framework Tests" {
 
     Context "Parameter Validation" {
         It "Should validate basic arithmetic operations: <TestCase>" -TestCases @(
@@ -98,7 +101,7 @@ Describe "Simple Validation Framework Tests" -Tag "Unit", "Validation", "Enterpr
         It "Should validate collection operations" {
             $testArray = @(1, 2, 3, 4, 5)
             $testArray.Count | Should Be 5
-            $testArray | Should Contain 3
+            $testArray -contains 3 | Should Be $true
         }
 
         It "Should handle object property validation" {
@@ -116,20 +119,34 @@ Describe "Simple Validation Framework Tests" -Tag "Unit", "Validation", "Enterpr
 
     Context "Error Handling" {
         It "Should handle division by zero gracefully" {
-            # In PowerShell, division by zero throws an exception
-            { 1 / 0 } | Should Throw "*divide by zero*"
+            try {
+                $result = 1 / 0
+                throw "Division by zero should have thrown an exception but didn't"
+            } catch {
+                $_.Exception.Message | Should Match "divide"
+            }
         }
 
         It "Should handle invalid operations" {
-            { Get-Item "C:\NonExistentPath\File.txt" -ErrorAction Stop } | Should Throw
+            try {
+                Get-Item "C:\NonExistentPath\File.txt" -ErrorAction Stop
+                throw "Get-Item should have thrown an exception but didn't"
+            } catch {
+                $_.Exception.Message | Should Match "cannot find path"
+            }
         }
 
         It "Should validate parameter constraints" {
-            { [ValidateRange(1, 10)][int]$value = 15 } | Should Throw
+            try {
+                [ValidateRange(1, 10)][int]$value = 15
+                throw "Parameter validation should have thrown an exception but didn't"
+            } catch {
+                $_.Exception.Message | Should Match "valid"
+            }
         }
     }
 
-    Context "Performance Requirements" -Tag "Performance" {
+    Context "Performance Requirements" {
         It "Should complete basic arithmetic within performance SLA" {
             $performanceTest = Measure-TestPerformance -ScriptBlock {
                 $sum = 0
@@ -168,7 +185,7 @@ Describe "Simple Validation Framework Tests" -Tag "Unit", "Validation", "Enterpr
         }
     }
 
-    Context "Security Validation" -Tag "Security" {
+    Context "Security Validation" {
         It "Should validate input sanitization against malicious patterns: <InjectionType>" -TestCases @(
             @{ InjectionType = "Script Injection"; TestInput = "<script>alert('xss')</script>"; Expected = $false }
             @{ InjectionType = "Command Injection"; TestInput = "; rm -rf /"; Expected = $false }

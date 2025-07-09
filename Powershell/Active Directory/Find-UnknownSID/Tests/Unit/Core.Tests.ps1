@@ -24,11 +24,12 @@ $script:SecurityTestPatterns = @{
     MaliciousInputs = @("", " ", "  ", $null)
 }
 
-# Mock external dependencies using enterprise patterns with advanced filtering
-Mock Write-Verbose { } -ParameterFilter { $Message -like "*Core*" }
-Mock Write-Information { } -ParameterFilter { $MessageData -or $Message }
-Mock Write-Warning { } -ParameterFilter { $Message -like "*Core*" }
-Mock Write-Host { } -ParameterFilter { $Object -or $Message }
+Describe "Core Framework Tests" {
+    # Mock external dependencies using enterprise patterns with advanced filtering
+    Mock Write-Verbose { } -ParameterFilter { $Message -like "*Core*" }
+    Mock Write-Information { } -ParameterFilter { $MessageData -or $Message }
+    Mock Write-Warning { } -ParameterFilter { $Message -like "*Core*" }
+    Mock Write-Host { } -ParameterFilter { $Object -or $Message }
 Mock Write-StructuredLog { } -ParameterFilter { $Message -and $Level }
 
 # Mock file system operations with realistic responses
@@ -59,7 +60,7 @@ Mock Get-ADUser {
         }
     } -ParameterFilter { $Identity -or $Filter }
     
-Mock Get-ADGroup { 
+    Mock Get-ADGroup { 
         return @{ 
             Name = 'MockGroup'
             SamAccountName = 'mockgroup'
@@ -69,18 +70,18 @@ Mock Get-ADGroup {
         }
     } -ParameterFilter { $Identity -or $Filter }
 
-# Mock additional security-related functions
-Mock Remove-Item { } -ParameterFilter { $Path -and $Recurse }
-Mock Start-Process { } -ParameterFilter { $FilePath }
+    # Mock additional security-related functions
+    Mock Remove-Item { } -ParameterFilter { $Path -and $Recurse }
+    Mock Start-Process { } -ParameterFilter { $FilePath }
 
-#  MISSING CRITICAL SECURITY MOCKS - Add comprehensive protection
-Mock Invoke-Expression { 
-    param($Command)
-    Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
-    throw "Security violation: Dangerous code execution blocked - $Command"
-}
+    # CRITICAL SECURITY MOCKS - Add comprehensive protection
+    Mock Invoke-Expression { 
+        param($Command)
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        throw "Security violation: Dangerous code execution blocked - $Command"
+    }
 
-Mock Stop-Process {
+    Mock Stop-Process {
         param($Name, $Id, [switch]$Force)
         if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
             Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
@@ -89,7 +90,7 @@ Mock Stop-Process {
         Write-Verbose "Mock Stop-Process called safely for test process: $Name"
     }
 
-Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
+    Context "Initialize-ScriptExecution" {
 
     BeforeEach {
         # Set up test-specific data using enterprise test helpers
@@ -107,6 +108,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
             LogLevel = 'Information'
         }
         $testConfig | ConvertTo-Json | Out-File $script:TestConfigPath
+    }
     }
 
     Context "Parameter Validation" {
@@ -360,7 +362,7 @@ Describe "Initialize-ScriptExecution" -Tag "Unit", "Core", "Foundation" {
     }
 
 
-Describe "Core Module Helper Functions" -Tag "Unit", "Core", "Helpers" {
+    Context "Core Module Helper Functions" {
 
     BeforeEach {
         # Set up test-specific data using enterprise test helpers

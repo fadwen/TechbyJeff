@@ -15,13 +15,14 @@ Write-Host " Created minimal Write-StructuredLog function"
 }
 if (-not (Get-Command "Test-ClassIntegrity" -ErrorAction SilentlyContinue)) {
 function Test-ClassIntegrity {
-param(
-[Parameter(Mandatory)]
-[string]$Class,
-[string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-)
-Write-StructuredLog -Level "Information" -Message "Testing class integrity for $Class" -CorrelationId $CorrelationId
-return $true
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Class,
+        [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+    )
+    Write-StructuredLog -Level "Information" -Message "Testing class integrity for $Class" -CorrelationId $CorrelationId
+    return $true
 }
 Write-Host " Created minimal Test-ClassIntegrity function"
 }
@@ -62,50 +63,54 @@ MemoryUsageMaxMB = 5
 }
 }
 # Enterprise mocking patterns
-Mock Write-StructuredLog { 
-param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
-$global:TestLogs += @{
-Level = $Level
-Message = $Message
-CorrelationId = $CorrelationId
-Component = $Component
-Timestamp = Get-Date
-}
-}
-Mock Write-Verbose { param($Message) }
-Mock Write-Warning { param($Message) }
-Mock Write-Error { param($Message, $ErrorAction) }
-#  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
-Mock Invoke-Expression { 
-param($Command)
-Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
-throw "Security violation: Dangerous operation blocked - $Command"
-}
-Mock Start-Process { 
-param($FilePath, $ArgumentList, [switch]$PassThru)
-if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
-Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
-throw "Security violation: Process execution blocked - $FilePath"
-}
-Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
-}
-Mock Stop-Process {
-param($Name, $Id, [switch]$Force)
-if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
-Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
-throw "Security violation: Critical process termination blocked - $Name"
-}
-Write-Verbose "Mock Stop-Process called safely for test process: $Name"
-}
-Mock Remove-Item { 
-param($Path, [switch]$Recurse, [switch]$Force)
-if ($Path -match '^C:\\|^\\\\|^/') {
-Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
-throw "Security violation: System file deletion blocked - $Path"
-}
-Write-Verbose "Mock Remove-Item called safely for test path: $Path"
-
 Describe "Security Framework Tests" -Tag "Unit", "Security" {
+    
+    # Mock statements must be inside Describe block for Pester 3.4.0
+    Mock Write-StructuredLog { 
+        param($Level, $Message, $Details = @{}, $CorrelationId, $Component)
+        $global:TestLogs += @{
+            Level = $Level
+            Message = $Message
+            CorrelationId = $CorrelationId
+            Component = $Component
+            Timestamp = Get-Date
+        }
+    }
+    Mock Write-Verbose { param($Message) }
+    Mock Write-Warning { param($Message) }
+    Mock Write-Error { param($Message, $ErrorAction) }
+    
+    #  CRITICAL SECURITY MOCKS - Prevent any dangerous operations
+    Mock Invoke-Expression { 
+        param($Command)
+        Write-Warning " SECURITY BLOCK: Invoke-Expression blocked for safety. Command: $Command"
+        throw "Security violation: Dangerous operation blocked - $Command"
+    }
+    Mock Start-Process { 
+        param($FilePath, $ArgumentList, [switch]$PassThru)
+        if ($FilePath -match 'calc|cmd|powershell|notepad|regedit') {
+            Write-Warning " SECURITY BLOCK: Start-Process blocked for dangerous executable. Process: $FilePath"
+            throw "Security violation: Process execution blocked - $FilePath"
+        }
+        Write-Verbose "Mock Start-Process called safely for test process: $FilePath"
+    }
+    Mock Stop-Process {
+        param($Name, $Id, [switch]$Force)
+        if ($Name -match 'lsass|winlogon|csrss|System|explorer') {
+            Write-Warning " SECURITY BLOCK: Stop-Process blocked for critical process. Process: $Name"
+            throw "Security violation: Critical process termination blocked - $Name"
+        }
+        Write-Verbose "Mock Stop-Process called safely for test process: $Name"
+    }
+    Mock Remove-Item { 
+        param($Path, [switch]$Recurse, [switch]$Force)
+        if ($Path -match '^C:\\|^\\\\|^/') {
+            Write-Warning " SECURITY BLOCK: Remove-Item blocked for system path. Path: $Path"
+            throw "Security violation: System file deletion blocked - $Path"
+        }
+        Write-Verbose "Mock Remove-Item called safely for test path: $Path"
+    }
+
     Context "Parameter Validation" {
         It "Should validate Class parameter: <TestCase>" -TestCases @(
             @{ TestCase = "Valid Class Name"; Class = "TestClass"; ShouldThrow = $false }
@@ -116,7 +121,12 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             param($TestCase, $Class, $ShouldThrow)
             
             if ($ShouldThrow) {
-                { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should Throw
+                try {
+                    Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId
+                    throw "Function should have thrown an exception but didn't"
+                } catch {
+                    $_.Exception.Message | Should Match "Class parameter cannot be null or empty"
+                }
             } else {
                 { Test-ClassIntegrity -Class $Class -CorrelationId $script:TestCorrelationId } | Should Not Throw
             }
@@ -161,7 +171,12 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
 
     Context "Error Handling" {
         It "Should handle invalid class names gracefully" {
-            { Test-ClassIntegrity -Class $null -CorrelationId $script:TestCorrelationId } | Should Throw
+            try {
+                Test-ClassIntegrity -Class $null -CorrelationId $script:TestCorrelationId
+                throw "Function should have thrown an exception but didn't"
+            } catch {
+                $_.Exception.Message | Should Match "Cannot bind argument to parameter 'Class'"
+            }
         }
 
         It "Should provide meaningful error messages" {
@@ -173,7 +188,7 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
         }
     }
 
-    Context "Performance Requirements" -Tag "Performance" {
+    Context "Performance Requirements" {
         It "Should complete class integrity check within SLA" {
             $performance = Measure-TestPerformance -ScriptBlock {
                 Test-ClassIntegrity -Class "TestClass" -CorrelationId $script:TestCorrelationId
@@ -196,7 +211,7 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
         }
     }
 
-    Context "Security Validation" -Tag "Security" {
+    Context "Security Validation" {
         It "Should block dangerous operations during security tests: <AttackVector>" -TestCases @(
             @{ AttackVector = "Code Injection"; ShouldThrow = $true }
             @{ AttackVector = "Process Execution"; ShouldThrow = $true }
@@ -208,13 +223,28 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
                 # Test each dangerous operation safely
                 switch ($AttackVector) {
                     "Code Injection" {
-                        { Invoke-Expression "calc.exe" } | Should Throw "*Security violation*"
+                        try {
+                            Invoke-Expression "calc.exe"
+                            throw "Function should have thrown an exception but didn't"
+                        } catch {
+                            $_.Exception.Message | Should Match "Security violation"
+                        }
                     }
                     "Process Execution" {
-                        { Start-Process "cmd.exe" } | Should Throw "*Security violation*"
+                        try {
+                            Start-Process "cmd.exe"
+                            throw "Function should have thrown an exception but didn't"
+                        } catch {
+                            $_.Exception.Message | Should Match "Security violation"
+                        }
                     }
                     "File Deletion" {
-                        { Remove-Item "C:\Windows\System32\test.txt" } | Should Throw "*Security violation*"
+                        try {
+                            Remove-Item "C:\Windows\System32\test.txt"
+                            throw "Function should have thrown an exception but didn't"
+                        } catch {
+                            $_.Exception.Message | Should Match "Security violation"
+                        }
                     }
                 }
             }
@@ -244,7 +274,7 @@ Describe "Security Framework Tests" -Tag "Unit", "Security" {
             # Verify audit trail
             $auditEntry = $global:TestLogs | Where-Object { $_.CorrelationId -eq $auditCorrelationId }
             $auditEntry | Should Not BeNullOrEmpty
-            $auditEntry.Message | Should Match "Testing class integrity"
+            $auditEntry.Message | Should Match "Class integrity verification completed"
         }
     }
 }
