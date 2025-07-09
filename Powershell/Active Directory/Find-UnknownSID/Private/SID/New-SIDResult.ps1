@@ -352,8 +352,8 @@ function Set-ACLMetadata {
             $Result.AccessControlType = $AccessRule.AccessControlType
             Write-StructuredLog "Set AccessControlType: $($Result.AccessControlType)" -Level Debug -CorrelationId $CorrelationId
         } else {
-            $Result.AccessControlType = "Unknown"
-            Write-StructuredLog "AccessControlType property missing, set to Unknown" -Level Debug -CorrelationId $CorrelationId
+            $Result.AccessControlType = [System.Security.AccessControl.AccessControlType]::Allow
+            Write-StructuredLog "AccessControlType property missing, set to Allow" -Level Debug -CorrelationId $CorrelationId
         }
 
         # Extract Active Directory rights safely
@@ -366,8 +366,8 @@ function Set-ACLMetadata {
                 $Result.ActiveDirectoryRights = $AccessRule.Rights
                 Write-StructuredLog "Set ActiveDirectoryRights from Rights property: $($Result.ActiveDirectoryRights)" -Level Debug -CorrelationId $CorrelationId
             } else {
-                $Result.ActiveDirectoryRights = "Unknown"
-                Write-StructuredLog "ActiveDirectoryRights property missing, set to Unknown" -Level Debug -CorrelationId $CorrelationId
+                $Result.ActiveDirectoryRights = [System.DirectoryServices.ActiveDirectoryRights]::GenericRead
+                Write-StructuredLog "ActiveDirectoryRights property missing, set to GenericRead" -Level Debug -CorrelationId $CorrelationId
             }
         }
 
@@ -376,7 +376,7 @@ function Set-ACLMetadata {
             $Result.InheritanceType = $AccessRule.InheritanceFlags
             Write-StructuredLog "Set InheritanceType: $($Result.InheritanceType)" -Level Debug -CorrelationId $CorrelationId
         } else {
-            $Result.InheritanceType = "None"
+            $Result.InheritanceType = [System.Security.AccessControl.InheritanceFlags]::None
             Write-StructuredLog "InheritanceFlags property missing, set to None" -Level Debug -CorrelationId $CorrelationId
         }
 
@@ -532,64 +532,74 @@ function ConvertTo-ResultSummary {
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
 
+    begin {
+        # Accumulate pipeline input for proper array processing
+        $allResults = @()
+    }
+
     process {
+        # Add each pipeline input to accumulator
+        $allResults += $OrphanedSIDResults
+    }
+
+    end {
         try {
-            Write-StructuredLog "Creating result summary for $($OrphanedSIDResults.Count) orphaned SID results" -Level Debug -CorrelationId $CorrelationId
+            Write-StructuredLog "Creating result summary for $($allResults.Count) orphaned SID results" -Level Debug -CorrelationId $CorrelationId
 
             $summary = [PSCustomObject]@{
                 # Basic statistics
-                TotalOrphanedSIDs = $OrphanedSIDResults.Count
-                UniqueObjects = ($OrphanedSIDResults | Select-Object -Property ObjectDN -Unique).Count
-                UniqueOrphanedSIDs = ($OrphanedSIDResults | Select-Object -Property OrphanedSID -Unique).Count
+                TotalOrphanedSIDs = $allResults.Count
+                UniqueObjects = ($allResults | Select-Object -Property ObjectDN -Unique).Count
+                UniqueOrphanedSIDs = ($allResults | Select-Object -Property OrphanedSID -Unique).Count
 
                 # Source analysis
-                SourceCategories = $OrphanedSIDResults | Group-Object -Property LikelySource | ForEach-Object {
+                SourceCategories = $allResults | Group-Object -Property LikelySource | ForEach-Object {
                     [PSCustomObject]@{
                         Source = $_.Name
                         Count = $_.Count
-                        Percentage = [Math]::Round(($_.Count / $OrphanedSIDResults.Count) * 100, 2)
+                        Percentage = [Math]::Round(($_.Count / $allResults.Count) * 100, 2)
                     }
                 } | Sort-Object -Property Count -Descending
 
                 # Confidence distribution
-                ConfidenceDistribution = $OrphanedSIDResults | Group-Object -Property Confidence | ForEach-Object {
+                ConfidenceDistribution = $allResults | Group-Object -Property Confidence | ForEach-Object {
                     [PSCustomObject]@{
                         Confidence = $_.Name
                         Count = $_.Count
-                        Percentage = [Math]::Round(($_.Count / $OrphanedSIDResults.Count) * 100, 2)
+                        Percentage = [Math]::Round(($_.Count / $allResults.Count) * 100, 2)
                     }
                 }
 
                 # Object class analysis
-                ObjectClassAnalysis = $OrphanedSIDResults | Group-Object -Property ObjectClass | ForEach-Object {
+                ObjectClassAnalysis = $allResults | Group-Object -Property ObjectClass | ForEach-Object {
                     [PSCustomObject]@{
                         ObjectClass = $_.Name
                         Count = $_.Count
-                        Percentage = [Math]::Round(($_.Count / $OrphanedSIDResults.Count) * 100, 2)
+                        Percentage = [Math]::Round(($_.Count / $allResults.Count) * 100, 2)
                     }
                 } | Sort-Object -Property Count -Descending
 
                 # Processing method statistics
-                ProcessingMethods = $OrphanedSIDResults | Group-Object -Property ProcessingMethod | ForEach-Object {
+                ProcessingMethods = $allResults | Group-Object -Property ProcessingMethod | ForEach-Object {
                     [PSCustomObject]@{
                         Method = $_.Name
                         Count = $_.Count
-                        Percentage = [Math]::Round(($_.Count / $OrphanedSIDResults.Count) * 100, 2)
+                        Percentage = [Math]::Round(($_.Count / $allResults.Count) * 100, 2)
                     }
                 }
 
                 # Temporal analysis
                 ProcessingTimespan = @{
-                    Earliest = ($OrphanedSIDResults | Measure-Object -Property Timestamp -Minimum).Minimum
-                    Latest = ($OrphanedSIDResults | Measure-Object -Property Timestamp -Maximum).Maximum
+                    Earliest = ($allResults | Measure-Object -Property Timestamp -Minimum).Minimum
+                    Latest = ($allResults | Measure-Object -Property Timestamp -Maximum).Maximum
                 }
 
                 # Access rights analysis
-                AccessRightsAnalysis = $OrphanedSIDResults | Group-Object -Property ActiveDirectoryRights | ForEach-Object {
+                AccessRightsAnalysis = $allResults | Group-Object -Property ActiveDirectoryRights | ForEach-Object {
                     [PSCustomObject]@{
                         Rights = $_.Name
                         Count = $_.Count
-                        Percentage = [Math]::Round(($_.Count / $OrphanedSIDResults.Count) * 100, 2)
+                        Percentage = [Math]::Round(($_.Count / $allResults.Count) * 100, 2)
                     }
                 } | Sort-Object -Property Count -Descending | Select-Object -First 10
 
