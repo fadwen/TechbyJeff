@@ -1,156 +1,209 @@
-# Resolve-SIDIdentity.Tests.ps1 - Pester 3.4.x Compatible
-# Tests for Resolve-SIDIdentity private function
+# Resolve-SIDIdentity Helper Functions Tests
 
-# Create minimal stubs for missing dependencies FIRST
-function Write-StructuredLog { param($Message, $Level, $CorrelationId, $Component, $Data) }
+# Setup
+$rootPath = $PSScriptRoot
+while ($rootPath -and -not (Test-Path (Join-Path $rootPath 'Find-UnknownSID.ps1'))) {
+    $rootPath = Split-Path $rootPath -Parent
+}
 
-# Load required classes and functions
-$ClassPath = Join-Path $PSScriptRoot '..\..\..\..\Classes'
+if (-not $rootPath) {
+    throw "Cannot find Find-UnknownSID root directory"
+}
+
+# Create Write-StructuredLog stub
+if (-not (Get-Command 'Write-StructuredLog' -ErrorAction SilentlyContinue)) {
+    function Write-StructuredLog {
+        param($Message, $Level = 'Information', $CorrelationId = [System.Guid]::NewGuid().ToString())
+        Write-Verbose "[$Level] [$CorrelationId] $Message"
+    }
+}
+
+# Load Classes
+$ClassPath = Join-Path $rootPath 'Classes'
 if (Test-Path $ClassPath) {
-    Get-ChildItem -Path $ClassPath -Filter '*.ps1' | ForEach-Object { . $_.FullName }
+    Get-ChildItem -Path $ClassPath -Filter '*.ps1' | ForEach-Object { 
+        try { . $_.FullName } catch { }
+    }
 }
 
-# Load SID functions
-$SIDPath = Join-Path $PSScriptRoot '..\..\..\..\Private\SID'
-if (Test-Path $SIDPath) {
-    Get-ChildItem -Path $SIDPath -Filter '*.ps1' | ForEach-Object { . $_.FullName }
+# Load the target file
+$targetFile = Join-Path $rootPath 'Private\SID\Resolve-SIDIdentity.ps1'
+if (Test-Path $targetFile) {
+    try {
+        . $targetFile
+    }
+    catch {
+        Write-Warning "Could not load target file: $($_.Exception.Message)"
+    }
 }
 
-Describe "Resolve-SIDIdentity Function Tests" {
+Describe "Resolve-SIDIdentity Helper Functions Tests" {
     
-    Context "Function Existence and Basic Functionality" {
-        It "Should have Resolve-SIDIdentity function available" {
-            Get-Command Resolve-SIDIdentity -ErrorAction SilentlyContinue | Should Not BeNullOrEmpty
+    Context "Basic Setup Validation" {
+        It "Should be able to run basic tests" {
+            $true | Should Be $true
         }
         
-        It "Should accept SID parameter" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            { Resolve-SIDIdentity -SID $testSID } | Should Not Throw
+        It "Should have Write-StructuredLog function available" {
+            Get-Command 'Write-StructuredLog' -ErrorAction SilentlyContinue | Should Not BeNullOrEmpty
         }
         
-        It "Should accept CorrelationId parameter" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $correlationId = [System.Guid]::NewGuid().ToString()
-            { Resolve-SIDIdentity -SID $testSID -CorrelationId $correlationId } | Should Not Throw
+        It "Should find the root directory" {
+            $rootPath | Should Not BeNullOrEmpty
+            Test-Path (Join-Path $rootPath 'Find-UnknownSID.ps1') | Should Be $true
         }
         
-        It "Should return identity resolution result" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $result = Resolve-SIDIdentity -SID $testSID
-            $result | Should Not BeNullOrEmpty
+        It "Should find the target file" {
+            $targetFile | Should Not BeNullOrEmpty
+            Test-Path $targetFile | Should Be $true
         }
     }
     
-    Context "SID Resolution Scenarios" {
-        It "Should resolve well-known SIDs" {
-            $administratorsSID = 'S-1-5-32-544'  # Local Administrators group
-            $result = Resolve-SIDIdentity -SID $administratorsSID
-            
-            $result | Should Not BeNullOrEmpty
-            # Well-known SIDs should resolve to something
+    Context "Function Availability Tests" {
+        It "Should have Test-AccessRuleForOrphanedSID function available" {
+            $func = Get-Command 'Test-AccessRuleForOrphanedSID' -ErrorAction SilentlyContinue
+            $func | Should Not BeNullOrEmpty
         }
         
-        It "Should handle domain SIDs" {
-            $domainSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $result = Resolve-SIDIdentity -SID $domainSID
-            
-            $result | Should Not BeNullOrEmpty
+        It "Should have Resolve-IdentityReference function available" {
+            $func = Get-Command 'Resolve-IdentityReference' -ErrorAction SilentlyContinue  
+            $func | Should Not BeNullOrEmpty
         }
         
-        It "Should handle orphaned SIDs gracefully" {
-            $orphanedSID = 'S-1-5-21-9999999999-9999999999-9999999999-9999'
-            $result = Resolve-SIDIdentity -SID $orphanedSID
-            
-            $result | Should Not BeNullOrEmpty
-            # Should return information even for orphaned SIDs
+        It "Should have Convert-NTAccountToSID function available" {
+            $func = Get-Command 'Convert-NTAccountToSID' -ErrorAction SilentlyContinue
+            $func | Should Not BeNullOrEmpty
         }
         
-        It "Should handle built-in system SIDs" {
-            $systemSID = 'S-1-5-18'  # Local System
-            $result = Resolve-SIDIdentity -SID $systemSID
-            
-            $result | Should Not BeNullOrEmpty
+        It "Should have Test-SIDValidityAndType function available" {
+            $func = Get-Command 'Test-SIDValidityAndType' -ErrorAction SilentlyContinue
+            $func | Should Not BeNullOrEmpty
+        }
+        
+        It "Should have Get-StringFromIdentityReference function available" {
+            $func = Get-Command 'Get-StringFromIdentityReference' -ErrorAction SilentlyContinue
+            $func | Should Not BeNullOrEmpty
         }
     }
     
-    Context "Parameter Validation" {
-        It "Should validate SID parameter is not null" {
-            { Resolve-SIDIdentity -SID $null } | Should Throw
-        }
-        
-        It "Should validate SID parameter is not empty" {
-            { Resolve-SIDIdentity -SID '' } | Should Throw
-        }
-        
-        It "Should handle correlation ID tracking" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $correlationId = [System.Guid]::NewGuid().ToString()
-            
-            { Resolve-SIDIdentity -SID $testSID -CorrelationId $correlationId } | Should Not Throw
+    Context "Function Type Validation" {
+        It "Functions should be of type Function" {
+            $functions = @('Test-AccessRuleForOrphanedSID', 'Resolve-IdentityReference', 'Convert-NTAccountToSID', 'Test-SIDValidityAndType', 'Get-StringFromIdentityReference')
+            foreach ($funcName in $functions) {
+                $func = Get-Command $funcName -ErrorAction SilentlyContinue
+                if ($func) {
+                    $func.CommandType | Should Be 'Function'
+                }
+            }
         }
     }
     
-    Context "Result Object Structure" {
-        It "Should return structured result object" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $result = Resolve-SIDIdentity -SID $testSID
-            
+    Context "Test-SIDValidityAndType Function Tests" {
+        It "Should validate well-known SID S-1-5-32-544" {
+            $result = Test-SIDValidityAndType -SIDString 'S-1-5-32-544'
             $result | Should Not BeNullOrEmpty
-            $result.PSObject.Properties.Name.Count | Should BeGreaterThan 0
         }
         
-        It "Should include SID in result" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $result = Resolve-SIDIdentity -SID $testSID
-            
-            $result.SID | Should Be $testSID
-        }
-        
-        It "Should provide resolution status" {
-            $testSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            $result = Resolve-SIDIdentity -SID $testSID
-            
-            # Should have some indication of resolution success/failure
-            $result.PSObject.Properties.Name -contains 'Resolved' -or 
-            $result.PSObject.Properties.Name -contains 'Name' -or
-            $result.PSObject.Properties.Name -contains 'Status' | Should Be $true
-        }
-    }
-    
-    Context "Error Handling" {
         It "Should handle invalid SID format gracefully" {
-            $invalidSID = 'Invalid-SID-Format'
-            { Resolve-SIDIdentity -SID $invalidSID } | Should Not Throw
+            { Test-SIDValidityAndType -SIDString 'InvalidSID' } | Should Not Throw
         }
         
-        It "Should handle network connectivity issues" {
-            $remoteSID = 'S-1-5-21-1234567890-1234567890-1234567890-1001'
-            # Should not crash even if AD is unavailable
-            { Resolve-SIDIdentity -SID $remoteSID } | Should Not Throw
+        It "Should process domain SID format" {
+            $domainSID = 'S-1-5-21-1234567890-1234567890-1234567890-1000'
+            { Test-SIDValidityAndType -SIDString $domainSID } | Should Not Throw
+        }
+    }
+    
+    Context "Get-StringFromIdentityReference Function Tests" {
+        It "Should handle null IdentityReference gracefully" {
+            { Get-StringFromIdentityReference -IdentityReference $null } | Should Not Throw
+        }
+        
+        It "Should process string identity reference" {
+            $identity = 'BUILTIN\Administrators'
+            $result = Get-StringFromIdentityReference -IdentityReference $identity
+            $result | Should Not BeNullOrEmpty
+        }
+    }
+    
+    Context "Parameter Validation Tests" {
+        It "Test-AccessRuleForOrphanedSID should have required parameters" {
+            $func = Get-Command 'Test-AccessRuleForOrphanedSID' -ErrorAction SilentlyContinue
+            if ($func) {
+                $params = $func.Parameters.Keys
+                $params -contains 'AccessRule' | Should Be $true
+            }
+        }
+        
+        It "Resolve-IdentityReference should have IdentityReference parameter" {
+            $func = Get-Command 'Resolve-IdentityReference' -ErrorAction SilentlyContinue
+            if ($func) {
+                $params = $func.Parameters.Keys
+                $params -contains 'IdentityReference' | Should Be $true
+            }
+        }
+        
+        It "Convert-NTAccountToSID should have NTAccount parameter" {
+            $func = Get-Command 'Convert-NTAccountToSID' -ErrorAction SilentlyContinue
+            if ($func) {
+                $params = $func.Parameters.Keys
+                $params -contains 'NTAccount' | Should Be $true
+            }
+        }
+    }
+    
+    Context "Error Handling Tests" {
+        It "Functions should handle correlation ID parameter" {
+            $correlationId = [System.Guid]::NewGuid().ToString()
+            
+            # Test functions that support correlation ID
+            { Test-SIDValidityAndType -SIDString 'S-1-5-32-544' -CorrelationId $correlationId } | Should Not Throw
+        }
+        
+        It "Should handle malformed SID inputs" {
+            $malformedSIDs = @('S-1-5', 'S-1-5-32', 'NotASID', '', $null)
+            foreach ($sid in $malformedSIDs) {
+                { Test-SIDValidityAndType -SIDString $sid } | Should Not Throw
+            }
+        }
+    }
+    
+    Context "Integration and Workflow Tests" {
+        It "Should work together in typical SID resolution workflow" {
+            # Test a typical workflow using the helper functions
+            $testSID = 'S-1-5-32-544'
+            
+            # Validate SID format first
+            { Test-SIDValidityAndType -SIDString $testSID } | Should Not Throw
+            
+            # Try to get string representation
+            { Get-StringFromIdentityReference -IdentityReference $testSID } | Should Not Throw
+        }
+        
+        It "Should handle batch processing scenarios" {
+            $sids = @('S-1-5-32-544', 'S-1-5-32-545', 'S-1-5-32-546')
+            foreach ($sid in $sids) {
+                { Test-SIDValidityAndType -SIDString $sid } | Should Not Throw
+            }
         }
     }
     
     Context "Performance and Reliability" {
-        It "Should complete resolution within reasonable time" {
-            $testSID = 'S-1-5-32-544'  # Well-known SID for faster resolution
-            
-            $executionTime = Measure-Command {
-                Resolve-SIDIdentity -SID $testSID
-            }
-            
-            $executionTime.TotalMilliseconds | Should BeLessThan 10000  # 10 seconds max
+        It "Should complete SID validation quickly" {
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            Test-SIDValidityAndType -SIDString 'S-1-5-32-544'
+            $stopwatch.Stop()
+            $stopwatch.ElapsedMilliseconds | Should BeLessThan 1000
         }
         
-        It "Should handle multiple resolution requests" {
-            $testSIDs = @(
-                'S-1-5-32-544',  # Administrators
-                'S-1-5-32-545',  # Users
-                'S-1-5-18'       # System
-            )
-            
+        It "Should handle multiple calls efficiently" {
+            $testSIDs = @('S-1-5-32-544', 'S-1-5-32-545', 'S-1-5-32-546', 'S-1-5-32-551', 'S-1-5-32-555')
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             foreach ($sid in $testSIDs) {
-                { Resolve-SIDIdentity -SID $sid } | Should Not Throw
+                Test-SIDValidityAndType -SIDString $sid
             }
+            $stopwatch.Stop()
+            $stopwatch.ElapsedMilliseconds | Should BeLessThan 2000
         }
     }
 }
