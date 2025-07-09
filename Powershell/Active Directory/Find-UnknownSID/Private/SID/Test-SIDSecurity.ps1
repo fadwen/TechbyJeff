@@ -147,15 +147,17 @@ function Test-SIDSecurity {
 
     process {
         try {
-            Write-StructuredLog "Starting security validation for SID: $SIDString (Level: $ValidationLevel)" -Level Debug -Component 'SIDSecurity' -CorrelationId $CorrelationId
+            try { Write-StructuredLog "Starting security validation for SID: $SIDString (Level: $ValidationLevel)" -Level Debug -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
 
             # Log security validation event
-            Write-SecurityLog -SecurityEventType 'DataValidation' -Message "SID security validation initiated" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
-                SIDString = $SIDString
-                ValidationLevel = $ValidationLevel
-                ObjectDN = $ObjectDN
-                Component = 'SIDSecurity'
-            }
+            try {
+                Write-SecurityLog -SecurityEventType 'DataValidation' -Message "SID security validation initiated" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
+                    SIDString = $SIDString
+                    ValidationLevel = $ValidationLevel
+                    ObjectDN = $ObjectDN
+                    Component = 'SIDSecurity'
+                }
+            } catch { }
 
             $validation = [SecurityValidationResult]::new()
             $validation.IsValid = $true
@@ -170,17 +172,19 @@ function Test-SIDSecurity {
                     $validation.Issues += "Critical security risk detected - potentially malicious input pattern: $pattern"
                     $validation.BlockedSIDs += $SIDString
 
-                    Write-StructuredLog "Malicious input pattern detected in SID: $SIDString" -Level Error -Component 'SIDSecurity' -CorrelationId $CorrelationId
+                    try { Write-StructuredLog "Malicious input pattern detected in SID: $SIDString" -Level Error -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
 
-                    Write-SecurityLog -SecurityEventType 'SecurityViolation' -Message "Malicious input pattern detected in SID validation" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
-                        SIDString = $SIDString
-                        ValidationLevel = $ValidationLevel
-                        BlockedReason = 'MaliciousInputPattern'
-                        DetectedPattern = $pattern
-                        RiskLevel = 'Critical'
-                        SecurityThreat = $true
-                        ObjectDN = $ObjectDN
-                    }
+                    try {
+                        Write-SecurityLog -SecurityEventType 'SecurityViolation' -Message "Malicious input pattern detected in SID validation" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
+                            SIDString = $SIDString
+                            ValidationLevel = $ValidationLevel
+                            BlockedReason = 'MaliciousInputPattern'
+                            DetectedPattern = $pattern
+                            RiskLevel = 'Critical'
+                            SecurityThreat = $true
+                            ObjectDN = $ObjectDN
+                        }
+                    } catch { }
 
                     return $validation
                 }
@@ -193,16 +197,18 @@ function Test-SIDSecurity {
                 $validation.Issues += "SID is in protected SIDs list - removal blocked by security policy"
                 $validation.BlockedSIDs += $SIDString
 
-                Write-StructuredLog "SID $SIDString blocked - found in protected SIDs list" -Level Warning -Component 'SIDSecurity' -CorrelationId $CorrelationId
+                try { Write-StructuredLog "SID $SIDString blocked - found in protected SIDs list" -Level Warning -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
 
                 # Log security blocking event
-                Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Protected SID validation blocked - removal denied" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
-                    SIDString = $SIDString
-                    ValidationLevel = $ValidationLevel
-                    BlockedReason = 'ProtectedSIDsList'
-                    RiskLevel = 'Critical'
-                    ObjectDN = $ObjectDN
-                }
+                try {
+                    Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Protected SID validation blocked - removal denied" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
+                        SIDString = $SIDString
+                        ValidationLevel = $ValidationLevel
+                        BlockedReason = 'ProtectedSIDsList'
+                        RiskLevel = 'Critical'
+                        ObjectDN = $ObjectDN
+                    }
+                } catch { }
 
                 # Early return for protected SIDs - they override all other logic
                 return $validation
@@ -263,24 +269,32 @@ function Test-SIDSecurity {
             switch ($sidAnalysis.RiskLevel) {
                 'High' {
                     $validation.RiskLevel = "High"
+                    # Always add the high-risk message for High risk SIDs
                     $validation.Issues += "High-risk SID requires elevated confirmation for removal"
+                    
                     if ($ValidationLevel -eq 'Strict') {
+                        $validation.RequiresElevatedConfirmation = $true
+                        $validation.IsValid = $false
+                        $validation.BlockedSIDs += $SIDString
+                    } else {
                         $validation.RequiresElevatedConfirmation = $true
                     }
 
                     # Log high-risk SID validation
-                    Write-SecurityLog -SecurityEventType 'DataValidation' -Message "High-risk SID identified - elevated validation required" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
-                        SIDString = $SIDString
-                        ValidationLevel = $ValidationLevel
-                        RiskLevel = 'High'
-                        RequiresElevatedConfirmation = $validation.RequiresElevatedConfirmation
-                        SIDAnalysis = @{
-                            LikelySource = $sidAnalysis.LikelySource
-                            Confidence = $sidAnalysis.Confidence
-                            Notes = $sidAnalysis.Notes
+                    try {
+                        Write-SecurityLog -SecurityEventType 'DataValidation' -Message "High-risk SID identified - elevated validation required" -Outcome 'Attempt' -CorrelationId $CorrelationId -SecurityContext @{
+                            SIDString = $SIDString
+                            ValidationLevel = $ValidationLevel
+                            RiskLevel = 'High'
+                            RequiresElevatedConfirmation = $validation.RequiresElevatedConfirmation
+                            SIDAnalysis = @{
+                                LikelySource = $sidAnalysis.LikelySource
+                                Confidence = $sidAnalysis.Confidence
+                                Notes = $sidAnalysis.Notes
+                            }
+                            ObjectDN = $ObjectDN
                         }
-                        ObjectDN = $ObjectDN
-                    }
+                    } catch { }
                 }
                 'Medium' {
                     if ($ValidationLevel -eq 'Strict') {

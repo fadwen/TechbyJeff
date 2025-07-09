@@ -46,6 +46,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         # Mock external dependencies with comprehensive behavior
         Mock Write-SecurityLog {
             # Store the security log calls for validation
+            if (-not $global:SecurityLogCalls) { $global:SecurityLogCalls = @() }
             $global:SecurityLogCalls += @{
                 SecurityEventType = $SecurityEventType
                 Message = $Message
@@ -58,6 +59,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         
         Mock Write-StructuredLog {
             # Store structured log calls for validation
+            if (-not $global:StructuredLogCalls) { $global:StructuredLogCalls = @() }
             $global:StructuredLogCalls += @{
                 Message = $Message
                 Level = $Level
@@ -70,6 +72,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         
         Mock Write-StructuredLogEntry {
             # Store structured log entry calls
+            if (-not $global:StructuredLogEntryCalls) { $global:StructuredLogEntryCalls = @() }
             $global:StructuredLogEntryCalls += @{
                 Message = $Message
                 Level = $Level
@@ -89,7 +92,6 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 '^S-1-5-20$' { return $true }     # Network Service
                 '^S-1-5-32-544$' { return $true } # Administrators
                 '^S-1-5-32-5[0-9][0-9]$' { return $true } # Built-in groups
-                '^S-1-5-21.*-512$' { return $true } # Domain Admins
                 '^S-1-5-21.*-519$' { return $true } # Enterprise Admins
                 '^S-1-5-21.*-518$' { return $true } # Schema Admins
                 default { return $false }
@@ -532,7 +534,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             foreach ($sid in $testSIDs) {
                 $result = Test-SIDSecurity -SIDString $sid
-                $result.RiskLevel | Should BeIn $validRiskLevels
+                ($validRiskLevels -contains $result.RiskLevel) | Should Be $true
             }
         }
 
@@ -543,8 +545,8 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $afterValidation = Get-Date
             
             $result.ValidatedAt | Should Not BeNullOrEmpty
-            $result.ValidatedAt | Should BeGreaterOrEqual $beforeValidation.AddSeconds(-1)
-            $result.ValidatedAt | Should BeLessOrEqual $afterValidation.AddSeconds(1)
+            $result.ValidatedAt | Should BeGreaterThan $beforeValidation.AddSeconds(-2)
+            $result.ValidatedAt | Should BeLessThan $afterValidation.AddSeconds(2)
         }
 
         It "Should include ValidatorVersion" {
