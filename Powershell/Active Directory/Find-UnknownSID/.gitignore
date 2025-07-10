@@ -1,0 +1,11 @@
+# Ignore all log and backup folders for Find-UnknownSID
+Logs/
+Backup/
+
+# Ignore test results and test logs
+Tests/TestResults/
+Tests/Logs/
+Tests/Results/
+
+# Ignore files
+OrphanedSID_Generation*

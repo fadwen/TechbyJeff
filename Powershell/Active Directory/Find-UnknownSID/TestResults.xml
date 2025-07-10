@@ -1,0 +1,201 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="73" errors="0" failures="16" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2025-07-09" time="11:33:08">
+  <environment user="administrator" machine-name="TBJ-ALBEDO" cwd="C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID" user-domain="TECHBYJEFF" platform="Microsoft Windows Server 2022 Standard Evaluation|C:\Windows|\Device\Harddisk0\Partition3" nunit-version="2.5.8.0" os-version="10.0.20348" clr-version="4.0.30319.42000" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="Powershell" name="Pester" executed="True" result="Failure" success="False" time="13.0363" asserts="0">
+    <results>
+      <test-suite type="TestFixture" name="Test-SIDSecurity Enterprise Security Testing" executed="True" result="Failure" success="False" time="13.0363" asserts="0" description="Test-SIDSecurity Enterprise Security Testing">
+        <results>
+          <test-case description="Should have Test-SIDSecurity function available" name="Test-SIDSecurity Enterprise Security Testing.Should have Test-SIDSecurity function available" time="0.1245" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should accept mandatory SIDString parameter" name="Test-SIDSecurity Enterprise Security Testing.Should accept mandatory SIDString parameter" time="0.0472" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should accept optional ObjectDN parameter" name="Test-SIDSecurity Enterprise Security Testing.Should accept optional ObjectDN parameter" time="0.0493" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should accept ValidationLevel parameter with valid values" name="Test-SIDSecurity Enterprise Security Testing.Should accept ValidationLevel parameter with valid values" time="0.1073" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should reject invalid ValidationLevel values" name="Test-SIDSecurity Enterprise Security Testing.Should reject invalid ValidationLevel values" time="0.0276" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should accept CorrelationId parameter" name="Test-SIDSecurity Enterprise Security Testing.Should accept CorrelationId parameter" time="0.0488" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should generate CorrelationId when not provided" name="Test-SIDSecurity Enterprise Security Testing.Should generate CorrelationId when not provided" time="0.0505" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should reject null or empty SIDString" name="Test-SIDSecurity Enterprise Security Testing.Should reject null or empty SIDString" time="0.0572" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: the expression to throw an exception</message>
+              <stack-trace>at line: 216 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+216:             { Test-SIDSecurity -SIDString "   " } | Should Throw
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should block Local System SID (S-1-5-18)" name="Test-SIDSecurity Enterprise Security Testing.Should block Local System SID (S-1-5-18)" time="0.0775" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should block Administrators group SID (S-1-5-32-544)" name="Test-SIDSecurity Enterprise Security Testing.Should block Administrators group SID (S-1-5-32-544)" time="0.0442" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should block all configured protected SIDs" name="Test-SIDSecurity Enterprise Security Testing.Should block all configured protected SIDs" time="0.1882" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log security blocking events for protected SIDs" name="Test-SIDSecurity Enterprise Security Testing.Should log security blocking events for protected SIDs" time="0.0403" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {ProtectedSIDsList}
+But was:  {}</message>
+              <stack-trace>at line: 262 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+262:             $securityLogs[0].SecurityContext.BlockedReason | Should Be 'ProtectedSIDsList'
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should maintain audit trail for blocked SIDs" name="Test-SIDSecurity Enterprise Security Testing.Should maintain audit trail for blocked SIDs" time="0.0483" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should detect and handle well-known SIDs with Standard validation" name="Test-SIDSecurity Enterprise Security Testing.Should detect and handle well-known SIDs with Standard validation" time="0.068" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should detect and handle well-known SIDs with Strict validation" name="Test-SIDSecurity Enterprise Security Testing.Should detect and handle well-known SIDs with Strict validation" time="0.0453" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should allow well-known SIDs with Basic validation" name="Test-SIDSecurity Enterprise Security Testing.Should allow well-known SIDs with Basic validation" time="0.053" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log well-known SID detection events" name="Test-SIDSecurity Enterprise Security Testing.Should log well-known SID detection events" time="0.042" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle High risk SIDs with elevated confirmation requirements" name="Test-SIDSecurity Enterprise Security Testing.Should handle High risk SIDs with elevated confirmation requirements" time="0.068" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {True}
+But was:  {False}</message>
+              <stack-trace>at line: 333 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+333:             $result.Issues -contains "High-risk SID requires elevated confirmation for removal" | Should Be $true
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should handle Medium risk SIDs appropriately" name="Test-SIDSecurity Enterprise Security Testing.Should handle Medium risk SIDs appropriately" time="0.0565" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should allow Low risk SIDs for removal" name="Test-SIDSecurity Enterprise Security Testing.Should allow Low risk SIDs for removal" time="0.0479" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log high-risk SID validation events" name="Test-SIDSecurity Enterprise Security Testing.Should log high-risk SID validation events" time="0.0418" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should track SID analysis context in risk assessment" name="Test-SIDSecurity Enterprise Security Testing.Should track SID analysis context in risk assessment" time="0.0452" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected {0} to be greater than {0}</message>
+              <stack-trace>at line: 371 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+371:             $analysisLogs.Count | Should BeGreaterThan 0
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should identify SIDs on critical objects" name="Test-SIDSecurity Enterprise Security Testing.Should identify SIDs on critical objects" time="0.0712" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>A parameter cannot be found that matches parameter name 'Encoding'.</message>
+              <stack-trace>at line: 3 in C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0\Functions\Assertions\Contain.ps1</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should handle Enterprise Admins container objects" name="Test-SIDSecurity Enterprise Security Testing.Should handle Enterprise Admins container objects" time="0.0513" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle Schema Admins container objects" name="Test-SIDSecurity Enterprise Security Testing.Should handle Schema Admins container objects" time="0.0441" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should allow SIDs on non-critical objects" name="Test-SIDSecurity Enterprise Security Testing.Should allow SIDs on non-critical objects" time="0.0467" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should validate all critical object patterns from configuration" name="Test-SIDSecurity Enterprise Security Testing.Should validate all critical object patterns from configuration" time="0.1123" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log security validation initiation" name="Test-SIDSecurity Enterprise Security Testing.Should log security validation initiation" time="0.0727" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {SID security validation initiated}
+But was:  {}</message>
+              <stack-trace>at line: 444 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+444:             $initiationLogs[0].Message | Should Be "SID security validation initiated"
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should log successful validation completion" name="Test-SIDSecurity Enterprise Security Testing.Should log successful validation completion" time="0.0557" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should maintain comprehensive security context in logs" name="Test-SIDSecurity Enterprise Security Testing.Should maintain comprehensive security context in logs" time="0.0517" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should include correlation ID in all log entries" name="Test-SIDSecurity Enterprise Security Testing.Should include correlation ID in all log entries" time="0.0499" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log structured debug information" name="Test-SIDSecurity Enterprise Security Testing.Should log structured debug information" time="0.0496" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should return SecurityValidationResult object" name="Test-SIDSecurity Enterprise Security Testing.Should return SecurityValidationResult object" time="0.0693" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should include all required properties" name="Test-SIDSecurity Enterprise Security Testing.Should include all required properties" time="0.0779" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: file IsValid to contain {IsValid}</message>
+              <stack-trace>at line: 512 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+512:             $result.PSObject.Properties.Name | Should Contain 'IsValid'
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should have valid RiskLevel values" name="Test-SIDSecurity Enterprise Security Testing.Should have valid RiskLevel values" time="0.069" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: file Low to contain {Critical}</message>
+              <stack-trace>at line: 534 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+534:                 $validRiskLevels | Should Contain $result.RiskLevel
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should populate ValidatedAt timestamp" name="Test-SIDSecurity Enterprise Security Testing.Should populate ValidatedAt timestamp" time="0.117" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>'BeGreaterOrEqual' is not a valid Should operator.</message>
+              <stack-trace>at line: 42 in C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0\Functions\Assertions\Should.ps1</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should include ValidatorVersion" name="Test-SIDSecurity Enterprise Security Testing.Should include ValidatorVersion" time="0.0556" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should initialize collections properly" name="Test-SIDSecurity Enterprise Security Testing.Should initialize collections properly" time="0.049" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: value was {}, but should not have been the same</message>
+              <stack-trace>at line: 561 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+561:             $result.Issues | Should Not Be $null
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should handle Get-SIDAnalysis failures gracefully" name="Test-SIDSecurity Enterprise Security Testing.Should handle Get-SIDAnalysis failures gracefully" time="0.1129" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>A parameter cannot be found that matches parameter name 'Encoding'.</message>
+              <stack-trace>at line: 3 in C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0\Functions\Assertions\Contain.ps1</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should log errors for audit trail" name="Test-SIDSecurity Enterprise Security Testing.Should log errors for audit trail" time="0.0614" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {Service error}
+But was:  {}</message>
+              <stack-trace>at line: 601 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+601:             $errorLogs[0].SecurityContext.ErrorMessage | Should Be "Service error"
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should handle malformed SID input safely" name="Test-SIDSecurity Enterprise Security Testing.Should handle malformed SID input safely" time="0.1804" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle null script configuration gracefully" name="Test-SIDSecurity Enterprise Security Testing.Should handle null script configuration gracefully" time="0.0772" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should maintain logging even during errors" name="Test-SIDSecurity Enterprise Security Testing.Should maintain logging even during errors" time="0.0378" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: the expression not to throw an exception. Message was {Logging service down}
+    from line:1 char:2
+    +  throw "Logging service down"
+    +  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~</message>
+              <stack-trace>at line: 640 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+640:             { Test-SIDSecurity -SIDString $testSID } | Should Not Throw
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should complete validation within acceptable time" name="Test-SIDSecurity Enterprise Security Testing.Should complete validation within acceptable time" time="0.0793" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle batch validation efficiently" name="Test-SIDSecurity Enterprise Security Testing.Should handle batch validation efficiently" time="0.2763" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should maintain consistent performance across validation levels" name="Test-SIDSecurity Enterprise Security Testing.Should maintain consistent performance across validation levels" time="0.0989" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle memory efficiently" name="Test-SIDSecurity Enterprise Security Testing.Should handle memory efficiently" time="1.6097" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should have Get-SIDRiskAssessment function available" name="Test-SIDSecurity Enterprise Security Testing.Should have Get-SIDRiskAssessment function available" time="0.0498" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should accept SIDList parameter" name="Test-SIDSecurity Enterprise Security Testing.Should accept SIDList parameter" time="0.1243" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should return comprehensive risk assessment object" name="Test-SIDSecurity Enterprise Security Testing.Should return comprehensive risk assessment object" time="0.116" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {SIDRiskAssessment}
+But was:  {}</message>
+              <stack-trace>at line: 726 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+726:             $result.PSTypeName | Should Be 'SIDRiskAssessment'
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should categorize risk levels correctly" name="Test-SIDSecurity Enterprise Security Testing.Should categorize risk levels correctly" time="0.1817" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should determine overall risk level appropriately" name="Test-SIDSecurity Enterprise Security Testing.Should determine overall risk level appropriately" time="0.1787" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should categorize SIDs correctly into blocked, allowed, and requires approval" name="Test-SIDSecurity Enterprise Security Testing.Should categorize SIDs correctly into blocked, allowed, and requires approval" time="0.1274" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should provide actionable recommendations" name="Test-SIDSecurity Enterprise Security Testing.Should provide actionable recommendations" time="0.0992" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should determine SafeForAutomation flag correctly" name="Test-SIDSecurity Enterprise Security Testing.Should determine SafeForAutomation flag correctly" time="0.1136" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle empty SID list gracefully" name="Test-SIDSecurity Enterprise Security Testing.Should handle empty SID list gracefully" time="0.037" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support object context parameter" name="Test-SIDSecurity Enterprise Security Testing.Should support object context parameter" time="0.0765" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support correlation ID tracking" name="Test-SIDSecurity Enterprise Security Testing.Should support correlation ID tracking" time="0.0765" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should log comprehensive risk assessment events" name="Test-SIDSecurity Enterprise Security Testing.Should log comprehensive risk assessment events" time="0.1088" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: {2}
+But was:  {}</message>
+              <stack-trace>at line: 837 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+837:             $riskLogs[0].SecurityContext.TotalSIDs | Should Be 2
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should handle large SID lists efficiently" name="Test-SIDSecurity Enterprise Security Testing.Should handle large SID lists efficiently" time="0.9115" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support SOX compliance requirements" name="Test-SIDSecurity Enterprise Security Testing.Should support SOX compliance requirements" time="0.0828" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support HIPAA compliance requirements" name="Test-SIDSecurity Enterprise Security Testing.Should support HIPAA compliance requirements" time="0.0496" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should maintain detailed audit context for compliance" name="Test-SIDSecurity Enterprise Security Testing.Should maintain detailed audit context for compliance" time="0.0609" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support custom compliance frameworks" name="Test-SIDSecurity Enterprise Security Testing.Should support custom compliance frameworks" time="0.0567" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should respect enterprise protected SID configuration" name="Test-SIDSecurity Enterprise Security Testing.Should respect enterprise protected SID configuration" time="0.0921" asserts="0" success="False" result="Failure" executed="True">
+            <failure>
+              <message>Expected: file S-1-5-18 to contain {S-1-5-18}</message>
+              <stack-trace>at line: 920 in C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1
+920:                 $result.BlockedSIDs | Should Contain $sid
+</stack-trace>
+            </failure>
+          </test-case>
+          <test-case description="Should enforce critical object protection policies" name="Test-SIDSecurity Enterprise Security Testing.Should enforce critical object protection policies" time="0.1319" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support enterprise security validation settings" name="Test-SIDSecurity Enterprise Security Testing.Should support enterprise security validation settings" time="0.0299" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should integrate with enterprise compliance frameworks" name="Test-SIDSecurity Enterprise Security Testing.Should integrate with enterprise compliance frameworks" time="0.0269" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle concurrent validation requests safely" name="Test-SIDSecurity Enterprise Security Testing.Should handle concurrent validation requests safely" time="1.5921" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should handle malicious input patterns safely" name="Test-SIDSecurity Enterprise Security Testing.Should handle malicious input patterns safely" time="0.2211" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should validate all validation levels consistently" name="Test-SIDSecurity Enterprise Security Testing.Should validate all validation levels consistently" time="0.1037" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should maintain security boundaries during validation" name="Test-SIDSecurity Enterprise Security Testing.Should maintain security boundaries during validation" time="0.0491" asserts="0" success="True" result="Success" executed="True" />
+          <test-case description="Should support enterprise-scale batch operations" name="Test-SIDSecurity Enterprise Security Testing.Should support enterprise-scale batch operations" time="3.3829" asserts="0" success="True" result="Success" executed="True" />
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

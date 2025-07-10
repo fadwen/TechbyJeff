@@ -1,0 +1,99 @@
+{
+  "testEnvironment": {
+    "name": "FindUnknownSIDTesting",
+    "version": "1.0.0",
+    "description": "Test configuration for Find-UnknownSID project"
+  },
+  "activeDirectory": {
+    "domain": {
+      "dn": "DC=contoso,DC=com",
+      "name": "CONTOSO",
+      "fqdn": "contoso.com",
+      "netbios": "CONTOSO"
+    },
+    "testOUs": [
+      "OU=Users,DC=contoso,DC=com",
+      "OU=Groups,DC=contoso,DC=com",
+      "OU=Computers,DC=contoso,DC=com",
+      "OU=Test,DC=contoso,DC=com"
+    ],
+    "mockUsers": {
+      "standard": {
+        "count": 100,
+        "prefix": "testuser",
+        "hasOrphanedSIDs": false
+      },
+      "withOrphanedSIDs": {
+        "count": 25,
+        "prefix": "orphanuser",
+        "hasOrphanedSIDs": true
+      },
+      "disabled": {
+        "count": 10,
+        "prefix": "disableduser",
+        "hasOrphanedSIDs": false
+      }
+    }
+  },
+  "performance": {
+    "baselines": {
+      "smallDataset": {
+        "maxObjects": 100,
+        "maxExecutionTimeSeconds": 30,
+        "maxMemoryMB": 50
+      },
+      "mediumDataset": {
+        "maxObjects": 1000,
+        "maxExecutionTimeSeconds": 300,
+        "maxMemoryMB": 200
+      },
+      "largeDataset": {
+        "maxObjects": 10000,
+        "maxExecutionTimeSeconds": 1800,
+        "maxMemoryMB": 1024
+      }
+    },
+    "memoryThresholds": {
+      "minimum": 100,
+      "default": 512,
+      "maximum": 16384
+    }
+  },
+  "security": {
+    "inputValidation": {
+      "enabled": true,
+      "blockMaliciousPatterns": true,
+      "logSecurityEvents": true
+    },
+    "testModes": {
+      "safeTesting": true,
+      "mockDangerousOperations": true,
+      "preventActualExecution": true
+    }
+  },
+  "testData": {
+    "outputPaths": {
+      "reports": "C:\\TestOutput\\Reports",
+      "backups": "C:\\TestOutput\\Backups",
+      "logs": "C:\\TestOutput\\Logs"
+    },
+    "sampleFiles": {
+      "validCSV": "valid-sid-report.csv",
+      "backupFile": "test-backup.json",
+      "corruptedFile": "corrupted-data.json"
+    }
+  },
+  "logging": {
+    "level": "Debug",
+    "includeCorrelationIds": true,
+    "securityLogging": true,
+    "performanceLogging": true
+  },
+  "mock": {
+    "activeDirectoryModule": true,
+    "fileSystemOperations": true,
+    "networkOperations": true,
+    "systemCommands": true,
+    "securityFunctions": true
+  }
+}
