@@ -4,14 +4,14 @@
 
 ```powershell
 # Core functionality tests (176 tests total in Core directory) - Status updated ✅
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1" -Output Detailed                     # 40/40 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1" -Output Detailed         # 38/38 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\Core.Tests.ps1" -Output Detailed                    # 19/19 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\Memory.Tests.ps1" -Output Detailed                  # 27/27 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\Operations.Tests.ps1" -Output Detailed              # 34/34 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\Security.Tests.ps1" -Output Detailed                # 10/10 ✅ (Perfect!)
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1" -Output Detailed           # 6/6 ✅ (Perfect!) FIXED!
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1" -Output Detailed        # 2/2 ✅ (Perfect!) FIXED!
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1" -Verbose                     # 40/40 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1" -Verbose         # 38/38 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\Core.Tests.ps1" -Verbose                    # 19/19 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\Memory.Tests.ps1" -Verbose                  # 27/27 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\Operations.Tests.ps1" -Verbose              # 34/34 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\Security.Tests.ps1" -Verbose                # 10/10 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1" -Verbose           # 6/6 ✅ (Perfect!) FIXED!
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1" -Verbose        # 2/2 ✅ (Perfect!) FIXED!
 
 # 🎯 CORE TESTS STATUS SUMMARY: 176/176 PASSING (100%) 🎉 PERFECT SCORE!
 
@@ -34,7 +34,7 @@ Invoke-Pester -Path ".\Tests\Unit\Private\SID\Get-SIDAnalysis.Tests.ps1"        
 Invoke-Pester -Path ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1"               # 39/39 (100%) ✅ Perfect!
 
 # 🎯 ALL 8 CORE TESTS PERFECT! Run all working tests together (recommended):
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1", ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1", ".\Tests\Unit\Private\Core\Core.Tests.ps1", ".\Tests\Unit\Private\Core\Memory.Tests.ps1", ".\Tests\Unit\Private\Core\Operations.Tests.ps1", ".\Tests\Unit\Private\Core\Security.Tests.ps1", ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1", ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1", ".\Tests\Unit\Private\SID\Resolve-SIDIdentity.Tests.ps1", ".\Tests\Unit\Private\SID\Test-OrphanedSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDFormat.Tests.ps1", ".\Tests\Unit\Private\SID\Get-SIDAnalysis.Tests.ps1", ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1" -Output Normal
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1", ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1", ".\Tests\Unit\Private\Core\Core.Tests.ps1", ".\Tests\Unit\Private\Core\Memory.Tests.ps1", ".\Tests\Unit\Private\Core\Operations.Tests.ps1", ".\Tests\Unit\Private\Core\Security.Tests.ps1", ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1", ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1", ".\Tests\Unit\Private\SID\Resolve-SIDIdentity.Tests.ps1", ".\Tests\Unit\Private\SID\Test-OrphanedSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDFormat.Tests.ps1", ".\Tests\Unit\Private\SID\Get-SIDAnalysis.Tests.ps1", ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1"
 # Expected output: Tests Passed: 377, Failed: 6 (98.4% pass rate) ✅ ENTERPRISE GRADE!
 # Core Tests Achievement: 176/176 passing (100%) 🎉 PERFECT SCORE!
 # Execution time: ~35-40 seconds ⚡
@@ -45,18 +45,18 @@ Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1", ".\Tests\Unit\Pri
 
 ```powershell
 # These tests have parameter binding issues:
-Invoke-Pester -Path ".\Tests\Unit\Operations.Tests.ps1" -Output Detailed       # Parameter updates needed
-Invoke-Pester -Path ".\Tests\Unit\SID.Tests.ps1" -Output Detailed             # Function signature issues  
-Invoke-Pester -Path ".\Tests\Unit\System.Tests.ps1" -Output Detailed          # Interface changes
+Invoke-Pester -Path ".\Tests\Unit\Operations.Tests.ps1" -Verbose       # Parameter updates needed
+Invoke-Pester -Path ".\Tests\Unit\SID.Tests.ps1" -Verbose             # Function signature issues  
+Invoke-Pester -Path ".\Tests\Unit\System.Tests.ps1" -Verbose          # Interface changes
 ```
 
 ## 🚧 MAJOR FIXES NEEDED (Structural Issues)
 
 ```powershell
 # These tests need significant rework:
-Invoke-Pester -Path ".\Tests\Integration\" -Output Detailed                    # Module loading issues
-Invoke-Pester -Path ".\Tests\Performance\" -Output Detailed                   # Missing dependencies
-Invoke-Pester -Path ".\Tests\Security\" -Output Detailed                      # Advanced features missing
+Invoke-Pester -Path ".\Tests\Integration\" -Verbose                    # Module loading issues
+Invoke-Pester -Path ".\Tests\Performance\" -Verbose                   # Missing dependencies
+Invoke-Pester -Path ".\Tests\Security\" -Verbose                      # Advanced features missing
 ```
 
 ## 📊 SCRIPT STATUS VALIDATION

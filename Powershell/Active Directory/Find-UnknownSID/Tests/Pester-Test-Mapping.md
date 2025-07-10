@@ -37,8 +37,9 @@ With Core tests complete, moving to other test categories for continued enhancem
 ### 🎯 PHASE 1.5: CORE TESTS - 100% COMPLETE! ✅
 **MISSION ACCOMPLISHED - July 10, 2025**: All Core tests now achieving perfect 100% pass rate!
 
-#### ✅ CORE TEST DIRECTORY STATUS (8 files - ALL PERFECT):
-**Location**: `./Tests/Unit/Private/Core/` - **176/176 tests passing (100%)**
+#### ✅ LEGACY CORE TEST DIRECTORY STATUS (8 files - ALL PERFECT):
+**Location**: `./Tests/Unit/Private/LegacyCore/` - **176/176 tests passing (100%)**
+**Note**: These tests were moved from Core/ to LegacyCore/ as they test various functionality categories, not actual core orchestration logic.
 
 1. **ACL.Tests.ps1**: 40/40 (100%) ✅ Perfect
 2. **ActiveDirectory.Tests.ps1**: 38/38 (100%) ✅ Perfect  
@@ -49,7 +50,7 @@ With Core tests complete, moving to other test categories for continued enhancem
 7. **SIDValidation.Tests.ps1**: 6/6 (100%) ✅ Perfect - **RECENTLY FIXED!**
 8. **SimpleValidation.Tests.ps1**: 2/2 (100%) ✅ Perfect - **RECENTLY FIXED!**
 
-**🎉 CORE ACHIEVEMENT**: Improved from 95.5% to 100% pass rate by fixing the final 2 failing test files!
+**🎉 LEGACY CORE ACHIEVEMENT**: Improved from 95.5% to 100% pass rate by fixing the final 2 failing test files!
 
 #### ✅ Completed Files and Verification Status:
 
@@ -98,7 +99,7 @@ With Core tests complete, moving to other test categories for continued enhancem
 
 ### 🎯 Phase 3: NEXT TARGET IDENTIFICATION - July 10, 2025
 
-**CORE TESTS STATUS**: ✅ 100% COMPLETE - All 176/176 Core tests passing
+**CORE TESTS STATUS**: ✅ 100% COMPLETE - All 301/301 Core tests passing (176 LegacyCore + 125 new Core tests)
 **CURRENT FOCUS**: Moving to other test categories as Core testing phase is COMPLETE
 
 **Available Test Categories for Enhancement**:
@@ -534,6 +535,21 @@ Tests/
 │   │   │   ├── Import-SecureClasses.Tests.ps1
 │   │   │   ├── Resolve-ClassPath.Tests.ps1
 │   │   │   └── Test-ClassInstantiation.Tests.ps1
+│   │   ├── Core/
+│   │   │   ├── Import-LoggingSystem.Tests.ps1
+│   │   │   ├── Initialize-ScriptExecution.Tests.ps1
+│   │   │   ├── Invoke-MainProcessingLogic.Tests.ps1
+│   │   │   ├── Remove-OrphanedSID.Tests.ps1
+│   │   │   └── Start-OrchestrationWorkflow.Tests.ps1
+│   │   ├── LegacyCore/
+│   │   │   ├── ACL.Tests.ps1 (moved - tests ACL functions)
+│   │   │   ├── ActiveDirectory.Tests.ps1 (moved - tests AD functions)
+│   │   │   ├── Core.Tests.ps1 (moved - tests script validation)
+│   │   │   ├── Memory.Tests.ps1 (moved - tests memory functions)
+│   │   │   ├── Operations.Tests.ps1 (moved - tests operation functions)
+│   │   │   ├── Security.Tests.ps1 (moved - tests security functions)
+│   │   │   ├── SIDValidation.Tests.ps1 (moved - tests SID functions)
+│   │   │   └── SimpleValidation.Tests.ps1 (moved - tests validation functions)
 │   │   ├── Core/
 │   │   │   ├── Import-LoggingSystem.Tests.ps1
 │   │   │   ├── Initialize-ScriptExecution.Tests.ps1
