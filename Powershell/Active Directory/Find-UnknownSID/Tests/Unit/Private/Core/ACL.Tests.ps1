@@ -21,6 +21,22 @@ $ScriptContent = Get-Content "$PSScriptRoot\..\..\Find-UnknownSID.ps1" -Raw
 
 Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
     BeforeAll {
+        # Read script content for content-based testing
+        $script:ScriptContent = Get-Content "$PSScriptRoot\..\..\Find-UnknownSID.ps1" -Raw
+        
+        # Load ACL function files
+        $script:ACLFunctionFiles = @(
+            "$PSScriptRoot\..\..\Private\ACL\Get-ACLForRemoval.ps1",
+            "$PSScriptRoot\..\..\Private\ACL\Invoke-SIDRemoval.ps1", 
+            "$PSScriptRoot\..\..\Private\ACL\Set-ModifiedACL.ps1"
+        )
+        
+        foreach ($file in $script:ACLFunctionFiles) {
+            if (Test-Path $file) {
+                . $file
+            }
+        }
+        
         # Set up test environment
         $TestCorrelationId = [System.Guid]::NewGuid().ToString()
         $TestLogPath = Join-Path $env:TEMP "TestLogs\ACL_$TestCorrelationId.log"
@@ -54,7 +70,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should retrieve ACL successfully with valid path" {
             Mock Get-Acl { return $script:MockACL }
             
-            $result = Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
             
             $result | Should -Not -BeNullOrEmpty
             $result.Success | Should -Be $true
@@ -62,14 +78,14 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         }
         
         It "Should validate required Path parameter" {
-            { Get-ACLForRemoval -Path $null -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be null*"
-            { Get-ACLForRemoval -Path "" -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be empty*"
+            { Get-ACLForRemoval -ObjectDistinguishedName $null -CorrelationId $TestCorrelationId } | Should Throw "*cannot be null*"
+            { Get-ACLForRemoval -ObjectDistinguishedName "" -CorrelationId $TestCorrelationId } | Should Throw "*cannot be empty*"
         }
         
         It "Should handle non-existent paths gracefully" {
             Mock Get-Acl { throw "Path not found" }
             
-            $result = Get-ACLForRemoval -Path "C:\NonExistentPath" -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName "C:\NonExistentPath" -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $false
             $result.Error | Should -Not -BeNullOrEmpty
@@ -78,7 +94,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should handle access denied scenarios" {
             Mock Get-Acl { throw "Access denied" }
             
-            $result = Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $false
             $result.Error | Should -Match "*access*denied*"
@@ -94,14 +110,14 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
                 return $script:MockACL
             }
             
-            $result = Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $script:CallCount | Should -BeGreaterThan 1
         }
         
         It "Should validate Distinguished Name format for AD objects" {
-            { Get-ACLForRemoval -ObjectDistinguishedName "InvalidDN" -CorrelationId $TestCorrelationId } | Should -Throw "*Distinguished Name*"
+            { Get-ACLForRemoval -ObjectDistinguishedName "InvalidDN" -CorrelationId $TestCorrelationId } | Should Throw "*Distinguished Name*"
         }
         
         It "Should retrieve ACL from Active Directory objects" {
@@ -129,35 +145,35 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             }
             Mock Get-Acl { return $script:MockACL }
             
-            Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
         }
         
         It "Should support both file system and registry paths" {
             Mock Get-Acl { return $script:MockACL }
             
-            $fsResult = Get-ACLForRemoval -Path "C:\TestFile.txt" -CorrelationId $TestCorrelationId
-            $regResult = Get-ACLForRemoval -Path "HKLM:\SOFTWARE\Test" -CorrelationId $TestCorrelationId
+            $fsResult = Get-ACLForRemoval -ObjectDistinguishedName "C:\TestFile.txt" -CorrelationId $TestCorrelationId
+            $regResult = Get-ACLForRemoval -ObjectDistinguishedName "HKLM:\SOFTWARE\Test" -CorrelationId $TestCorrelationId
             
             $fsResult.Success | Should -Be $true
             $regResult.Success | Should -Be $true
         }
         
         It "Should validate path format for different providers" {
-            { Get-ACLForRemoval -Path "InvalidPath" -CorrelationId $TestCorrelationId } | Should -Throw "*path format*"
+            { Get-ACLForRemoval -ObjectDistinguishedName "InvalidPath" -CorrelationId $TestCorrelationId } | Should Throw "*path format*"
         }
         
         It "Should handle long path names correctly" {
             $longPath = "C:\" + ("TestDirectory\" * 50) + "TestFile.txt"
             Mock Get-Acl { return $script:MockACL }
             
-            $result = Get-ACLForRemoval -Path $longPath -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName $longPath -CorrelationId $TestCorrelationId
             $result.Success | Should -Be $true
         }
         
         It "Should preserve original ACL properties" {
             Mock Get-Acl { return $script:MockACL }
             
-            $result = Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            $result = Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.ACL.Access | Should -Not -BeNullOrEmpty
             $result.OriginalAccessRuleCount | Should -BeGreaterThan 0
@@ -168,7 +184,8 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should remove SID from ACL successfully" {
             Mock Get-Acl { return $script:MockACL }
             
-            $result = Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            # Using whitelist approach: empty AllowedSIDs means remove all SIDs
+            $result = Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result | Should -Not -BeNullOrEmpty
             $result.Success | Should -Be $true
@@ -176,17 +193,18 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         }
         
         It "Should validate ACL parameter" {
-            { Invoke-SIDRemoval -ACL $null -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be null*"
+            { Invoke-SIDRemoval -ACL $null -AllowedSIDs @() -CorrelationId $TestCorrelationId } | Should Throw "*cannot be null*"
         }
         
         It "Should validate SID format" {
-            { Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove "InvalidSID" -CorrelationId $TestCorrelationId } | Should -Throw "*SID format*"
+            { Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @("InvalidSID") -CorrelationId $TestCorrelationId } | Should Throw "*SID format*"
         }
         
         It "Should handle SID not found in ACL" {
             $nonExistentSID = "S-1-5-21-999999999-888888888-777777777-9999"
             
-            $result = Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove $nonExistentSID -CorrelationId $TestCorrelationId
+            # Keep only the existing TestSID, should return success with no changes
+            $result = Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @($script:TestSID) -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result.RemovedCount | Should -Be 0
@@ -200,7 +218,8 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             $multiACL.SetAccessRule($rule1)
             $multiACL.SetAccessRule($rule2)
             
-            $result = Invoke-SIDRemoval -ACL $multiACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            # Remove all instances by using empty AllowedSIDs
+            $result = Invoke-SIDRemoval -ACL $multiACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result.RemovedCount | Should -BeGreaterOrEqual 2
@@ -214,7 +233,9 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             $preserveACL.SetAccessRule($removeRule)
             
             $originalCount = $preserveACL.Access.Count
-            $result = Invoke-SIDRemoval -ACL $preserveACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            # Keep only the Administrators SID in AllowedSIDs
+            $adminSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")
+            $result = Invoke-SIDRemoval -ACL $preserveACL -AllowedSIDs @($adminSID) -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $preserveACL.Access.Count | Should -Be ($originalCount - 1)
@@ -231,7 +252,8 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             )
             $inheritedACL.SetAccessRule($inheritedRule)
             
-            $result = Invoke-SIDRemoval -ACL $inheritedACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            # Remove the inherited ACL entry by using empty AllowedSIDs
+            $result = Invoke-SIDRemoval -ACL $inheritedACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
         }
@@ -239,7 +261,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should log all removal operations" {
             Mock Write-StructuredLog { }
             
-            Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             Assert-MockCalled Write-StructuredLog -Exactly 1 -ParameterFilter { $Message -match "SID removal" }
         }
@@ -247,14 +269,14 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should handle empty ACL gracefully" {
             $emptyACL = New-Object System.Security.AccessControl.DirectorySecurity
             
-            $result = Invoke-SIDRemoval -ACL $emptyACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            $result = Invoke-SIDRemoval -ACL $emptyACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result.RemovedCount | Should -Be 0
         }
         
         It "Should return detailed removal statistics" {
-            $result = Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            $result = Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $result | Should -HaveProperty 'Success'
             $result | Should -HaveProperty 'RemovedCount'
@@ -267,25 +289,25 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should apply modified ACL successfully" {
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
             
             $result | Should -Not -BeNullOrEmpty
             $result.Success | Should -Be $true
         }
         
         It "Should validate ACL parameter" {
-            { Set-ModifiedACL -Path $script:TestPath -ACL $null -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be null*"
+            { Set-ModifiedACL -ObjectDN $script:TestPath -ACL $null -CorrelationId $TestCorrelationId } | Should Throw "*cannot be null*"
         }
         
         It "Should validate path parameter" {
-            { Set-ModifiedACL -Path $null -ACL $script:MockACL -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be null*"
-            { Set-ModifiedACL -Path "" -ACL $script:MockACL -CorrelationId $TestCorrelationId } | Should -Throw "*cannot be empty*"
+            { Set-ModifiedACL -ObjectDN $null -ACL $script:MockACL -CorrelationId $TestCorrelationId } | Should Throw "*cannot be null*"
+            { Set-ModifiedACL -ObjectDN "" -ACL $script:MockACL -CorrelationId $TestCorrelationId } | Should Throw "*cannot be empty*"
         }
         
         It "Should handle access denied on ACL application" {
             Mock Set-Acl { throw "Access denied" }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $false
             $result.Error | Should -Match "*access*denied*"
@@ -300,7 +322,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
                 }
             }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $script:SetCallCount | Should -BeGreaterThan 1
@@ -310,7 +332,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Get-Acl { return $script:MockACL }
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -BackupOriginal -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -BackupOriginal -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result | Should -HaveProperty 'OriginalACLBackup'
@@ -319,7 +341,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should validate ACL changes before application" {
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -ValidateChanges -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -ValidateChanges -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result | Should -HaveProperty 'ValidationPassed'
@@ -328,21 +350,21 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         It "Should handle file system paths" {
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path "C:\TestFile.txt" -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN "C:\TestFile.txt" -ACL $script:MockACL -CorrelationId $TestCorrelationId
             $result.Success | Should -Be $true
         }
         
         It "Should handle registry paths" {
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path "HKLM:\SOFTWARE\Test" -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN "HKLM:\SOFTWARE\Test" -ACL $script:MockACL -CorrelationId $TestCorrelationId
             $result.Success | Should -Be $true
         }
         
         It "Should handle Active Directory object paths" {
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -ObjectDistinguishedName $script:TestDN -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestDN -ACL $script:MockACL -CorrelationId $TestCorrelationId
             $result.Success | Should -Be $true
         }
         
@@ -350,7 +372,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Set-Acl { }
             Mock Get-Acl { return $script:MockACL }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -VerifyApplication -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -VerifyApplication -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $true
             $result | Should -HaveProperty 'VerificationPassed'
@@ -363,7 +385,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
                 return (New-Object System.Security.AccessControl.DirectorySecurity)
             }
             
-            $result = Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -VerifyApplication -RollbackOnFailure -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -VerifyApplication -RollbackOnFailure -CorrelationId $TestCorrelationId
             
             $result.Success | Should -Be $false
             $result.RollbackPerformed | Should -Be $true
@@ -373,7 +395,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             $longPath = "C:\" + ("LongDirectory\" * 50) + "TestFile.txt"
             Mock Set-Acl { }
             
-            $result = Set-ModifiedACL -Path $longPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            $result = Set-ModifiedACL -ObjectDN $longPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
             $result.Success | Should -Be $true
         }
         
@@ -381,7 +403,7 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Write-StructuredLog { }
             Mock Set-Acl { }
             
-            Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
             
             Assert-MockCalled Write-StructuredLog -Exactly 1 -ParameterFilter { $Message -match "ACL modification" }
         }
@@ -393,15 +415,15 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Set-Acl { }
             
             # Get ACL
-            $getResult = Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
+            $getResult = Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
             $getResult.Success | Should -Be $true
             
-            # Remove SID
-            $removeResult = Invoke-SIDRemoval -ACL $getResult.ACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
+            # Remove SID using empty AllowedSIDs
+            $removeResult = Invoke-SIDRemoval -ACL $getResult.ACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             $removeResult.Success | Should -Be $true
             
             # Set modified ACL
-            $setResult = Set-ModifiedACL -Path $script:TestPath -ACL $getResult.ACL -CorrelationId $TestCorrelationId
+            $setResult = Set-ModifiedACL -ObjectDN $script:TestPath -ACL $getResult.ACL -CorrelationId $TestCorrelationId
             $setResult.Success | Should -Be $true
         }
         
@@ -413,9 +435,9 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Get-Acl { return $script:MockACL }
             Mock Set-Acl { }
             
-            Get-ACLForRemoval -Path $script:TestPath -CorrelationId $TestCorrelationId
-            Invoke-SIDRemoval -ACL $script:MockACL -SIDToRemove $script:TestSID -CorrelationId $TestCorrelationId
-            Set-ModifiedACL -Path $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
+            Get-ACLForRemoval -ObjectDistinguishedName $script:TestPath -CorrelationId $TestCorrelationId
+            Invoke-SIDRemoval -ACL $script:MockACL -AllowedSIDs @() -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
+            Set-ModifiedACL -ObjectDN $script:TestPath -ACL $script:MockACL -CorrelationId $TestCorrelationId
         }
         
         It "Should handle complex ACL scenarios with multiple SIDs" {
@@ -436,8 +458,9 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
             Mock Get-Acl { return $complexACL }
             Mock Set-Acl { }
             
-            # Remove first SID only
-            $removeResult = Invoke-SIDRemoval -ACL $complexACL -SIDToRemove $sids[0] -CorrelationId $TestCorrelationId
+            # Remove first SID only by keeping the others in AllowedSIDs
+            $allowedSIDs = $sids[1..($sids.Count-1)]  # Keep all except first SID
+            $removeResult = Invoke-SIDRemoval -ACL $complexACL -AllowedSIDs $allowedSIDs -ObjectDN $script:TestPath -CorrelationId $TestCorrelationId
             
             $removeResult.Success | Should -Be $true
             $removeResult.RemovedCount | Should -Be 1

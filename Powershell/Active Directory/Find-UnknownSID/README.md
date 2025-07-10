@@ -70,6 +70,23 @@ See [Quick Test Reference](./Documentation/Quick-Test-Reference.md) for detailed
 - ✅ Implemented systematic archive with full search capabilities
 - ✅ Validated CI/CD readiness with automated testing pipeline
 
+## 🔧 TODO
+
+### Testing & Quality Assurance (High Priority)
+- **Pester Test Expansion**: Achieve 100% test coverage by expanding Pester tests for edge cases, error conditions, and integration scenarios to reach enterprise-grade reliability standards
+
+### Performance Optimization
+- **Memory Cleanup Investigation**: Analyze and optimize memory cleanup calls that may be impacting script execution performance during large-scale operations
+
+### Storage Optimization  
+- **Backup Compression**: Implement zip compression for backup folders to reduce storage footprint and improve backup transfer efficiency
+
+### Feature Enhancement
+- **ACL Switch Functionality**: Fix inherited and explicit ACL switch to properly filter discovery operations and reduce unnecessary processing overhead
+
+### Logging & Compliance
+- **UTC Timestamp Standardization**: Ensure all log timestamps use UTC format instead of local time for consistent enterprise logging and multi-timezone compliance requirements
+
 ## 🚀 Quick Start
 
 **TL;DR for experienced administrators:**
