@@ -17,7 +17,7 @@
 #>
 
 # Import the script file for testing
-$ScriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+$ScriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
 if (-not (Test-Path $ScriptPath)) {
     throw "Find-UnknownSID.ps1 not found at expected path: $ScriptPath"
 }

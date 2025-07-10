@@ -6,25 +6,25 @@
 Describe "Find-UnknownSID Core Functionality" {
     Context "Script File Validation" {
         It "Should have Find-UnknownSID.ps1 file available" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             Test-Path $scriptPath | Should Be $true
         }
 
         It "Should be a PowerShell script file" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $extension = [System.IO.Path]::GetExtension($scriptPath)
             $extension | Should Be '.ps1'
         }
 
         It "Should contain main function definitions" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $content = Get-Content $scriptPath -Raw
             $content | Should Match 'param\s*\('
             $content | Should Match 'function\s+Write-StatusMessage'
         }
 
         It "Should have proper script structure" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $content = Get-Content $scriptPath -Raw
             $content | Should Match 'begin\s*\{'
             $content | Should Match 'process\s*\{'
@@ -32,7 +32,7 @@ Describe "Find-UnknownSID Core Functionality" {
         }
 
         It "Should have proper parameter definitions" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $content = Get-Content $scriptPath -Raw
             $content | Should Match '\[Parameter\('
             $content | Should Match 'SearchBase'
@@ -43,7 +43,7 @@ Describe "Find-UnknownSID Core Functionality" {
 
     Context "Script Content Analysis" {
         BeforeAll {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $script:scriptContent = Get-Content $scriptPath -Raw
         }
 
@@ -80,7 +80,7 @@ Describe "Find-UnknownSID Core Functionality" {
         }
 
         It "Should not use PowerShell 7+ specific features" {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $content = Get-Content $scriptPath -Raw
             # Check for PS7+ specific syntax that would break PS5.1
             $content | Should Not Match '\?\?' # Null coalescing operator
@@ -89,7 +89,7 @@ Describe "Find-UnknownSID Core Functionality" {
 
     Context "Security Features" {
         BeforeAll {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $script:scriptContent = Get-Content $scriptPath -Raw
         }
 
@@ -111,7 +111,7 @@ Describe "Find-UnknownSID Core Functionality" {
 
     Context "Enterprise Features" {
         BeforeAll {
-            $scriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+            $scriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
             $script:scriptContent = Get-Content $scriptPath -Raw
         }
 

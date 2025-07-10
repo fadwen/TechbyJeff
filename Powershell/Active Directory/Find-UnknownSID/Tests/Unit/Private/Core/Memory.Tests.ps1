@@ -9,7 +9,7 @@ Describe "Memory Management Validation" -Tag "Memory", "Core", "ContentAnalysis"
     BeforeAll {
         # Test configuration for memory management validation
         $TestConfig = @{
-            ScriptPath = (Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\..\Find-UnknownSID.ps1')).Path
+            ScriptPath = (Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '..\..\..\..\Find-UnknownSID.ps1')).Path
             RequiredClasses = @('MemoryManager', 'StreamingResultsManager', 'ProcessingStatistics')
             RequiredMethods = @('GetMemoryUsage', 'DisposeResources', 'GetProcessingStats')
             MemoryThresholds = @{
