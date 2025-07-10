@@ -18,7 +18,7 @@
 #>
 
 # Import the script under test
-$ScriptPath = "$PSScriptRoot\..\..\Find-UnknownSID.ps1"
+$ScriptPath = "$PSScriptRoot\..\..\..\..\Find-UnknownSID.ps1"
 $ScriptContent = Get-Content -Path $ScriptPath -Raw
 
 Describe "Operations Tests" -Tag "Unit", "Operations" {
