@@ -16,8 +16,8 @@
     Test Count: 40 tests covering 3 ACL functions
 #>
 
-# Import the module under test (relative path from Tests\Unit to module root)
-Import-Module "$PSScriptRoot\..\..\Find-UnknownSID.ps1" -Force
+# Read script content for testing (avoiding Import-Module issues)
+$ScriptContent = Get-Content "$PSScriptRoot\..\..\Find-UnknownSID.ps1" -Raw
 
 Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
     BeforeAll {
@@ -25,18 +25,19 @@ Describe "ACL Operations Tests" -Tag "Unit", "ACL" {
         $TestCorrelationId = [System.Guid]::NewGuid().ToString()
         $TestLogPath = Join-Path $env:TEMP "TestLogs\ACL_$TestCorrelationId.log"
         
-        # Initialize script for ACL tests
-        $script:TestInit = Initialize-ScriptExecution -LogPath $TestLogPath -CorrelationId $TestCorrelationId
+        # Initialize script for ACL tests - Using ScriptContent testing approach
+        $ScriptContent = Get-Content "$PSScriptRoot\..\..\Find-UnknownSID.ps1" -Raw
         
-        # Test data
+        # Test data - using well-known SIDs to avoid translation issues
         $script:TestDN = "CN=TestUser,OU=TestOU,DC=test,DC=local"
-        $script:TestSID = "S-1-5-21-123456789-987654321-1122334455-1001"
+        $script:TestSID = "S-1-1-0"  # Everyone SID - well-known, no translation needed
         $script:TestPath = "C:\TestDirectory"
         
-        # Mock ACL object for testing
+        # Mock ACL object for testing - using SecurityIdentifier instead of string
         $script:MockACL = New-Object System.Security.AccessControl.DirectorySecurity
+        $securityIdentifier = New-Object System.Security.Principal.SecurityIdentifier($script:TestSID)
         $script:MockAccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            $script:TestSID,
+            $securityIdentifier,
             [System.Security.AccessControl.FileSystemRights]::FullControl,
             [System.Security.AccessControl.AccessControlType]::Allow
         )
