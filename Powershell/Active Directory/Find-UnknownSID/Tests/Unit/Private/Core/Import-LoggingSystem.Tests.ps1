@@ -9,7 +9,9 @@
     enterprise logging standards.
 
 .NOTES
-    Author: GitHub Copilot
+    Author: Jeffrey Stuhr
+    Blog: https://www.techbyjeff.net
+    LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
     Version: 1.0.0
     PowerShell: 5.1 compatible
     Pester: 3.4.x compatible
