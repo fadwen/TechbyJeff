@@ -9,3 +9,4 @@ Tests/Results/
 
 # Ignore files
 OrphanedSID_Generation*
+TestResults.xml
