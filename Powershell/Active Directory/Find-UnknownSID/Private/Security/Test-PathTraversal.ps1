@@ -32,25 +32,31 @@ function Test-PathTraversal {
     }
 
     process {
+        # Validate base path first - throw error for invalid base paths
+        try {
+            $resolvedBasePath = Resolve-Path $BasePath -ErrorAction Stop
+        } catch {
+            throw "Invalid base path: $BasePath - $($_.Exception.Message)"
+        }
+
         foreach ($currentPath in $Path) {
             $totalPaths++
 
             try {
+                # Check for traversal patterns first (before path existence)
+                $patternFound = $false
+                foreach ($pattern in $traversalPatterns) {
+                    if ($currentPath -match $pattern) {
+                        $patternFound = $true
+                        break
+                    }
+                }
+
                 if (Test-Path $currentPath) {
                     $resolvedPath = Resolve-Path $currentPath -ErrorAction Stop
-                    $resolvedBasePath = Resolve-Path $BasePath -ErrorAction Stop
 
                     # Check if resolved path is within base path
                     $isWithinBasePath = $resolvedPath.Path.StartsWith($resolvedBasePath.Path, [System.StringComparison]::OrdinalIgnoreCase)
-
-                    # Check for traversal patterns
-                    $patternFound = $false
-                    foreach ($pattern in $traversalPatterns) {
-                        if ($currentPath -match $pattern) {
-                            $patternFound = $true
-                            break
-                        }
-                    }
 
                     $isSafe = $isWithinBasePath -and (-not $patternFound)
 
@@ -70,12 +76,37 @@ function Test-PathTraversal {
                         CorrelationId = $CorrelationId
                     }
                 } else {
+                    # Path doesn't exist, but still check for traversal patterns
                     $unsafePaths++
-                    Write-Warning "Path does not exist: $currentPath"
+                    
+                    # Only warn in non-test environments to reduce test noise
+                    if (-not $env:PESTER_TESTING) {
+                        Write-Warning "Path does not exist: $currentPath"
+                    }
+                    
+                    $validationResults += [PSCustomObject]@{
+                        OriginalPath = $currentPath
+                        ResolvedPath = $null
+                        BasePath = $BasePath
+                        IsWithinBasePath = $false
+                        ContainsTraversalPattern = $patternFound
+                        IsSafe = $false
+                        CorrelationId = $CorrelationId
+                    }
                 }
             } catch {
                 $unsafePaths++
                 Write-Error "Error validating path $currentPath : $($_.Exception.Message)"
+                
+                $validationResults += [PSCustomObject]@{
+                    OriginalPath = $currentPath
+                    ResolvedPath = $null
+                    BasePath = $BasePath
+                    IsWithinBasePath = $false
+                    ContainsTraversalPattern = $patternFound
+                    IsSafe = $false
+                    CorrelationId = $CorrelationId
+                }
             }
         }
     }
@@ -103,6 +134,7 @@ function Test-PathTraversal {
             SafePaths = $safePaths
             UnsafePaths = $unsafePaths
             ValidationPassed = $validationPassed
+            BasePath = $BasePath
             CorrelationId = $CorrelationId
         }
     }
