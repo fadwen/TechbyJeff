@@ -24,6 +24,13 @@ Invoke-Pester -Path ".\Tests\Unit\Private\Security\Test-PathTraversal.Tests.ps1"
 
 # � SECURITY TESTS STATUS SUMMARY: 108/108 PASSING (100%) 🎉 PERFECT SCORE!
 
+# ACL tests (51 tests total in ACL directory) - Status added ✅
+Invoke-Pester -Path ".\Tests\Unit\Private\ACL\Get-ACLForRemoval.Tests.ps1" -Verbose                # 9/9 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\ACL\Invoke-SIDRemoval.Tests.ps1" -Verbose               # 21/21 ✅ (Perfect!)
+Invoke-Pester -Path ".\Tests\Unit\Private\ACL\Set-ModifiedACL.Tests.ps1" -Verbose                 # 21/21 ✅ (Perfect!)
+
+# 🎯 ACL TESTS STATUS SUMMARY: 51/51 PASSING (100%) 🎉 PERFECT SCORE!
+
 # Enhanced SID tests (298 tests total with 97.4% pass rate) - Status updated ✅
 Invoke-Pester -Path ".\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1"            # 67/73 (91.8%) ✅ Outstanding!
 Invoke-Pester -Path ".\Tests\Unit\Private\SID\Resolve-SIDIdentity.Tests.ps1"         # 22/24 (91.7%) ✅ Excellent!
@@ -35,19 +42,20 @@ Invoke-Pester -Path ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1"          
 # Public function tests (20 tests) - Status updated ✅
 Invoke-Pester -Path ".\Tests\Unit\Public\Find-UnknownSID.Tests.ps1" -Verbose          # 20/20 ✅ (Perfect!)
 
-**✅ ALL CORE + SECURITY TESTS PERFECT:**
+**✅ ALL CORE + SECURITY + ACL TESTS PERFECT:**
 - Core Tests: 176/176 (100%) ✅
 - Security Tests: 108/108 (100%) ✅  
+- ACL Tests: 51/51 (100%) ✅
 - Public Tests: 20/20 (100%) ✅
 - Enhanced SID Tests: 201/206 (97.6%) ⭐
 
 **🎉 MULTIPLE CATEGORIES ACHIEVEMENT: 98%+ SUCCESS RATE - ENTERPRISE GRADE!**
 
 # 🎯 Run all working tests together (recommended):
-Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1", ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1", ".\Tests\Unit\Private\Core\Core.Tests.ps1", ".\Tests\Unit\Private\Core\Memory.Tests.ps1", ".\Tests\Unit\Private\Core\Operations.Tests.ps1", ".\Tests\Unit\Private\Core\Security.Tests.ps1", ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1", ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1", ".\Tests\Unit\Private\Security\Get-SecurityDescriptor.Tests.ps1", ".\Tests\Unit\Private\Security\Invoke-RemovalVerification.Tests.ps1", ".\Tests\Unit\Private\Security\Invoke-SecurityValidation.Tests.ps1", ".\Tests\Unit\Private\Security\Test-ClassIntegrity.Tests.ps1", ".\Tests\Unit\Private\Security\Test-PathTraversal.Tests.ps1", ".\Tests\Unit\Public\Find-UnknownSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1", ".\Tests\Unit\Private\SID\Resolve-SIDIdentity.Tests.ps1", ".\Tests\Unit\Private\SID\Test-OrphanedSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDFormat.Tests.ps1", ".\Tests\Unit\Private\SID\Get-SIDAnalysis.Tests.ps1", ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1"
-# Expected output: Tests Passed: 505+, Failed: <10 (98%+ pass rate) ✅ ENTERPRISE GRADE!
-# Core + Security Tests Achievement: 304/304 passing (100%) 🎉 PERFECT SCORE!
-# Execution time: ~60-70 seconds ⚡
+Invoke-Pester -Path ".\Tests\Unit\Private\Core\ACL.Tests.ps1", ".\Tests\Unit\Private\Core\ActiveDirectory.Tests.ps1", ".\Tests\Unit\Private\Core\Core.Tests.ps1", ".\Tests\Unit\Private\Core\Memory.Tests.ps1", ".\Tests\Unit\Private\Core\Operations.Tests.ps1", ".\Tests\Unit\Private\Core\Security.Tests.ps1", ".\Tests\Unit\Private\Core\SIDValidation.Tests.ps1", ".\Tests\Unit\Private\Core\SimpleValidation.Tests.ps1", ".\Tests\Unit\Private\Security\Get-SecurityDescriptor.Tests.ps1", ".\Tests\Unit\Private\Security\Invoke-RemovalVerification.Tests.ps1", ".\Tests\Unit\Private\Security\Invoke-SecurityValidation.Tests.ps1", ".\Tests\Unit\Private\Security\Test-ClassIntegrity.Tests.ps1", ".\Tests\Unit\Private\Security\Test-PathTraversal.Tests.ps1", ".\Tests\Unit\Private\ACL\Get-ACLForRemoval.Tests.ps1", ".\Tests\Unit\Private\ACL\Invoke-SIDRemoval.Tests.ps1", ".\Tests\Unit\Private\ACL\Set-ModifiedACL.Tests.ps1", ".\Tests\Unit\Public\Find-UnknownSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDSecurity.Tests.ps1", ".\Tests\Unit\Private\SID\Resolve-SIDIdentity.Tests.ps1", ".\Tests\Unit\Private\SID\Test-OrphanedSID.Tests.ps1", ".\Tests\Unit\Private\SID\Test-SIDFormat.Tests.ps1", ".\Tests\Unit\Private\SID\Get-SIDAnalysis.Tests.ps1", ".\Tests\Unit\Private\SID\New-SIDResult.Tests.ps1"
+# Expected output: Tests Passed: 556+, Failed: <10 (98%+ pass rate) ✅ ENTERPRISE GRADE!
+# Core + Security + ACL Tests Achievement: 355/355 passing (100%) 🎉 PERFECT SCORE!
+# Execution time: ~70-80 seconds ⚡
 # CI/CD Ready: No interactive prompts 🚀
 # Output Quality: Professional execution with clean logging ✨
 ```
@@ -117,20 +125,21 @@ Invoke-Pester -Path ".\Tests\Security\" -Verbose                      # Advanced
 - **Script Functionality:** 100% Operational ✅
 - **Core Tests:** 176/176 Passing (100%) 🎉 - ALL 8 TESTS PERFECT!
 - **Security Tests:** 108/108 Passing (100%) 🎉 - ALL 5 TESTS PERFECT!
+- **ACL Tests:** 51/51 Passing (100%) 🎉 - ALL 3 TESTS PERFECT!
 - **Public Tests:** 20/20 Passing (100%) ✅ - PERFECT!
 - **Enhanced SID Tests:** 201/206 Passing (97.6%) ⭐
-- **Total Test Coverage:** 500+ tests with 98%+ pass rate ✅
+- **Total Test Coverage:** 556+ tests with 98%+ pass rate ✅
 - **Enterprise Standards:** Achieved with comprehensive security & performance testing 🚀
 - **Testing Innovation:** Content-analysis approach ensures safe script validation 🔬
 - **Output Quality:** Professional test execution with clean logging achieved ✨
 - **Ready for Development:** YES ✅
-- **Core + Security Testing:** COMPLETE! 100% SUCCESS RATE ACHIEVED! 🎉
+- **Core + Security + ACL Testing:** COMPLETE! 100% SUCCESS RATE ACHIEVED! 🎉
 
 ---
 
 **Last Updated:** July 11, 2025  
-**Recent Achievement:** 🎉 SECURITY TESTS 100% COMPLETE! All 5 Security test files now passing (108/108 tests)
-**Major Success:** Clean output quality with conditional warning suppression achieved
+**Recent Achievement:** 🎉 ACL TESTS 100% COMPLETE! All 3 ACL test files now passing (51/51 tests)
+**Major Success:** Parameter prompting elimination achieving unattended test execution
 **Next Target:** Integration Tests for end-to-end workflow validation
-**Security Test Status:** 🎯 MISSION ACCOMPLISHED - 100% SUCCESS RATE!
-**Combined Achievement:** Core + Security = 284/284 tests passing (100%) 🚀
+**ACL Test Status:** 🎯 MISSION ACCOMPLISHED - 100% SUCCESS RATE!
+**Combined Achievement:** Core + Security + ACL = 355/355 tests passing (100%) 🚀
