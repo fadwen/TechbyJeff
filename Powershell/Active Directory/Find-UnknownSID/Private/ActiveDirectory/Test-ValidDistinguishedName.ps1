@@ -126,8 +126,9 @@ function Test-ValidDistinguishedName {
     [CmdletBinding()]
     [OutputType([bool])]
     param(
-        [Parameter(Mandatory, ValueFromPipeline)]
+        [Parameter(ValueFromPipeline)]
         [AllowEmptyString()]
+        [AllowNull()]
         [string]$DistinguishedName,
 
         [Parameter()]
@@ -149,39 +150,117 @@ function Test-ValidDistinguishedName {
             }
 
             # Basic format validation - must contain DC component and proper structure
-            if (-not ($DistinguishedName -match '^(CN|OU|DC)=.+,DC=.+$')) {
+            # Make case-insensitive and allow for various valid DN formats
+            if (-not ($DistinguishedName -match '(?i)^(CN|OU|DC)\s*=.+,\s*DC\s*=.+$')) {
                 Write-StructuredLog "Distinguished Name validation failed: Invalid format structure" -Level Debug -Component 'DNValidator' -CorrelationId $CorrelationId
                 return $false
             }
 
-            # Security validation - check for dangerous characters
-            $dangerousChars = '[<>:"/\\|?*\x00-\x1f\x7f-\x9f]'
-            if ($DistinguishedName -match $dangerousChars) {
-                Write-StructuredLog "Distinguished Name validation failed: Contains dangerous characters" -Level Warning -Component 'DNValidator' -CorrelationId $CorrelationId
+            # Security validation - check for specific injection patterns
+            $injectionPatterns = @(
+                '\$\(',           # PowerShell subexpression $(...)
+                '`\$',            # PowerShell variable expansion `$
+                ';',              # Command separator
+                '&',              # Command separator  
+                '\|',             # Pipe operator
+                '`',              # PowerShell backtick
+                '%[0-9A-Fa-f]',   # URL encoded characters like %00
+                '\x00',           # Null bytes
+                '<script',        # Script injection
+                'javascript:',    # JavaScript injection
+                'vbscript:',      # VBScript injection
+                '\.\.\/',         # Path traversal (specific pattern)
+                '\.\.\.',         # Multiple dots for traversal
+                'DROP\s+TABLE',   # SQL injection
+                'UNION\s+SELECT', # SQL injection
+                '--',             # SQL comments
+                '/\*',            # SQL comments
+                '\*/'             # SQL comments
+            )
+            
+            foreach ($pattern in $injectionPatterns) {
+                if ($DistinguishedName -match $pattern) {
+                    Write-StructuredLog "Distinguished Name validation failed: Contains dangerous characters: $pattern" -Level Warning -Component 'DNValidator' -CorrelationId $CorrelationId
+                    return $false
+                }
+            }
+            
+            # Additional dangerous characters (but allow escaped sequences)
+            # Control characters and other dangerous chars
+            if ($DistinguishedName -match '[\x00-\x1f\x7f-\x9f]') {
+                Write-StructuredLog "Distinguished Name validation failed: Contains control characters" -Level Warning -Component 'DNValidator' -CorrelationId $CorrelationId
                 return $false
             }
 
-            # Validate DN components structure
-            $components = ($DistinguishedName -split ',')
+            # Validate DN components structure - handle escaped commas and quoted values properly
+            # Split on commas that are not escaped (not preceded by backslash) and not inside quotes
+            $components = @()
+            $current = ""
+            $chars = $DistinguishedName.ToCharArray()
+            $inQuotes = $false
+            
+            for ($i = 0; $i -lt $chars.Length; $i++) {
+                $char = $chars[$i]
+                
+                if ($char -eq '"' -and ($i -eq 0 -or $chars[$i-1] -ne '\')) {
+                    # Toggle quote state for unescaped quotes
+                    $inQuotes = -not $inQuotes
+                    $current += $char
+                } elseif ($char -eq ',' -and -not $inQuotes -and ($i -eq 0 -or $chars[$i-1] -ne '\')) {
+                    # Found unescaped comma outside quotes - component boundary
+                    $components += $current.Trim()
+                    $current = ""
+                } else {
+                    $current += $char
+                }
+            }
+            # Add the last component
+            if ($current) {
+                $components += $current.Trim()
+            }
             foreach ($component in $components) {
                 $component = $component.Trim()
 
-                # Each component must have format: TYPE=VALUE
-                if (-not ($component -match '^(CN|OU|DC)=.+$')) {
+                # Each component must have format: TYPE=VALUE (case-insensitive)
+                # Handle quoted values and escaped characters - ensure single equals sign
+                if (-not ($component -match '(?i)^(CN|OU|DC)\s*=[^=].*$')) {
                     Write-StructuredLog "Distinguished Name validation failed: Invalid component format: $component" -Level Debug -Component 'DNValidator' -CorrelationId $CorrelationId
                     return $false
                 }
 
                 # Component value cannot be empty after the equals sign
-                $parts = $component -split '=', 2
-                if ($parts.Length -ne 2 -or [string]::IsNullOrWhiteSpace($parts[1])) {
+                # Handle spaces around equals sign and quoted values
+                # Split on equals that is not escaped (not preceded by backslash)
+                $equalsIndex = -1
+                for ($j = 0; $j -lt $component.Length; $j++) {
+                    if ($component[$j] -eq '=' -and ($j -eq 0 -or $component[$j-1] -ne '\')) {
+                        $equalsIndex = $j
+                        break
+                    }
+                }
+                
+                if ($equalsIndex -eq -1) {
+                    Write-StructuredLog "Distinguished Name validation failed: No unescaped equals found in component: $component" -Level Debug -Component 'DNValidator' -CorrelationId $CorrelationId
+                    return $false
+                }
+                
+                $attributeType = $component.Substring(0, $equalsIndex).Trim()
+                $value = $component.Substring($equalsIndex + 1).Trim()
+                
+                # Handle quoted values - remove quotes for validation
+                if ($value.StartsWith('"') -and $value.EndsWith('"') -and $value.Length -gt 1) {
+                    $value = $value.Substring(1, $value.Length - 2)
+                }
+                
+                # Value cannot be empty
+                if ([string]::IsNullOrWhiteSpace($value)) {
                     Write-StructuredLog "Distinguished Name validation failed: Empty component value: $component" -Level Debug -Component 'DNValidator' -CorrelationId $CorrelationId
                     return $false
                 }
             }
 
-            # Must contain at least one DC component
-            $domainComponents = $components | Where-Object { $_ -match '^DC=' }
+            # Must contain at least one DC component (case-insensitive)
+            $domainComponents = $components | Where-Object { $_ -match '(?i)^DC\s*=' }
             if ($domainComponents.Count -eq 0) {
                 Write-StructuredLog "Distinguished Name validation failed: No domain components (DC=) found" -Level Debug -Component 'DNValidator' -CorrelationId $CorrelationId
                 return $false
