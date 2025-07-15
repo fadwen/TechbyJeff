@@ -153,11 +153,11 @@ function Invoke-RestoreWorkflow {
         [ValidateNotNullOrEmpty()]
         [string]$TargetObjectDN,
 
-        [Parameter(ParameterSetName = 'BackupDirectory')]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$BackupPath,
 
-        [Parameter(ParameterSetName = 'BackupFile')]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$BackupFile,
 
@@ -192,6 +192,66 @@ function Invoke-RestoreWorkflow {
         $errorMessage = $null
         $allResults = @()
 
+        # Custom parameter validation - BEFORE try block so validation errors are thrown
+        if (-not $BackupFile -and -not $BackupPath) {
+            throw "Either BackupFile or BackupPath must be specified"
+        }
+        
+        # Trim and sanitize input
+        $TargetObjectDN = $TargetObjectDN.Trim()
+        
+        # Validate target DN format
+        if (-not ($TargetObjectDN -match '^(CN|OU|DC)=.+')) {
+            throw "Invalid target object DN format"
+        }
+
+        # Validate backup file/path exists and is secure
+        if ($BackupFile) {
+            # Security: Normalize and validate file path to prevent traversal attacks
+            try {
+                $normalizedPath = [System.IO.Path]::GetFullPath($BackupFile)
+                if (-not $normalizedPath.StartsWith("C:\")) {
+                    throw "Backup file path must be within allowed directories"
+                }
+                
+                # Check file extension for security
+                $extension = [System.IO.Path]::GetExtension($BackupFile)
+                if ($extension -notin @('.xml', '.json', '.txt')) {
+                    throw "Invalid backup file extension. Only .xml, .json, and .txt files are allowed"
+                }
+                
+                if (-not (Test-Path $normalizedPath)) {
+                    throw "Backup file not found"
+                }
+            }
+            catch [System.ArgumentException] {
+                throw "Invalid backup file path"
+            }
+            catch [System.Security.SecurityException] {
+                throw "Backup file path is not secure"
+            }
+        }
+
+        if ($BackupPath) {
+            # Security: Normalize and validate directory path to prevent traversal attacks
+            try {
+                $normalizedPath = [System.IO.Path]::GetFullPath($BackupPath)
+                if (-not $normalizedPath.StartsWith("C:\")) {
+                    throw "Backup path must be within allowed directories"
+                }
+                
+                if (-not (Test-Path $normalizedPath -PathType Container)) {
+                    throw "Backup directory not found"
+                }
+            }
+            catch [System.ArgumentException] {
+                throw "Invalid backup directory path"
+            }
+            catch [System.Security.SecurityException] {
+                throw "Backup directory path is not secure"
+            }
+        }
+
         try {
             Write-Verbose "Starting restore workflow for: $TargetObjectDN - CorrelationId: $CorrelationId"
 
@@ -203,14 +263,6 @@ function Invoke-RestoreWorkflow {
                 Duration = $null
                 ErrorMessage = $null
             }
-
-            # Validate target DN format
-            if (-not ($TargetObjectDN -match '^(CN|OU|DC)=.+')) {
-                throw "Invalid target object DN format: $TargetObjectDN"
-            }
-
-            # Trim and sanitize input
-            $TargetObjectDN = $TargetObjectDN.Trim()
 
             $workflowSteps[-1].Status = "Completed"
             $workflowSteps[-1].Duration = (Get-Date) - $workflowSteps[-1].StartTime
@@ -231,17 +283,10 @@ function Invoke-RestoreWorkflow {
 
             if ($BackupFile) {
                 # Single file mode - specific backup file provided
-                if (-not (Test-Path $BackupFile)) {
-                    throw "Backup file not found: $BackupFile"
-                }
                 $backupFilesToProcess = @($BackupFile)
                 $restoreMode = "Single"
             } elseif ($BackupPath) {
                 # Directory mode - discover backup files
-                if (-not (Test-Path $BackupPath -PathType Container)) {
-                    throw "Backup directory not found: $BackupPath"
-                }
-
                 # Get all XML backup files in the directory
                 $allBackupFiles = @(Get-ChildItem -Path $BackupPath -Filter "*.xml" -File)
 
@@ -367,13 +412,13 @@ function Invoke-RestoreWorkflow {
                     $workflowSteps[-1].ProcessedObjects++
                     
                     $failedResult = [PSCustomObject]@{
-                        PSTypeName = 'RestoreWorkflowResult'
                         Success = $false
                         TargetObjectDN = "Unknown (from $backupFile)"
                         ErrorMessage = "Failed to process backup file: $($_.Exception.Message)"
                         BackupFile = $backupFile
                         CorrelationId = $CorrelationId
                     }
+                    $failedResult.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
                     $allResults += $failedResult
                     
                     Write-Warning "Failed to process backup file $backupFile : $($_.Exception.Message)"
@@ -386,7 +431,10 @@ function Invoke-RestoreWorkflow {
             # Determine overall success
             $successfulRestores = $workflowSteps[-1].SuccessfulRestores
             $totalProcessed = $workflowSteps[-1].ProcessedObjects
-            $overallSuccess = ($successfulRestores -gt 0) -and ($workflowSteps[-1].FailedRestores -eq 0)
+            $failedRestores = $workflowSteps[-1].FailedRestores
+            
+            # Overall success = no failures AND at least one success
+            $overallSuccess = ($failedRestores -eq 0) -and ($successfulRestores -gt 0)
 
             if ($restoreMode -eq "Bulk") {
                 Write-Verbose "Bulk restore completed - $successfulRestores/$totalProcessed successful - CorrelationId: $CorrelationId"
@@ -414,7 +462,6 @@ function Invoke-RestoreWorkflow {
         if ($restoreMode -eq "Bulk") {
             # Return summary result for bulk operations
             $result = [PSCustomObject]@{
-                PSTypeName = 'RestoreWorkflowResult'
                 Success = $overallSuccess
                 TargetObjectDN = $TargetObjectDN
                 RestoreMode = $restoreMode
@@ -422,7 +469,7 @@ function Invoke-RestoreWorkflow {
                 SuccessfulRestores = $workflowSteps[-1].SuccessfulRestores
                 FailedRestores = $workflowSteps[-1].FailedRestores
                 IndividualResults = $allResults
-                EntriesRestored = ($allResults | Where-Object { $_.Success } | Measure-Object -Property EntriesRestored -Sum).Sum
+                EntriesRestored = [int](($allResults | Where-Object { $_.Success } | Measure-Object -Property EntriesRestored -Sum).Sum)
                 WorkflowSteps = $workflowSteps
                 ValidationLevel = $ValidationLevel
                 Duration = $workflowDuration
@@ -431,6 +478,7 @@ function Invoke-RestoreWorkflow {
                 CompletedAt = Get-Date
                 ErrorMessage = if ($overallSuccess) { $null } else { $errorMessage }
             }
+            $result.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
         } else {
             # Return individual result for single operations
             if ($allResults.Count -gt 0) {
@@ -441,14 +489,15 @@ function Invoke-RestoreWorkflow {
                 $result | Add-Member -MemberType NoteProperty -Name "Duration" -Value $workflowDuration -Force
                 $result | Add-Member -MemberType NoteProperty -Name "WhatIfMode" -Value $WhatIfPreference -Force
                 $result | Add-Member -MemberType NoteProperty -Name "CompletedAt" -Value (Get-Date) -Force
+                # Ensure proper PSTypeName is set
+                $result.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
             } else {
                 # Fallback result
                 $result = [PSCustomObject]@{
-                    PSTypeName = 'RestoreWorkflowResult'
                     Success = $overallSuccess
                     TargetObjectDN = $TargetObjectDN
                     RestoreMode = $restoreMode
-                    EntriesRestored = 0
+                    EntriesRestored = [int]0
                     WorkflowSteps = $workflowSteps
                     ValidationLevel = $ValidationLevel
                     Duration = $workflowDuration
@@ -457,6 +506,7 @@ function Invoke-RestoreWorkflow {
                     CompletedAt = Get-Date
                     ErrorMessage = if ($overallSuccess) { $null } else { $errorMessage }
                 }
+                $result.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
             }
         }
 
@@ -551,11 +601,10 @@ function Restore-IndividualObject {
 
         # Create success result
         $result = [PSCustomObject]@{
-            PSTypeName = 'RestoreWorkflowResult'
             Success = $true
             TargetObjectDN = $TargetObjectDN
             BackupFile = $BackupFile
-            EntriesRestored = if ($aclOperation.ModificationsApplied) { $aclOperation.ModificationsApplied } else { 0 }
+            EntriesRestored = [int]$(if ($aclOperation.ModificationsApplied) { $aclOperation.ModificationsApplied } else { 0 })
             BackupValidation = $backupValidation
             TargetValidation = $targetValidation
             ACLOperation = $aclOperation
@@ -563,21 +612,22 @@ function Restore-IndividualObject {
             CorrelationId = $CorrelationId
             ErrorMessage = $null
         }
+        $result.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
 
         Write-Verbose "Successfully restored object: $TargetObjectDN ($($result.EntriesRestored) entries)"
         return $result
     }
     catch {
         $errorResult = [PSCustomObject]@{
-            PSTypeName = 'RestoreWorkflowResult'
             Success = $false
             TargetObjectDN = $TargetObjectDN
             BackupFile = $BackupFile
-            EntriesRestored = 0
+            EntriesRestored = [int]0
             Duration = (Get-Date) - $startTime
             CorrelationId = $CorrelationId
             ErrorMessage = $_.Exception.Message
         }
+        $errorResult.PSTypeNames.Insert(0, 'RestoreWorkflowResult')
 
         Write-Warning "Failed to restore object: $TargetObjectDN - $($_.Exception.Message)"
         return $errorResult

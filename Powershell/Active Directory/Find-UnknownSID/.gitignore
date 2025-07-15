@@ -3,11 +3,14 @@ Logs/
 Backup/
 
 # Ignore test results and test logs
-Tests/TestResults/
+Tests/Scripts/
 Tests/Logs/
 Tests/Results/
 
 # Ignore files
 OrphanedSID_Generation*
-TestResults.xml
 Test-Debug.ps1
+test*.xml
+
+# Make sure these unit tests aren't ignored
+!Tests/Unit/Private/Backup
