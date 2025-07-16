@@ -107,21 +107,21 @@ Describe "New-ACLBackup" -Tag "Unit", "Backup", "ACLBackup" {
                     if (Get-Variable -Name TestIntegrityFailure -Scope Global -ErrorAction SilentlyContinue) {
                         $integrityFailure = Get-Variable -Name TestIntegrityFailure -Scope Global -ErrorAction SilentlyContinue
                         $integrityValue = $integrityFailure.Value
-                        Write-Host "DEBUG: Found TestIntegrityFailure in Global scope: $integrityValue"
+                        Write-Verbose "DEBUG: Found TestIntegrityFailure in Global scope: $integrityValue"
                     }
                     
                     # Method 2: Check script scope
                     if (-not $integrityFailure -and (Get-Variable -Name TestIntegrityFailure -Scope Script -ErrorAction SilentlyContinue)) {
                         $integrityFailure = Get-Variable -Name TestIntegrityFailure -Scope Script -ErrorAction SilentlyContinue
                         $integrityValue = $integrityFailure.Value
-                        Write-Host "DEBUG: Found TestIntegrityFailure in Script scope: $integrityValue"
+                        Write-Verbose "DEBUG: Found TestIntegrityFailure in Script scope: $integrityValue"
                     }
                     
                     # Method 3: Check using Get-Variable without scope (searches all scopes)
                     if (-not $integrityFailure -and (Get-Variable -Name TestIntegrityFailure -ErrorAction SilentlyContinue)) {
                         $integrityFailure = Get-Variable -Name TestIntegrityFailure -ErrorAction SilentlyContinue
                         $integrityValue = $integrityFailure.Value
-                        Write-Host "DEBUG: Found TestIntegrityFailure in any scope: $integrityValue"
+                        Write-Verbose "DEBUG: Found TestIntegrityFailure in any scope: $integrityValue"
                     }
                     
                     # Method 4: Try to access the variable directly
@@ -129,38 +129,38 @@ Describe "New-ACLBackup" -Tag "Unit", "Backup", "ACLBackup" {
                         try {
                             if ($Global:TestIntegrityFailure) {
                                 $integrityValue = $Global:TestIntegrityFailure
-                                Write-Host "DEBUG: Found TestIntegrityFailure via direct Global access: $integrityValue"
+                                Write-Verbose "DEBUG: Found TestIntegrityFailure via direct Global access: $integrityValue"
                             }
                         } catch {
                             # Variable doesn't exist, that's fine
                         }
                     }
                     
-                    Write-Host "DEBUG: Mock function called for ObjectDN: $ObjectDN"
-                    Write-Host "DEBUG: IntegrityFailure variable found: $($integrityValue -ne $null)"
-                    Write-Host "DEBUG: IntegrityFailure value: $integrityValue"
+                    Write-Verbose "DEBUG: Mock function called for ObjectDN: $ObjectDN"
+                    Write-Verbose "DEBUG: IntegrityFailure variable found: $($integrityValue -ne $null)"
+                    Write-Verbose "DEBUG: IntegrityFailure value: $integrityValue"
                     
                     if ($integrityValue) {
-                        Write-Host "DEBUG: Processing integrity failure scenario: $integrityValue"
+                        Write-Verbose "DEBUG: Processing integrity failure scenario: $integrityValue"
                         switch ($integrityValue) {
                             "InvalidHash" {
-                                Write-Host "DEBUG: Throwing InvalidHash exception"
+                                Write-Verbose "DEBUG: Throwing InvalidHash exception"
                                 Write-StructuredLog -Level Error -Message "Backup integrity check failed: Hash mismatch detected"
                                 throw "Backup integrity check failed: Hash mismatch detected"
                             }
                             "ObjectDNMismatch" {
-                                Write-Host "DEBUG: Throwing ObjectDNMismatch exception"
+                                Write-Verbose "DEBUG: Throwing ObjectDNMismatch exception"
                                 Write-StructuredLog -Level Error -Message "Backup integrity check failed: ObjectDN mismatch detected"
                                 throw "Backup integrity check failed: ObjectDN mismatch detected"
                             }
                             "MissingSDDLHash" {
-                                Write-Host "DEBUG: Throwing MissingSDDLHash exception"
+                                Write-Verbose "DEBUG: Throwing MissingSDDLHash exception"
                                 Write-StructuredLog -Level Error -Message "Backup integrity check failed: Missing required property"
                                 throw "Backup integrity check failed: Missing required property"
                             }
                         }
                     } else {
-                        Write-Host "DEBUG: No integrity failure scenario detected"
+                        Write-Verbose "DEBUG: No integrity failure scenario detected"
                     }
                 
                     # Special handling for test failure scenarios
