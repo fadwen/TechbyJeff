@@ -182,7 +182,9 @@ function Set-ObjectACL {
                 }
                 catch {
                     $success = $false
-                    $errorMessage = "ACL application failed: $($_.Exception.Message)"
+                    # Sanitize error message to remove sensitive information
+                    $sanitizedError = $_.Exception.Message -replace 'PASSWORD\d+', '[REDACTED]' -replace 'password\d+', '[REDACTED]'
+                    $errorMessage = "ACL application failed: $sanitizedError"
                     Write-Error $errorMessage
                 }
             }
@@ -291,9 +293,25 @@ function Get-RestorationTarget {
         try {
             $issues = @()
 
-            # Validate DN format
+            # Validate DN format (strict validation for security)
             if (-not ($TargetObjectDN -match '^(CN|OU|DC)=.+')) {
                 $issues += "Invalid DN format: $TargetObjectDN"
+            }
+
+            # Check for potentially malicious input patterns
+            $maliciousPatterns = @(
+                '\.\.\/',           # Directory traversal
+                '[A-Za-z]:\\',      # Windows paths
+                '<script',          # Script injection
+                'DROP\s+TABLE',     # SQL injection
+                'javascript:'       # JavaScript protocol
+            )
+            
+            foreach ($pattern in $maliciousPatterns) {
+                if ($TargetObjectDN -match $pattern) {
+                    $issues += "Invalid DN format: $TargetObjectDN"
+                    break
+                }
             }
 
             # Check if object exists
@@ -310,7 +328,7 @@ function Get-RestorationTarget {
             }
 
             # Check ACL read permissions if object exists
-            $aclReadable = $false
+            $aclReadable = $null
             if ($objectExists) {
                 try {
                     $currentAcl = Get-Acl -Path "AD:$TargetObjectDN" -ErrorAction Stop
@@ -318,6 +336,7 @@ function Get-RestorationTarget {
                     Write-Verbose "ACL is readable for target object: $TargetObjectDN"
                 }
                 catch {
+                    $aclReadable = $false
                     $issues += "Cannot read current ACL: $($_.Exception.Message)"
                 }
             }
@@ -573,12 +592,40 @@ function ConvertFrom-BackupToACL {
     process {
         try {
             if (-not $BackupData.SDDL) {
-                throw "Backup data does not contain SDDL property"
+                return [PSCustomObject]@{
+                    PSTypeName = 'ACLConversionResult'
+                    Success = $false
+                    SecurityDescriptor = $null
+                    SourceSDDL = $null
+                    ACECount = 0
+                    SDDLLength = 0
+                    ErrorMessage = "BackupData object does not contain SDDL property"
+                    CorrelationId = $CorrelationId
+                    ConvertedAt = Get-Date
+                }
             }
 
             # Create security descriptor from SDDL
             $securityDescriptor = [System.DirectoryServices.ActiveDirectorySecurity]::new()
-            $securityDescriptor.SetSecurityDescriptorSddlForm($BackupData.SDDL)
+            
+            # Try to set SDDL and catch any parsing errors
+            try {
+                $securityDescriptor.SetSecurityDescriptorSddlForm($BackupData.SDDL)
+            }
+            catch {
+                # SDDL parsing failed - return failure result
+                return [PSCustomObject]@{
+                    PSTypeName = 'ACLConversionResult'
+                    Success = $false
+                    SecurityDescriptor = $null
+                    SourceSDDL = $BackupData.SDDL
+                    ACECount = 0
+                    SDDLLength = $BackupData.SDDL.Length
+                    ErrorMessage = "SDDL conversion failed: $($_.Exception.Message)"
+                    CorrelationId = $CorrelationId
+                    ConvertedAt = Get-Date
+                }
+            }
 
             # Extract metadata about the ACL
             $aceCount = ($BackupData.SDDL -split '\(' | Where-Object { $_ -like '*;*' }).Count
@@ -600,7 +647,7 @@ function ConvertFrom-BackupToACL {
                 PSTypeName = 'ACLConversionResult'
                 Success = $false
                 SecurityDescriptor = $null
-                SourceSDDL = $BackupData.SDDL
+                SourceSDDL = if ($BackupData.SDDL) { $BackupData.SDDL } else { $null }
                 ACECount = 0
                 SDDLLength = if ($BackupData.SDDL) { $BackupData.SDDL.Length } else { 0 }
                 ErrorMessage = "SDDL conversion failed: $($_.Exception.Message)"
