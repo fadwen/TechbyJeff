@@ -154,7 +154,7 @@ function Get-BackupMetadata {
             Write-StructuredLog "Extracting metadata from backup: $sanitizedPath" -Level Debug -CorrelationId $CorrelationId
 
             # Validate file existence and accessibility
-            if (-not (Test-Path $sanitizedPath -PathType Leaf)) {
+            if (-not (Test-Path -LiteralPath $sanitizedPath -PathType Leaf)) {
                 $errorMessage = "Backup file not found or inaccessible: $sanitizedPath"
                 Write-StructuredLog $errorMessage -Level Error -CorrelationId $CorrelationId
                 Write-Error $errorMessage -ErrorAction Stop
@@ -163,7 +163,7 @@ function Get-BackupMetadata {
 
             # Import backup data with comprehensive error handling
             try {
-                $backupData = Import-Clixml -Path $sanitizedPath -ErrorAction Stop
+                $backupData = Import-Clixml -LiteralPath $sanitizedPath -ErrorAction Stop
             }
             catch {
                 $errorMessage = "Failed to import backup XML data from $sanitizedPath : $($_.Exception.Message)"
@@ -173,12 +173,10 @@ function Get-BackupMetadata {
             }
 
             # Get file system information
-            $fileInfo = Get-Item $sanitizedPath -ErrorAction Stop
+            $fileInfo = Get-Item -LiteralPath $sanitizedPath -ErrorAction Stop
 
             # Create comprehensive metadata object
             $metadata = [PSCustomObject]@{
-                PSTypeName = 'BackupMetadata'
-
                 # File Information
                 FileName = $fileInfo.Name
                 FilePath = $fileInfo.FullName
@@ -211,6 +209,9 @@ function Get-BackupMetadata {
                 ExtractionCorrelationId = $CorrelationId
                 ExtractionTime = Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ'
             }
+            
+            # Add the type name to the object's type collection
+            $metadata.PSObject.TypeNames.Insert(0, 'BackupMetadata')
 
             Write-StructuredLog "Successfully extracted metadata for backup: $($backupData.ObjectDN)" -Level Verbose -CorrelationId $CorrelationId
 
@@ -227,7 +228,7 @@ function Get-BackupMetadata {
                 BackupFilePath = $BackupFilePath
             }
 
-            Write-StructuredLog "Failed to extract metadata from backup file" -Level Error -Details $errorDetails -CorrelationId $CorrelationId
+            Write-StructuredLog "Failed to extract metadata from backup file" -Level Error -Data $errorDetails -CorrelationId $CorrelationId
 
             Write-Error "Failed to extract metadata from backup: $($_.Exception.Message)" -ErrorAction Stop
         }

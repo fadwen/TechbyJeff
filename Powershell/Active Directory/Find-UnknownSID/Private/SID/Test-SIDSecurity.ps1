@@ -191,7 +191,14 @@ function Test-SIDSecurity {
             }
 
             # Check if SID is in protected list
+            Write-Host "DEBUG: Checking if SID '$SIDString' is in protected list"
+            Write-Host "DEBUG: script:Config exists: $($script:Config -ne $null)"
+            Write-Host "DEBUG: script:Config.ProtectedSIDs exists: $($script:Config.ProtectedSIDs -ne $null)"
+            Write-Host "DEBUG: script:Config.ProtectedSIDs count: $($script:Config.ProtectedSIDs.Count)"
+            Write-Host "DEBUG: script:Config.ProtectedSIDs contains '$SIDString': $($script:Config.ProtectedSIDs -contains $SIDString)"
+            
             if ($script:Config -and $script:Config.ProtectedSIDs -contains $SIDString) {
+                Write-Host "PROTECTED SID DETECTED: $SIDString"
                 $validation.IsValid = $false
                 $validation.RiskLevel = "Critical"
                 $validation.Issues += "SID is in protected SIDs list - removal blocked by security policy"
@@ -207,9 +214,13 @@ function Test-SIDSecurity {
                     RiskLevel = 'Critical'
                     ObjectDN = $ObjectDN
                 }
+                Write-Host "SECURITY CONTEXT CREATED: $($securityContext | ConvertTo-Json -Compress)"
                 try {
+                    Write-Host "CALLING Write-SecurityLog with Outcome=Failure"
                     Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Protected SID validation blocked - removal denied" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext $securityContext
+                    Write-Host "Write-SecurityLog call completed"
                 } catch { 
+                    Write-Host "Write-SecurityLog call failed: $($_.Exception.Message)"
                     # Store security context for test access even if logging fails
                     $script:LastSecurityContext = $securityContext
                 }
@@ -217,6 +228,9 @@ function Test-SIDSecurity {
                 # Early return for protected SIDs - they override all other logic
                 return $validation
             }
+
+            # Perform SID analysis early for comprehensive risk assessment
+            $sidAnalysis = Get-SIDAnalysis -SIDString $SIDString -CorrelationId $CorrelationId
 
             # Check well-known SIDs using the Test-SIDFormat module
             $isWellKnown = Test-WellKnownSID -SID $SIDString -CorrelationId $CorrelationId
@@ -237,6 +251,7 @@ function Test-SIDSecurity {
                         RiskLevel = 'High'
                         SystemSecurityImpact = $true
                         ObjectDN = $ObjectDN
+                        SIDAnalysis = $sidAnalysis
                     }
                     try {
                         Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Well-known SID validation blocked - system security protection" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext $securityContext
@@ -250,9 +265,6 @@ function Test-SIDSecurity {
                 }
             }
 
-            # Perform SID analysis for additional risk assessment using Get-SIDAnalysis module
-            $sidAnalysis = Get-SIDAnalysis -SIDString $SIDString -CorrelationId $CorrelationId
-
             # Handle malicious input patterns with immediate blocking
             if ($sidAnalysis.RiskLevel -eq 'Critical') {
                 $validation.IsValid = $false
@@ -263,16 +275,21 @@ function Test-SIDSecurity {
                 try { Write-StructuredLog "Critical risk SID $SIDString blocked for security" -Level Error -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
 
                 # Log critical security blocking
+                $securityContext = @{
+                    SIDString = $SIDString
+                    ValidationLevel = $ValidationLevel
+                    BlockedReason = 'CriticalSecurityRisk'
+                    RiskLevel = 'Critical'
+                    SecurityThreat = $true
+                    ObjectDN = $ObjectDN
+                    SIDAnalysis = $sidAnalysis
+                }
                 try {
-                    Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Critical risk SID validation blocked - security threat detected" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext @{
-                        SIDString = $SIDString
-                        ValidationLevel = $ValidationLevel
-                        BlockedReason = 'CriticalSecurityRisk'
-                        RiskLevel = 'Critical'
-                        SecurityThreat = $true
-                        ObjectDN = $ObjectDN
-                    }
-                } catch { }
+                    Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Critical risk SID validation blocked - security threat detected" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext $securityContext
+                } catch { 
+                    # Store security context for test access even if logging fails
+                    $script:LastSecurityContext = $securityContext
+                }
 
                 # Early return for critical security risks
                 return $validation

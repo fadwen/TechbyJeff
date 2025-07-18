@@ -757,7 +757,7 @@ begin {
             'SID\New-SIDResult.ps1',
             'SID\Invoke-SIDProcessing.ps1',
             'Backup\New-ACLBackup.ps1',
-            'Backup\Test-BackupIntegrity.ps1',
+            'Utilities\Test-BackupIntegrity.ps1',
             'Backup\Get-BackupMetadata.ps1',
             'Backup\Find-BackupFile.ps1',
             'Security\Invoke-SecurityValidation.ps1',

@@ -48,6 +48,19 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         
         # Mock external dependencies with comprehensive behavior
         Mock Write-SecurityLog {
+            param(
+                [string]$SecurityEventType,
+                [string]$Message,
+                [string]$Outcome,
+                [string]$CorrelationId,
+                [hashtable]$SecurityContext,
+                [string]$RiskLevel = 'Medium'
+            )
+            # Enhanced debugging
+            Write-Host "Mock Write-SecurityLog called with SecurityEventType=$SecurityEventType, Outcome=$Outcome" -ForegroundColor Cyan
+            Write-Host "SecurityContext type: $($SecurityContext.GetType().Name)" -ForegroundColor Cyan
+            Write-Host "SecurityContext contents: $($SecurityContext | ConvertTo-Json -Compress)" -ForegroundColor Cyan
+            
             # Store the security log calls for validation
             if (-not $global:SecurityLogCalls) { $global:SecurityLogCalls = @() }
             $global:SecurityLogCalls += @{
@@ -59,9 +72,18 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 RiskLevel = $RiskLevel
                 Timestamp = Get-Date
             }
+            # Debug output
+            Write-Host "Mock captured: SecurityEventType=$SecurityEventType, Outcome=$Outcome, BlockedReason=$($SecurityContext.BlockedReason), SID=$($SecurityContext.SIDString)" -ForegroundColor Yellow
         }
         
         Mock Write-StructuredLog {
+            param(
+                [string]$Message,
+                [string]$Level,
+                [string]$Component,
+                [string]$CorrelationId,
+                [hashtable]$Data
+            )
             # Store structured log calls for validation
             if (-not $global:StructuredLogCalls) { $global:StructuredLogCalls = @() }
             $global:StructuredLogCalls += @{
@@ -74,7 +96,18 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             }
         } -ModuleName $null
         
+        # Define stub functions for mocking
+        function Global:Format-LogMessage { }
+        function Global:Write-SecurityStructuredLogEntry { }
+        
         Mock Write-StructuredLogEntry {
+            param(
+                [string]$Component,
+                [string]$Level,
+                [string]$Message,
+                [string]$CorrelationId,
+                [hashtable]$Details
+            )
             # Store structured log entry calls
             if (-not $global:StructuredLogEntryCalls) { $global:StructuredLogEntryCalls = @() }
             $global:StructuredLogEntryCalls += @{
@@ -83,6 +116,38 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 Component = $Component
                 CorrelationId = $CorrelationId
                 Details = $Details
+                Timestamp = Get-Date
+            }
+        } -ModuleName $null
+        
+        Mock Format-LogMessage {
+            param(
+                [string]$Message,
+                [string]$Level,
+                [string]$Component,
+                [string]$CorrelationId,
+                [hashtable]$AdditionalData,
+                [string]$Format = 'PlainText'
+            )
+            return "[$Level] $Component - $Message"
+        } -ModuleName $null
+        
+        Mock Write-SecurityStructuredLogEntry {
+            param(
+                [string]$Level,
+                [string]$Component,
+                [string]$Message,
+                [string]$CorrelationId,
+                [hashtable]$Data
+            )
+            # Store security structured log entry calls
+            if (-not $global:SecurityStructuredLogEntryCalls) { $global:SecurityStructuredLogEntryCalls = @() }
+            $global:SecurityStructuredLogEntryCalls += @{
+                Level = $Level
+                Component = $Component
+                Message = $Message
+                CorrelationId = $CorrelationId
+                Data = $Data
                 Timestamp = Get-Date
             }
         } -ModuleName $null
@@ -262,9 +327,21 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         It "Should log security blocking events for protected SIDs" {
             $global:SecurityLogCalls = @()
             $protectedSID = "S-1-5-18"
-            Test-SIDSecurity -SIDString $protectedSID
+            Write-Host "DEBUG: Test is calling Test-SIDSecurity with SID: $protectedSID"
+            $result = Test-SIDSecurity -SIDString $protectedSID
+            Write-Host "DEBUG: Function returned result with SID: $($result.SIDString) and IsValid: $($result.IsValid)"
             
-            $securityLogs = $global:SecurityLogCalls | Where-Object { $_.SecurityEventType -eq 'DataValidation' -and $_.Outcome -eq 'Failure' }
+            Write-Host "DEBUG: SecurityLogCalls count: $($global:SecurityLogCalls.Count)"
+            $global:SecurityLogCalls | ForEach-Object { Write-Host "DEBUG: Call - EventType: $($_.SecurityEventType), Outcome: $($_.Outcome), BlockedReason: $($_.SecurityContext.BlockedReason)" }
+            
+            # Filter for specific protected SID failure with BlockedReason
+            $securityLogs = $global:SecurityLogCalls | Where-Object { 
+                $_.SecurityEventType -eq 'DataValidation' -and 
+                $_.Outcome -eq 'Failure' -and 
+                $_.SecurityContext.BlockedReason -eq 'ProtectedSIDsList'
+            }
+            Write-Host "DEBUG: Found $($securityLogs.Count) matching security logs with BlockedReason='ProtectedSIDsList'"
+            
             $securityLogs.Count | Should BeGreaterThan 0
             $securityLogs[0].SecurityContext.BlockedReason | Should Be 'ProtectedSIDsList'
         }
@@ -274,7 +351,12 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             $correlationId = [System.Guid]::NewGuid().ToString()
             $result = Test-SIDSecurity -SIDString $protectedSID -CorrelationId $correlationId
             
-            $auditLogs = $global:SecurityLogCalls | Where-Object { $_.CorrelationId -eq $correlationId }
+            $auditLogs = $global:SecurityLogCalls | Where-Object { 
+                $_.CorrelationId -eq $correlationId -and 
+                $_.SecurityEventType -eq 'DataValidation' -and 
+                $_.Outcome -eq 'Failure' -and
+                $_.SecurityContext.SIDString -eq $protectedSID 
+            }
             $auditLogs.Count | Should BeGreaterThan 0
             $auditLogs[0].SecurityContext.SIDString | Should Be $protectedSID
         }
@@ -336,6 +418,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             $securityLogs = $global:SecurityLogCalls | Where-Object { 
                 $_.SecurityEventType -eq 'DataValidation' -and 
+                $_.Outcome -eq 'Failure' -and
                 $_.SecurityContext.BlockedReason -eq 'WellKnownSID' 
             }
             $securityLogs.Count | Should BeGreaterThan 0
@@ -380,6 +463,7 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             
             $riskLogs = $global:SecurityLogCalls | Where-Object { 
                 $_.SecurityEventType -eq 'DataValidation' -and 
+                $_.Outcome -eq 'Failure' -and
                 $_.SecurityContext.RiskLevel -eq 'High' 
             }
             $riskLogs.Count | Should BeGreaterThan 0
@@ -390,6 +474,8 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
             Test-SIDSecurity -SIDString $testSID -ValidationLevel 'Strict'
             
             $analysisLogs = $global:SecurityLogCalls | Where-Object { 
+                $_.SecurityEventType -eq 'DataValidation' -and 
+                $_.Outcome -eq 'Failure' -and
                 $_.SecurityContext.SIDAnalysis -ne $null 
             }
             $analysisLogs.Count | Should BeGreaterThan 0

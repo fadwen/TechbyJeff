@@ -150,8 +150,7 @@ function Find-BackupFile {
     [CmdletBinding()]
     [OutputType('BackupInventoryResult')]
     param(
-        [Parameter(Mandatory, ValueFromPipeline)]
-        [ValidateNotNullOrEmpty()]
+        [Parameter(ValueFromPipeline)]
         [string]$BackupPath,
 
         [Parameter()]
@@ -171,23 +170,12 @@ function Find-BackupFile {
     process {
         try {
             # Validate input parameters
-            if (-not $BackupPath.Trim()) {
+            if (-not $BackupPath -or -not $BackupPath.Trim()) {
                 Write-Error "BackupPath cannot be empty or whitespace" -ErrorAction Stop
                 return
             }
 
-            $sanitizedPath = $BackupPath.Trim()
-            Write-StructuredLog "Starting backup file discovery in: $sanitizedPath" -Level Debug -CorrelationId $CorrelationId
-
-            # Validate directory existence and accessibility
-            if (-not (Test-Path $sanitizedPath -PathType Container)) {
-                $errorMessage = "Backup directory not found or inaccessible: $sanitizedPath"
-                Write-StructuredLog $errorMessage -Level Error -CorrelationId $CorrelationId
-                Write-Error $errorMessage -ErrorAction Stop
-                return
-            }
-
-            # Validate DateRange format if provided
+            # Validate DateRange format if provided (do this before path validation)
             if ($DateRange) {
                 if ($DateRange.StartDate -and $DateRange.StartDate -isnot [DateTime]) {
                     Write-Error "DateRange.StartDate must be a DateTime object" -ErrorAction Stop
@@ -201,6 +189,26 @@ function Find-BackupFile {
                     Write-Error "DateRange.StartDate cannot be later than DateRange.EndDate" -ErrorAction Stop
                     return
                 }
+            }
+
+            $sanitizedPath = $BackupPath.Trim()
+            Write-StructuredLog "Starting backup file discovery in: $sanitizedPath" -Level Debug -CorrelationId $CorrelationId
+
+            # Validate directory existence and accessibility
+            try {
+                if (-not (Test-Path $sanitizedPath -PathType Container)) {
+                    $errorMessage = "Backup directory not found or inaccessible: $sanitizedPath"
+                    Write-StructuredLog $errorMessage -Level Error -CorrelationId $CorrelationId
+                    Write-Error $errorMessage -ErrorAction Stop
+                    return
+                }
+            }
+            catch {
+                # Handle path traversal and other path validation errors
+                $errorMessage = "Backup directory not found or inaccessible: $sanitizedPath"
+                Write-StructuredLog $errorMessage -Level Error -CorrelationId $CorrelationId
+                Write-Error $errorMessage -ErrorAction Stop
+                return
             }
 
             # Discover XML backup files with performance optimization
@@ -259,9 +267,7 @@ function Find-BackupFile {
                     }
 
                     # Add discovery context to metadata
-                    $enrichedMetadata = [PSCustomObject]@{
-                        PSTypeName = 'BackupInventoryResult'
-                    }
+                    $enrichedMetadata = [PSCustomObject]@{}
                     
                     # Copy all metadata properties
                     $metadata.PSObject.Properties | ForEach-Object {
@@ -273,6 +279,9 @@ function Find-BackupFile {
                     $enrichedMetadata | Add-Member -NotePropertyName 'DiscoveryTime' -NotePropertyValue (Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')
                     $enrichedMetadata | Add-Member -NotePropertyName 'FilteredByObjectDN' -NotePropertyValue ([bool]$ObjectDN)
                     $enrichedMetadata | Add-Member -NotePropertyName 'FilteredByDateRange' -NotePropertyValue ([bool]$DateRange)
+
+                    # Set the PSTypeName properly
+                    $enrichedMetadata.PSObject.TypeNames.Insert(0, 'BackupInventoryResult')
 
                     $results += $enrichedMetadata
                 }
@@ -294,9 +303,9 @@ function Find-BackupFile {
                 DateRangeFilter = $DateRange
             }
 
-            Write-StructuredLog "Backup discovery completed" -Level Verbose -Details $discoveryResults -CorrelationId $CorrelationId
+            Write-StructuredLog "Backup discovery completed" -Level Verbose -Data $discoveryResults -CorrelationId $CorrelationId
 
-            Write-Output $results
+            return ,$results
         }
         catch {
             $errorDetails = @{

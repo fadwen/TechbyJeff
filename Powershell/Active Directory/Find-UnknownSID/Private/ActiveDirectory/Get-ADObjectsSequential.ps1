@@ -13,6 +13,9 @@ function Get-ADObjectsSequential {
     .PARAMETER IncludeInherited
         Whether to include inherited permissions in security descriptors
 
+    .PARAMETER CorrelationId
+        Unique identifier for operation tracking and correlation
+
     .EXAMPLE
         PS> Get-ADObjectsSequential -SearchBase @("OU=Users,DC=contoso,DC=com", "OU=Groups,DC=contoso,DC=com")
 
@@ -33,7 +36,7 @@ function Get-ADObjectsSequential {
     [CmdletBinding()]
     [OutputType('Microsoft.ActiveDirectory.Management.ADObject')]
     param(
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string[]]$SearchBase,
 
@@ -45,59 +48,77 @@ function Get-ADObjectsSequential {
     )
 
     begin {
-        Write-Verbose "Starting sequential AD object retrieval from $($SearchBase.Count) search bases"
+        # Robust count calculation for test environment compatibility - store once to avoid pipeline issues
+        $script:searchBaseCount = if ($SearchBase -is [array]) { $SearchBase.Count } else { 1 }
+        Write-Verbose "Starting sequential AD object retrieval from $($script:searchBaseCount) search bases"
 
         # Log bulk operation start
         Write-ADOperationSecurityLog -OperationName 'Get-ADObjectsSequential' -Outcome 'Attempt' -SecurityContext @{
-            SearchBaseCount = $SearchBase.Count
+            SearchBaseCount = $script:searchBaseCount
             IncludeInherited = $IncludeInherited.IsPresent
             ProcessingType = 'Sequential'
             ADAccessType = 'BulkRetrieval'
         } -CorrelationId $CorrelationId
 
-        $totalObjects = 0
-        $successfulBases = 0
-        $failedBases = 0
+        # Initialize tracking variables
+        $script:totalObjects = 0
+        $script:successfulBases = 0
+        $script:failedBases = 0
     }
 
     process {
-        # Use pipeline for efficiency - no manual collection building
-        $results = $SearchBase | Get-ADObjectFromSearchBase -IncludeInherited:$IncludeInherited
-
-        # Count results for reporting
-        $resultArray = @($results)
-        $totalObjects = $resultArray.Count
-
-        # Calculate success/failure rates
-        $successfulBases = ($SearchBase | ForEach-Object {
+        # Process each search base sequentially and track results
+        $allResults = @()
+        
+        foreach ($searchBase in $SearchBase) {
             try {
-                Get-ADObject -SearchBase $_ -Filter * -Properties nTSecurityDescriptor -ErrorAction Stop | Out-Null
-                return $true
+                Write-Verbose "Processing search base: $searchBase"
+                $searchResults = Get-ADObjectFromSearchBase -SearchBase $searchBase -IncludeInherited:$IncludeInherited -CorrelationId $CorrelationId
+                
+                if ($searchResults) {
+                    $allResults += $searchResults
+                    $script:successfulBases++
+                    Write-Verbose "Successfully retrieved $(@($searchResults).Count) objects from $searchBase"
+                } else {
+                    $script:successfulBases++  # No objects but no error
+                    Write-Verbose "No objects found in $searchBase (not an error)"
+                }
             }
             catch {
-                return $false
+                $script:failedBases++
+                Write-Warning "Failed to process search base $searchBase : $($_.Exception.Message)"
+                
+                # Log the failure but continue processing
+                Write-ADOperationSecurityLog -OperationName 'Get-ADObjectsSequential' -Outcome 'Failure' -SecurityContext @{
+                    FailedSearchBase = $searchBase
+                    ErrorMessage = $_.Exception.Message
+                    ContinueProcessing = $true
+                } -CorrelationId $CorrelationId
             }
-        } | Where-Object { $_ }).Count
+        }
 
-        $failedBases = $SearchBase.Count - $successfulBases
-
-        Write-Verbose "Sequential processing completed: $totalObjects objects from $successfulBases/$($SearchBase.Count) search bases"
+        $script:totalObjects = $allResults.Count
+        
+        # Use stored count to avoid pipeline parameter issues
+        Write-Verbose "Sequential processing completed: $($script:totalObjects) objects from $($script:successfulBases)/$($script:searchBaseCount) search bases"
 
         # Output results to pipeline
-        $resultArray | Write-Output
+        $allResults | Write-Output
     }
 
     end {
+        # Use stored count to avoid pipeline parameter issues
+        
         # Log bulk operation completion
         Write-ADOperationSecurityLog -OperationName 'Get-ADObjectsSequential' -Outcome 'Success' -SecurityContext @{
-            SearchBaseCount = $SearchBase.Count
-            SuccessfulBases = $successfulBases
-            FailedBases = $failedBases
-            ObjectsRetrieved = $totalObjects
+            SearchBaseCount = $script:searchBaseCount
+            SuccessfulBases = $script:successfulBases
+            FailedBases = $script:failedBases
+            TotalObjectsRetrieved = $script:totalObjects
             IncludeInherited = $IncludeInherited.IsPresent
             ProcessingType = 'Sequential'
             ADAccessType = 'BulkRetrieval'
-            ResultSummary = "Retrieved $totalObjects objects from $successfulBases/$($SearchBase.Count) search bases"
+            ResultSummary = "Retrieved $($script:totalObjects) objects from $($script:successfulBases)/$($script:searchBaseCount) search bases"
         } -CorrelationId $CorrelationId
     }
 }
