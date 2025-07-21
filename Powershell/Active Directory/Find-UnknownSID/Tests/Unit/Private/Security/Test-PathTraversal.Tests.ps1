@@ -176,10 +176,13 @@ Describe "Test-PathTraversal" {
             
             # Create symbolic link if possible (requires elevated privileges)
             try {
-                New-Item -ItemType SymbolicLink -Path $linkPath -Target $env:TEMP -ErrorAction Stop
+                # Use C:\Windows as target to ensure it's outside our test base path
+                $targetPath = "C:\Windows"
+                New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop
                 
                 $result = Test-PathTraversal -Path $linkPath -BasePath $script:TestBasePath
                 # Symbolic link should be resolved and checked against base path
+                # Since it points to C:\Windows, it should be outside our test base path
                 $result.ValidationResults[0].IsWithinBasePath | Should Be $false
                 
                 Remove-Item $linkPath -Force -ErrorAction SilentlyContinue

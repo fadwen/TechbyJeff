@@ -10,12 +10,12 @@ $script:FunctionPath = Join-Path $ProjectRoot 'Private\Security\Invoke-SecurityV
 # Import required dependencies
 . (Join-Path $ProjectRoot 'Classes\SecurityValidationResult.ps1')
 . (Join-Path $ProjectRoot 'Private\SID\Test-SIDSecurity.ps1')
+. (Join-Path $ProjectRoot 'Private\Logging\Write-StructuredLog.ps1')
 
 Describe 'Invoke-SecurityValidation' -Tag 'Unit', 'Private', 'Security' {
     BeforeAll {
         # Mock all external dependencies
         Mock Write-StructuredLog { } -ModuleName $null
-        Mock Write-SecurityLog { } -ModuleName $null
     }
 
     Context 'Parameter Validation' {
