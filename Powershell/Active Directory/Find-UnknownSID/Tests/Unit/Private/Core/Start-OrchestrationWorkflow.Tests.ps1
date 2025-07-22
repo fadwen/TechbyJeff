@@ -3,9 +3,18 @@
 
 <#
 .SYNOPSIS
-    Comprehensive Pester tests for Start-OrchestrationWorkflow function
-
-.DESCRIPTION
+    Comprehensive Pester tests for Start-OrchestrationWorkflow function        Mock Write-StructuredLog {
+            # Accept standard logging parameters plus any extras
+            param($Message, $Level, $Component, $CorrelationId)
+            $script:MockCallLog += @{
+                Function = 'Write-StructuredLog'
+                Message = $Message
+                Level = $Level
+                Component = $Component
+                CorrelationId = $CorrelationId
+                Timestamp = Get-Date
+            }
+        }ION
     Full test suite for the Start-OrchestrationWorkflow function that validates workflow coordination,
     operation delegation, parameter handling, error management, and enterprise integration patterns.
 
@@ -137,17 +146,32 @@ Describe "Start-OrchestrationWorkflow Function Tests" {
         }
         
         function global:Write-StructuredLog {
-            # Accept standard logging parameters plus any extras
-            param($Message, $Level, $Component, $CorrelationId)
-            $script:MockCallLog += @{
+            # Simple global mock that just logs the call without causing conflicts
+            param(
+                [string]$Message,
+                [string]$Level,
+                [string]$Component,
+                [string]$CorrelationId,
+                [hashtable]$Data
+            )
+            
+            # Build hashtable with Parameters sub-key to match test expectations
+            $parameters = @{}
+            
+            # Only add parameters that were actually provided
+            if ($PSBoundParameters.ContainsKey('Message')) { $parameters.Message = $Message }
+            if ($PSBoundParameters.ContainsKey('Level')) { $parameters.Level = $Level }
+            if ($PSBoundParameters.ContainsKey('Component')) { $parameters.Component = $Component }
+            if ($PSBoundParameters.ContainsKey('CorrelationId')) { $parameters.CorrelationId = $CorrelationId }
+            if ($PSBoundParameters.ContainsKey('Data')) { $parameters.Data = $Data }
+            
+            $logEntry = @{
                 Function = 'Write-StructuredLog'
-                Parameters = $PSBoundParameters
-                Message = $Message
-                Level = $Level
-                Component = $Component
-                CorrelationId = $CorrelationId
+                Parameters = $parameters
                 Timestamp = Get-Date
             }
+            
+            $script:MockCallLog += $logEntry
         }
         
         # Mock all output functions

@@ -4,6 +4,21 @@
 # Load the function
 . "$PSScriptRoot\..\..\..\..\Private\ClassManagement\Import-SecureClasses.ps1"
 
+# Load dependencies for mocking
+$dependencies = @(
+    "$PSScriptRoot\..\..\..\..\Tests\Unit\Private\ClassManagement\Test-ClassIntegrity.ps1"
+)
+
+foreach ($dep in $dependencies) {
+    if (Test-Path $dep) {
+        try {
+            . $dep
+        } catch {
+            Write-Warning "Failed to load dependency $dep : $($_.Exception.Message)"
+        }
+    }
+}
+
 Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
     
     BeforeAll {

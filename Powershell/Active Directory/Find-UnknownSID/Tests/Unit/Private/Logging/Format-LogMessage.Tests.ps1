@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -284,7 +284,7 @@ Describe "Format-LogMessage" {
 
     Context "Special Characters and Encoding" {
         It "Should handle Unicode characters in message" {
-            $unicodeMessage = "Test message with üñíçødé characters ñ€"
+            $unicodeMessage = "Test message with Ã¼Ã±Ã­Ã§Ã¸dÃ© characters Ã±â‚¬"
             $result = Format-LogMessage -Message $unicodeMessage -Level "Information" -Format "JSON"
             $data = $result | ConvertFrom-Json
             $data.Message | Should Be $unicodeMessage
@@ -320,14 +320,14 @@ Describe "Format-LogMessage" {
 
         It "Should handle special characters in AdditionalData values" {
             $specialData = @{
-                "Key With Spaces" = "Value with üñíçødé"
+                "Key With Spaces" = "Value with Ã¼Ã±Ã­Ã§Ã¸dÃ©"
                 "Number" = 42.5
                 "Special" = "`$null and `"quotes`""
             }
             $result = Format-LogMessage -Message "Test" -Level "Information" -Format "JSON" -AdditionalData $specialData
             $data = $result | ConvertFrom-Json
             
-            $data."Key With Spaces" | Should Be "Value with üñíçødé"
+            $data."Key With Spaces" | Should Be "Value with Ã¼Ã±Ã­Ã§Ã¸dÃ©"
             $data.Number | Should Be 42.5
             $data.Special | Should Be "`$null and `"quotes`""
         }
@@ -499,3 +499,4 @@ Describe "Format-LogMessage" {
         }
     }
 }
+

@@ -1,4 +1,4 @@
-#Requires -Module Pester
+﻿#Requires -Module Pester
 
 # Import test helpers and initialize logging for testing
 . "$PSScriptRoot\..\..\..\TestHelpers\Initialize-TestLogging.ps1"
@@ -83,7 +83,7 @@ Describe "Write-StructuredLog" {
         }
         
         It "Should forward Message parameter correctly" {
-            $testMessage = "Test log message with special characters: àéîôù"
+            $testMessage = "Test log message with special characters: Ã Ã©Ã®Ã´Ã¹"
             Write-StructuredLog -Message $testMessage
             
             Assert-MockCalled Write-StructuredLogEntry -Exactly 1 -ParameterFilter {
@@ -300,7 +300,7 @@ Describe "Write-StructuredLog" {
                 "Key With Spaces" = "Value with spaces"
                 "Key-With-Dashes" = "Value-with-dashes"
                 "Key_With_Underscores" = "Value_with_underscores"
-                "KeyWithUnicode" = "Valué wîth spéciàl charâcters"
+                "KeyWithUnicode" = "ValuÃ© wÃ®th spÃ©ciÃ l charÃ¢cters"
             }
             
             Write-StructuredLog -Message "Test" -Data $testData
@@ -536,3 +536,4 @@ Describe "Write-StructuredLog" {
         }
     }
 }
+

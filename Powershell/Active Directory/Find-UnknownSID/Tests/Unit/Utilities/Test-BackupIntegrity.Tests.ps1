@@ -27,13 +27,13 @@
 #>
 
 # Import test helpers only (no main script needed for isolated function testing)
-. "$PSScriptRoot\..\..\..\..\Tests\TestHelpers\BackupTestHelpers.ps1"
+. "$PSScriptRoot\..\..\TestHelpers\BackupTestHelpers.ps1"
 
 Describe "Test-BackupIntegrity" -Tag "Unit", "Backup", "Integrity" {
     
     BeforeAll {
         # Import required dependencies
-        $script:ProjectRoot = Join-Path $PSScriptRoot '..\..\..\..'
+        $script:ProjectRoot = Join-Path $PSScriptRoot '..\..\..'
         
         # Source the logging function (required dependency)
         . (Join-Path $script:ProjectRoot 'Private\Logging\Write-StructuredLog.ps1')
