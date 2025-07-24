@@ -207,7 +207,20 @@ function Export-DiagnosticData {
                 Write-Verbose "Exported PowerShell session information"
 
                 # Export loaded modules information
-                $loadedModules = Get-Module | Select-Object Name, Version, ModuleType, Path
+                try {
+                    $modules = Get-Module
+                    $loadedModules = foreach ($module in $modules) {
+                        [PSCustomObject]@{
+                            Name = $module.Name
+                            Version = $module.Version.ToString()
+                            ModuleType = $module.ModuleType.ToString()
+                            Path = $module.Path
+                        }
+                    }
+                } catch {
+                    Write-Verbose "Could not retrieve module information: $($_.Exception.Message)"
+                    $loadedModules = @()
+                }
                 $loadedModules | ConvertTo-Json -Depth 3 |
                     Out-File -FilePath "$diagnosticPath\loaded-modules.json" -Encoding UTF8
                 Write-Verbose "Exported loaded modules information"

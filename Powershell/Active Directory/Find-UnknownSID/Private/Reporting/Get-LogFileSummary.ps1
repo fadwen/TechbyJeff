@@ -319,10 +319,10 @@ function Get-LogFileHealth {
 
         # Determine health status
         $healthStatus = switch ($healthScore) {
-            { $_ -ge 90 } { 'Excellent' }
-            { $_ -ge 70 } { 'Good' }
-            { $_ -ge 50 } { 'Fair' }
-            { $_ -ge 30 } { 'Poor' }
+            { $_ -ge 90 } { 'Excellent'; break }
+            { $_ -ge 70 } { 'Good'; break }
+            { $_ -ge 50 } { 'Fair'; break }
+            { $_ -ge 30 } { 'Poor'; break }
             default { 'Critical' }
         }
 
