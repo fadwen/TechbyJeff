@@ -9,7 +9,7 @@ $testHelpersPath = Join-Path $PSScriptRoot "..\..\TestHelpers"
 . (Join-Path $testHelpersPath "BackupTestHelpers.ps1")
 
 # Load test configuration
-$testConfigPath = Join-Path $PSScriptRoot "..\..\TestData\test-config.json"
+$testConfigPath = Join-Path $PSScriptRoot "..\..\TestData\Configurations\test-config.json"
 $TestConfig = Get-Content $testConfigPath | ConvertFrom-Json
 
 # Mock behavior management
