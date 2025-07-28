@@ -3,10 +3,32 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path) -replace '\.Tests\.', '.'
 $modulePath = "$here\..\..\..\..\Private\Logging\$sut"
 
+# Create stubs for missing functions that the function depends on
+function Protect-LogMessage {
+    param([string]$Message)
+    return $Message
+}
+
+function Write-StructuredLogEntry {
+    param($Message, $Level, $Component, $Data, $CorrelationId)
+    # Stub implementation - just return success
+}
+
 # Import the script content for testing
 . $modulePath
 
 Describe "Write-SecurityLogEvent" -Tags @('Unit', 'Logging', 'Security') {
+
+    # Mock dependencies inside Describe block for Pester 3.4 compatibility
+    Mock Protect-LogMessage {
+        param([string]$Message)
+        return $Message
+    }
+    
+    Mock Write-StructuredLogEntry {
+        param($Message, $Level, $Component, $Data, $CorrelationId)
+        # Mock implementation - just return success
+    }
 
     Context "Basic functionality" {
         It "Should accept mandatory parameters without throwing exceptions" {
