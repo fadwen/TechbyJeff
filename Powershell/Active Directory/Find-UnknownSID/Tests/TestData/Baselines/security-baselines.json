@@ -1,0 +1,457 @@
+{
+  "metadata": {
+    "purpose": "Security baselines and compliance requirements for Find-UnknownSID operations",
+    "framework": "Multi-Framework Compliance",
+    "lastUpdated": "2024-01-15T10:30:00Z",
+    "version": "1.0.0",
+    "applicableFrameworks": [
+      "NIST Cybersecurity Framework",
+      "ISO 27001",
+      "SOX",
+      "GDPR",
+      "HIPAA",
+      "PCI DSS"
+    ]
+  },
+  "authenticationBaselines": {
+    "accountSecurity": {
+      "minimumPasswordLength": 12,
+      "passwordComplexity": true,
+      "passwordExpiration": 90,
+      "accountLockoutThreshold": 3,
+      "lockoutDuration": 30,
+      "lockoutResetTime": 15,
+      "unit": "days for expiration, minutes for lockout"
+    },
+    "serviceAccounts": {
+      "managedServiceAccounts": true,
+      "passwordRotation": 30,
+      "minimumPrivileges": true,
+      "auditingEnabled": true,
+      "unit": "days"
+    },
+    "multiFactor": {
+      "required": true,
+      "acceptedMethods": ["TOTP", "SMS", "Hardware Token", "Biometric"],
+      "backupCodes": true,
+      "sessionTimeout": 480,
+      "unit": "minutes"
+    }
+  },
+  "authorizationBaselines": {
+    "roleBasedAccess": {
+      "minimumRoles": [
+        {
+          "role": "ReadOnly",
+          "permissions": ["ViewReports", "ViewLogs"],
+          "description": "Read-only access to reports and logs"
+        },
+        {
+          "role": "Operator",
+          "permissions": ["ViewReports", "ViewLogs", "ExecuteScans"],
+          "description": "Execute scans and view results"
+        },
+        {
+          "role": "Administrator",
+          "permissions": ["All"],
+          "description": "Full administrative access"
+        }
+      ],
+      "segregationOfDuties": true,
+      "leastPrivilegeEnforcement": true
+    },
+    "privilegeEscalation": {
+      "preventionMechanisms": ["UAC", "TokenFiltering", "IntegrityLevels"],
+      "monitoringRequired": true,
+      "alertingThreshold": "immediate",
+      "auditingLevel": "detailed"
+    },
+    "accessReview": {
+      "frequency": 90,
+      "approvalRequired": true,
+      "documentationMandatory": true,
+      "revocationProcess": "automated",
+      "unit": "days"
+    }
+  },
+  "dataProtectionBaselines": {
+    "encryptionRequirements": {
+      "dataAtRest": {
+        "required": true,
+        "algorithm": "AES-256",
+        "keyManagement": "centralized",
+        "keyRotation": 365,
+        "unit": "days"
+      },
+      "dataInTransit": {
+        "required": true,
+        "protocol": "TLS 1.3",
+        "certificateValidation": "strict",
+        "cipherSuites": ["ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"]
+      },
+      "keyProtection": {
+        "hardwareSecurityModule": "recommended",
+        "keyEscrow": false,
+        "splitKnowledge": true,
+        "dualControl": true
+      }
+    },
+    "dataClassification": {
+      "levels": [
+        {
+          "level": "Public",
+          "markingRequired": false,
+          "encryptionRequired": false,
+          "accessControls": "standard"
+        },
+        {
+          "level": "Internal",
+          "markingRequired": true,
+          "encryptionRequired": true,
+          "accessControls": "restrictive"
+        },
+        {
+          "level": "Confidential",
+          "markingRequired": true,
+          "encryptionRequired": true,
+          "accessControls": "strict"
+        },
+        {
+          "level": "Restricted",
+          "markingRequired": true,
+          "encryptionRequired": true,
+          "accessControls": "maximum"
+        }
+      ],
+      "handlingRequirements": {
+        "labeling": "automatic",
+        "retention": "policy-based",
+        "disposal": "secure-wipe"
+      }
+    },
+    "personalDataProtection": {
+      "gdprCompliance": {
+        "consentManagement": true,
+        "rightToErasure": true,
+        "dataPortability": true,
+        "privacyByDesign": true,
+        "dataProtectionOfficer": "required"
+      },
+      "dataMinimization": {
+        "collectionLimited": true,
+        "purposeLimited": true,
+        "retentionLimited": true,
+        "accuracyEnsured": true
+      }
+    }
+  },
+  "auditingBaselines": {
+    "logRequirements": {
+      "auditLogTypes": [
+        "Authentication",
+        "Authorization",
+        "DataAccess",
+        "ConfigurationChanges",
+        "SystemEvents",
+        "SecurityEvents",
+        "PrivilegeUsage"
+      ],
+      "logFormat": "structured",
+      "timestampPrecision": "millisecond",
+      "integrity": "cryptographic",
+      "retention": 2555,
+      "unit": "days (7 years)"
+    },
+    "monitoringRequirements": {
+      "realTimeAlerts": [
+        "UnauthorizedAccess",
+        "PrivilegeEscalation",
+        "DataBreach",
+        "SystemCompromise",
+        "PolicyViolation"
+      ],
+      "alertingThresholds": {
+        "failedLogins": 5,
+        "privilegeChanges": 1,
+        "dataAccess": "abnormal",
+        "systemChanges": 1
+      },
+      "responseTime": {
+        "critical": 5,
+        "high": 15,
+        "medium": 60,
+        "low": 240,
+        "unit": "minutes"
+      }
+    },
+    "complianceReporting": {
+      "frequency": {
+        "internal": 30,
+        "regulatory": 90,
+        "executive": 365,
+        "unit": "days"
+      },
+      "reportTypes": [
+        "AccessReview",
+        "SecurityIncidents",
+        "ComplianceStatus",
+        "RiskAssessment",
+        "VulnerabilityStatus"
+      ],
+      "auditTrail": {
+        "immutable": true,
+        "digitallySigned": true,
+        "chainOfCustody": true,
+        "accessLogged": true
+      }
+    }
+  },
+  "vulnerabilityManagementBaselines": {
+    "scanningRequirements": {
+      "frequency": {
+        "automated": 7,
+        "comprehensive": 30,
+        "penetrationTesting": 365,
+        "unit": "days"
+      },
+      "scanTypes": [
+        "CredentialedScans",
+        "UnauthenticatedScans",
+        "WebApplicationScans",
+        "DatabaseScans",
+        "NetworkScans"
+      ],
+      "coverage": {
+        "systems": 100,
+        "applications": 100,
+        "databases": 100,
+        "networkDevices": 100,
+        "unit": "percentage"
+      }
+    },
+    "remediationRequirements": {
+      "timeframes": {
+        "critical": 72,
+        "high": 168,
+        "medium": 720,
+        "low": 2160,
+        "unit": "hours"
+      },
+      "prioritization": {
+        "criteria": ["CVSS Score", "Asset Criticality", "Threat Intelligence", "Exploit Availability"],
+        "riskMatrix": "standard",
+        "businessImpact": "considered"
+      },
+      "verification": {
+        "required": true,
+        "method": "rescanning",
+        "documentation": "mandatory"
+      }
+    }
+  },
+  "incidentResponseBaselines": {
+    "responseCapabilities": {
+      "detectionTime": {
+        "target": 15,
+        "maximum": 60,
+        "unit": "minutes"
+      },
+      "responseTime": {
+        "acknowledgment": 15,
+        "initialResponse": 60,
+        "containment": 240,
+        "unit": "minutes"
+      },
+      "recoveryTime": {
+        "target": 480,
+        "maximum": 1440,
+        "unit": "minutes"
+      }
+    },
+    "teamStructure": {
+      "roles": [
+        "IncidentManager",
+        "SecurityAnalyst",
+        "NetworkSpecialist",
+        "SystemAdministrator",
+        "LegalCounsel",
+        "Communications"
+      ],
+      "availability": "24x7",
+      "escalationProcedures": "defined",
+      "trainingRequirements": "quarterly"
+    },
+    "communicationRequirements": {
+      "internalNotification": {
+        "timeframe": 30,
+        "stakeholders": ["CISO", "IT Management", "Business Units"],
+        "method": "secure",
+        "unit": "minutes"
+      },
+      "externalNotification": {
+        "regulatory": 72,
+        "customers": 24,
+        "partners": 24,
+        "media": "as-required",
+        "unit": "hours"
+      }
+    }
+  },
+  "securityControlsBaselines": {
+    "networkSecurity": {
+      "firewall": {
+        "required": true,
+        "type": "next-generation",
+        "rules": "default-deny",
+        "logging": "comprehensive",
+        "review": "monthly"
+      },
+      "intrusion": {
+        "prevention": true,
+        "detection": true,
+        "signatures": "current",
+        "tuning": "continuous",
+        "falsePositives": "minimized"
+      },
+      "segmentation": {
+        "implemented": true,
+        "zeroTrust": "preferred",
+        "microSegmentation": "recommended",
+        "monitoring": "continuous"
+      }
+    },
+    "endpointSecurity": {
+      "antimalware": {
+        "required": true,
+        "realTimeProtection": true,
+        "signatureUpdates": "automatic",
+        "behavioralAnalysis": true,
+        "centralManagement": true
+      },
+      "endpointDetection": {
+        "edrRequired": true,
+        "responseCapabilities": true,
+        "threatHunting": true,
+        "forensics": true,
+        "integration": "siem"
+      },
+      "deviceControl": {
+        "usbRestriction": true,
+        "bluetoothControl": true,
+        "wifiControl": true,
+        "mobileDeviceManagement": true,
+        "encryption": "mandatory"
+      }
+    },
+    "applicationSecurity": {
+      "secureDevelopment": {
+        "sdlcIntegration": true,
+        "codeReview": "mandatory",
+        "staticAnalysis": true,
+        "dynamicAnalysis": true,
+        "dependencyScanning": true
+      },
+      "runtimeProtection": {
+        "webApplicationFirewall": true,
+        "runtimeAnalysis": true,
+        "apiProtection": true,
+        "sqlInjectionPrevention": true,
+        "xssProtection": true
+      }
+    }
+  },
+  "complianceFrameworks": {
+    "nistCyberSecurityFramework": {
+      "functions": {
+        "identify": {
+          "coverage": 95,
+          "maturityLevel": "defined",
+          "assessment": "annual"
+        },
+        "protect": {
+          "coverage": 90,
+          "maturityLevel": "managed",
+          "assessment": "semi-annual"
+        },
+        "detect": {
+          "coverage": 85,
+          "maturityLevel": "managed",
+          "assessment": "quarterly"
+        },
+        "respond": {
+          "coverage": 80,
+          "maturityLevel": "defined",
+          "assessment": "quarterly"
+        },
+        "recover": {
+          "coverage": 75,
+          "maturityLevel": "defined",
+          "assessment": "semi-annual"
+        }
+      },
+      "unit": "percentage coverage"
+    },
+    "iso27001": {
+      "domains": {
+        "informationSecurityPolicies": "implemented",
+        "organizationOfInformationSecurity": "implemented",
+        "humanResourceSecurity": "implemented",
+        "assetManagement": "implemented",
+        "accessControl": "implemented",
+        "cryptography": "implemented",
+        "physicalAndEnvironmentalSecurity": "implemented",
+        "operationsSecurity": "implemented",
+        "communicationsSecurity": "implemented",
+        "systemAcquisition": "implemented",
+        "supplierRelationships": "implemented",
+        "incidentManagement": "implemented",
+        "businessContinuity": "implemented",
+        "compliance": "implemented"
+      },
+      "auditFrequency": "annual",
+      "certificationStatus": "maintained"
+    },
+    "gdprCompliance": {
+      "lawfulnessOfProcessing": {
+        "basisIdentified": true,
+        "consentManagement": true,
+        "legitimateInterests": "assessed"
+      },
+      "dataSubjectRights": {
+        "informationProvision": true,
+        "access": true,
+        "rectification": true,
+        "erasure": true,
+        "restriction": true,
+        "portability": true,
+        "objection": true
+      },
+      "dataProtectionByDesign": {
+        "implemented": true,
+        "documented": true,
+        "verified": true
+      }
+    }
+  },
+  "riskManagementBaselines": {
+    "riskAssessment": {
+      "frequency": "annual",
+      "methodology": "ISO 27005",
+      "quantitative": "preferred",
+      "qualitative": "acceptable",
+      "stakeholderInvolvement": "mandatory"
+    },
+    "riskTreatment": {
+      "options": ["Accept", "Avoid", "Mitigate", "Transfer"],
+      "decisionCriteria": "business-driven",
+      "costBenefit": "analyzed",
+      "residualRisk": "acceptable"
+    },
+    "riskMonitoring": {
+      "frequency": "continuous",
+      "keyRiskIndicators": "defined",
+      "thresholds": "established",
+      "escalation": "automated"
+    }
+  }
+}

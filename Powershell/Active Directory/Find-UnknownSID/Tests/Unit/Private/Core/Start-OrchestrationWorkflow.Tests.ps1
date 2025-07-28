@@ -3,18 +3,7 @@
 
 <#
 .SYNOPSIS
-    Comprehensive Pester tests for Start-OrchestrationWorkflow function        Mock Write-StructuredLog {
-            # Accept standard logging parameters plus any extras
-            param($Message, $Level, $Component, $CorrelationId)
-            $script:MockCallLog += @{
-                Function = 'Write-StructuredLog'
-                Message = $Message
-                Level = $Level
-                Component = $Component
-                CorrelationId = $CorrelationId
-                Timestamp = Get-Date
-            }
-        }ION
+    Comprehensive Pester tests for Start-OrchestrationWorkflow function
     Full test suite for the Start-OrchestrationWorkflow function that validates workflow coordination,
     operation delegation, parameter handling, error management, and enterprise integration patterns.
 
@@ -145,8 +134,8 @@ Describe "Start-OrchestrationWorkflow Function Tests" {
             }
         }
         
-        function global:Write-StructuredLog {
-            # Simple global mock that just logs the call without causing conflicts
+        # Mock Write-StructuredLog to track calls
+        Mock Write-StructuredLog {
             param(
                 [string]$Message,
                 [string]$Level,
@@ -186,7 +175,8 @@ Describe "Start-OrchestrationWorkflow Function Tests" {
         # Clean up global mock functions
         Get-Command -Name 'Invoke-MainProcessingLogic' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
         Get-Command -Name 'Invoke-RestoreWorkflow' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue  
-        Get-Command -Name 'Write-StructuredLog' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        # Reset mock call log
+        $script:MockCallLog = @()
     }
     
     Context "Discovery Operation Coordination" {

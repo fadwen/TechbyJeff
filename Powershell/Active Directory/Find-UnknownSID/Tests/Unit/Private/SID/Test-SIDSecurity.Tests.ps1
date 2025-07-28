@@ -56,10 +56,6 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 [hashtable]$SecurityContext,
                 [string]$RiskLevel = 'Medium'
             )
-            # Enhanced debugging
-            Write-Host "Mock Write-SecurityLog called with SecurityEventType=$SecurityEventType, Outcome=$Outcome" -ForegroundColor Cyan
-            Write-Host "SecurityContext type: $($SecurityContext.GetType().Name)" -ForegroundColor Cyan
-            Write-Host "SecurityContext contents: $($SecurityContext | ConvertTo-Json -Compress)" -ForegroundColor Cyan
             
             # Store the security log calls for validation
             if (-not $global:SecurityLogCalls) { $global:SecurityLogCalls = @() }
@@ -72,8 +68,6 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
                 RiskLevel = $RiskLevel
                 Timestamp = Get-Date
             }
-            # Debug output
-            Write-Host "Mock captured: SecurityEventType=$SecurityEventType, Outcome=$Outcome, BlockedReason=$($SecurityContext.BlockedReason), SID=$($SecurityContext.SIDString)" -ForegroundColor Yellow
         }
         
         Mock Write-StructuredLog {
@@ -660,11 +654,6 @@ Describe "Test-SIDSecurity Enterprise Security Testing" {
         It "Should initialize collections properly" {
             $testSID = "S-1-5-21-123456789-123456789-123456789-1001"
             $result = Test-SIDSecurity -SIDString $testSID
-            
-            Write-Host "DEBUG: result type: $($result.GetType().Name)"
-            Write-Host "DEBUG: result.Issues: [$($result.Issues)] - Type: $($result.Issues.GetType())"
-            Write-Host "DEBUG: result.BlockedSIDs: [$($result.BlockedSIDs)] - Type: $($result.BlockedSIDs.GetType())"
-            Write-Host "DEBUG: result.AllowedSIDs: [$($result.AllowedSIDs)] - Type: $($result.AllowedSIDs.GetType())"
             
             # Use more explicit checks
             $result.Issues.Count | Should BeGreaterThan -1

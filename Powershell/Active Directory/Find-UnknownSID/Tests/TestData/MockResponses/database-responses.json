@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "purpose": "Database connection responses for testing",
+    "scenarios": "Connection success, failure, timeout, authentication errors",
+    "database": "SQL Server, Oracle, PostgreSQL"
+  },
+  "sqlServerResponses": {
+    "successfulConnection": {
+      "connectionString": "Server=localhost;Database=TestDB;Integrated Security=true;Connection Timeout=30;",
+      "response": {
+        "success": true,
+        "connectionId": "12345678-1234-1234-1234-123456789012",
+        "serverVersion": "Microsoft SQL Server 2019 (RTM) - 15.0.2000.5",
+        "database": "TestDB",
+        "state": "Open",
+        "connectionTime": "2024-01-15T10:30:00.123Z",
+        "serverInfo": {
+          "serverName": "SQL-SERVER-01",
+          "instanceName": "MSSQLSERVER",
+          "edition": "Enterprise Edition",
+          "productLevel": "RTM",
+          "productVersion": "15.0.2000.5"
+        }
+      }
+    },
+    "authenticationFailure": {
+      "connectionString": "Server=localhost;Database=TestDB;User Id=invaliduser;Password=wrongpassword;Connection Timeout=30;",
+      "response": {
+        "success": false,
+        "error": {
+          "number": 18456,
+          "severity": 14,
+          "state": 1,
+          "procedure": null,
+          "lineNumber": 65536,
+          "message": "Login failed for user 'invaliduser'.",
+          "source": ".Net SqlClient Data Provider",
+          "errorCode": -2146232060,
+          "class": 14
+        },
+        "timestamp": "2024-01-15T10:30:00.123Z"
+      }
+    },
+    "connectionTimeout": {
+      "connectionString": "Server=unreachable-server;Database=TestDB;Integrated Security=true;Connection Timeout=5;",
+      "response": {
+        "success": false,
+        "error": {
+          "number": -2,
+          "message": "Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding.",
+          "source": ".Net SqlClient Data Provider",
+          "errorCode": -2146232060,
+          "innerException": {
+            "message": "A network-related or instance-specific error occurred while establishing a connection to SQL Server."
+          }
+        },
+        "timestamp": "2024-01-15T10:30:05.000Z"
+      }
+    },
+    "databaseNotFound": {
+      "connectionString": "Server=localhost;Database=NonExistentDB;Integrated Security=true;Connection Timeout=30;",
+      "response": {
+        "success": false,
+        "error": {
+          "number": 4060,
+          "severity": 11,
+          "state": 1,
+          "message": "Cannot open database \"NonExistentDB\" requested by the login. The login failed.",
+          "source": ".Net SqlClient Data Provider",
+          "errorCode": -2146232060,
+          "class": 11
+        },
+        "timestamp": "2024-01-15T10:30:00.456Z"
+      }
+    }
+  },
+  "queryResponses": {
+    "selectUsers": {
+      "query": "SELECT Id, Name, Email, SID FROM Users WHERE Active = 1",
+      "response": {
+        "success": true,
+        "rowCount": 3,
+        "executionTime": "00:00:00.0123456",
+        "columns": ["Id", "Name", "Email", "SID"],
+        "data": [
+          {
+            "Id": 1,
+            "Name": "John Doe",
+            "Email": "john.doe@contoso.com",
+            "SID": "S-1-5-21-1234567890-1234567890-1234567890-1001"
+          },
+          {
+            "Id": 2,
+            "Name": "Jane Smith",
+            "Email": "jane.smith@contoso.com",
+            "SID": "S-1-5-21-1234567890-1234567890-1234567890-1002"
+          },
+          {
+            "Id": 3,
+            "Name": "Bob Johnson",
+            "Email": "bob.johnson@contoso.com",
+            "SID": "S-1-5-21-1234567890-1234567890-1234567890-1003"
+          }
+        ]
+      }
+    },
+    "selectOrphanedSIDs": {
+      "query": "SELECT DISTINCT SID FROM SecurityDescriptors WHERE SID NOT IN (SELECT SID FROM KnownSIDs)",
+      "response": {
+        "success": true,
+        "rowCount": 5,
+        "executionTime": "00:00:00.0567890",
+        "columns": ["SID"],
+        "data": [
+          {"SID": "S-1-5-21-9999999999-9999999999-9999999999-1001"},
+          {"SID": "S-1-5-21-9999999999-9999999999-9999999999-1002"},
+          {"SID": "S-1-5-21-8888888888-8888888888-8888888888-2001"},
+          {"SID": "S-1-5-21-7777777777-7777777777-7777777777-3001"},
+          {"SID": "S-1-5-21-6666666666-6666666666-6666666666-4001"}
+        ]
+      }
+    },
+    "insertAuditLog": {
+      "query": "INSERT INTO AuditLog (Timestamp, Action, UserSID, Details) VALUES (@timestamp, @action, @userSid, @details)",
+      "parameters": {
+        "timestamp": "2024-01-15T10:30:00.123Z",
+        "action": "SID_CLEANUP",
+        "userSid": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+        "details": "Removed 5 orphaned SIDs from security descriptors"
+      },
+      "response": {
+        "success": true,
+        "rowsAffected": 1,
+        "executionTime": "00:00:00.0098765",
+        "identity": 12345
+      }
+    },
+    "syntaxError": {
+      "query": "SELCT * FROM Users",
+      "response": {
+        "success": false,
+        "error": {
+          "number": 102,
+          "severity": 15,
+          "state": 1,
+          "lineNumber": 1,
+          "message": "Incorrect syntax near 'SELCT'.",
+          "source": ".Net SqlClient Data Provider",
+          "errorCode": -2146232060
+        },
+        "timestamp": "2024-01-15T10:30:00.789Z"
+      }
+    }
+  },
+  "transactionResponses": {
+    "beginTransaction": {
+      "response": {
+        "success": true,
+        "transactionId": "TXN-12345678-1234-1234-1234-123456789012",
+        "isolationLevel": "ReadCommitted",
+        "timestamp": "2024-01-15T10:30:00.123Z"
+      }
+    },
+    "commitTransaction": {
+      "transactionId": "TXN-12345678-1234-1234-1234-123456789012",
+      "response": {
+        "success": true,
+        "timestamp": "2024-01-15T10:30:05.456Z",
+        "duration": "00:00:05.333"
+      }
+    },
+    "rollbackTransaction": {
+      "transactionId": "TXN-12345678-1234-1234-1234-123456789012",
+      "reason": "Constraint violation detected",
+      "response": {
+        "success": true,
+        "timestamp": "2024-01-15T10:30:03.789Z",
+        "duration": "00:00:03.666"
+      }
+    }
+  },
+  "performanceMetrics": {
+    "heavyQuery": {
+      "query": "SELECT * FROM LargeTable WHERE ComplexCondition = 'value' ORDER BY ExpensiveCalculation",
+      "response": {
+        "success": true,
+        "rowCount": 50000,
+        "executionTime": "00:00:15.123456",
+        "cpuTime": "00:00:12.987654",
+        "logicalReads": 125000,
+        "physicalReads": 2500,
+        "warnings": [
+          "Query exceeded expected execution time threshold",
+          "Consider adding index on ComplexCondition column"
+        ]
+      }
+    },
+    "optimizedQuery": {
+      "query": "SELECT Id, Name FROM Users WITH (INDEX(IX_Users_Active)) WHERE Active = 1",
+      "response": {
+        "success": true,
+        "rowCount": 1000,
+        "executionTime": "00:00:00.0234567",
+        "cpuTime": "00:00:00.0123456",
+        "logicalReads": 15,
+        "physicalReads": 0,
+        "indexUsed": "IX_Users_Active"
+      }
+    }
+  }
+}

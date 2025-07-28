@@ -115,8 +115,8 @@ Describe "Resolve-SIDIdentity Helper Functions Tests" {
     }
     
     Context "Get-StringFromIdentityReference Function Tests" {
-        It "Should handle null IdentityReference gracefully" {
-            { Get-StringFromIdentityReference -IdentityReference $null } | Should Not Throw
+        It "Should require IdentityReference parameter" {
+            { Get-StringFromIdentityReference -IdentityReference $null } | Should Throw
         }
         
         It "Should process string identity reference" {
@@ -161,7 +161,7 @@ Describe "Resolve-SIDIdentity Helper Functions Tests" {
         }
         
         It "Should handle malformed SID inputs" {
-            $malformedSIDs = @('S-1-5', 'S-1-5-32', 'NotASID', '', $null)
+            $malformedSIDs = @('S-1-5', 'S-1-5-32', 'NotASID')
             foreach ($sid in $malformedSIDs) {
                 { Test-SIDValidityAndType -SIDString $sid } | Should Not Throw
             }

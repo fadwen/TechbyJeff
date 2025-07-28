@@ -170,3 +170,118 @@ function Invoke-ResourceCleanup {
 
 # Functions are automatically available when dot-sourced
 # Note: Export-ModuleMember is only valid in .psm1 module files
+
+function Invoke-ResourceDisposal {
+    <#
+    .SYNOPSIS
+        Performs targeted resource disposal operations
+
+    .DESCRIPTION
+        Executes focused resource disposal for IDisposable objects with
+        comprehensive error handling and logging.
+
+    .PARAMETER Resources
+        Array of IDisposable resources to dispose
+
+    .PARAMETER Force
+        Force disposal even if errors occur
+
+    .PARAMETER CorrelationId
+        Correlation identifier for tracking disposal operations
+
+    .EXAMPLE
+        PS> Invoke-ResourceDisposal -Resources $disposableObjects
+
+        Disposes array of resources safely
+
+    .EXAMPLE
+        PS> Invoke-ResourceDisposal -Resources $fileStream -Force
+
+        Forces disposal even if errors occur
+
+    .NOTES
+        This function provides targeted disposal of specific resources
+        and complements the broader Invoke-ResourceCleanup function.
+    #>
+
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [object[]]$Resources,
+
+        [Parameter()]
+        [switch]$Force,
+
+        [Parameter()]
+        [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+    )
+
+    begin {
+        if (-not $CorrelationId.Trim()) {
+            $CorrelationId = [System.Guid]::NewGuid().ToString()
+        }
+
+        $disposalResults = @{
+            TotalResources = $Resources.Count
+            DisposedCount = 0
+            FailedCount = 0
+            SkippedCount = 0
+            Errors = @()
+        }
+    }
+
+    process {
+        try {
+            if ($PSCmdlet.ShouldProcess("$($Resources.Count) resources", "Dispose")) {
+                Write-StructuredLog "Starting disposal of $($Resources.Count) resources" -Level Information -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+            }
+
+            foreach ($resource in $Resources) {
+                if ($null -eq $resource) {
+                    $disposalResults.SkippedCount++
+                    continue
+                }
+
+                if ($resource -is [System.IDisposable]) {
+                    try {
+                        $resource.Dispose()
+                        $disposalResults.DisposedCount++
+                        
+                        if ($PSCmdlet.ShouldProcess("Resource", "Log disposal")) {
+                            Write-StructuredLog "Resource disposed successfully: $($resource.GetType().Name)" -Level Debug -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+                        }
+                    }
+                    catch {
+                        $disposalResults.FailedCount++
+                        $disposalResults.Errors += $_.Exception.Message
+                        
+                        $errorMessage = "Failed to dispose resource $($resource.GetType().Name): $($_.Exception.Message)"
+                        Write-StructuredLog $errorMessage -Level Warning -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+                        
+                        if (-not $Force) {
+                            throw
+                        }
+                    }
+                } else {
+                    $disposalResults.SkippedCount++
+                    if ($PSCmdlet.ShouldProcess("Resource", "Log skip")) {
+                        Write-StructuredLog "Skipped non-disposable resource: $($resource.GetType().Name)" -Level Debug -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+                    }
+                }
+            }
+
+            return [PSCustomObject]$disposalResults
+        }
+        catch {
+            Write-StructuredLog "Resource disposal operation failed: $($_.Exception.Message)" -Level Error -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+            throw
+        }
+    }
+
+    end {
+        if ($PSCmdlet.ShouldProcess("Operation", "Log completion")) {
+            Write-StructuredLog "Resource disposal completed. Disposed: $($disposalResults.DisposedCount), Failed: $($disposalResults.FailedCount), Skipped: $($disposalResults.SkippedCount)" -Level Information -Component 'ResourceDisposal' -CorrelationId $CorrelationId
+        }
+    }
+}

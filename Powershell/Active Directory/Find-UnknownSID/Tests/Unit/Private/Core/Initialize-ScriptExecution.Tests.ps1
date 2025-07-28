@@ -81,7 +81,7 @@ Describe "Initialize-ScriptExecution Function Tests" {
                 return @{ 
                     Success = $true 
                     MemoryManager = [PSCustomObject]@{ 
-                        ThresholdMB = $MaxMemoryMB 
+                        MaxMemoryMB = $MaxMemoryMB 
                         IsInitialized = $true
                         CheckInterval = $CheckInterval
                         CurrentUsageMB = 0
@@ -215,7 +215,7 @@ Describe "Initialize-ScriptExecution Function Tests" {
             return @{
                 Success = $true
                 MemoryManager = @{
-                    ThresholdMB = $args[0]  # MaxMemoryMB parameter
+                    MaxMemoryMB = $args[0]  # MaxMemoryMB parameter
                     IsInitialized = $true
                     Initialize = { return $true }
                 }
@@ -289,7 +289,7 @@ Describe "Initialize-ScriptExecution Function Tests" {
         It "Should configure memory threshold correctly" {
             $result = Initialize-ScriptExecution -ConfigPath "test.json"
             
-            $result.MemoryManager.ThresholdMB | Should BeGreaterThan 0
+            $result.MemoryManager.MaxMemoryMB | Should BeGreaterThan 0
         }
         
         It "Should validate memory manager object creation" {

@@ -53,7 +53,7 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
                 [hashtable]$Details = @{}
             )
             # Mock implementation - just output to console for testing
-            Write-Host "$Level`: $Message"
+            Write-Debug "$Level`: $Message"
         }
 
         function Write-StructuredLog {
@@ -708,7 +708,7 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
         }
         
         It "Should continue processing other objects after individual failures in bulk mode" {
-            Write-Host "TEST: Starting bulk mode test"
+            Write-Debug "TEST: Starting bulk mode test"
             
             # Create additional backup file
             $additionalData = $script:TestBackupData.Clone()
@@ -716,12 +716,12 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
             $additionalFile = Join-Path $script:TestBackupDir "AdditionalUser_20240702_103631.xml"
             $additionalData | Export-Clixml -Path $additionalFile -Force
             
-            Write-Host "TEST: Additional file created at: $additionalFile"
+            Write-Debug "TEST: Additional file created at: $additionalFile"
             
             # Mock Get-ChildItem to return the backup files for bulk discovery
             Mock Get-ChildItem {
                 param($Path, $Filter, $File)
-                Write-Host "Mock Get-ChildItem called with Path: $Path, Filter: $Filter, File: $File"
+                Write-Debug "Mock Get-ChildItem called with Path: $Path, Filter: $Filter, File: $File"
                 if ($Path -eq $script:TestBackupDir -and $Filter -eq "*.xml" -and $File) {
                     $files = @(
                         [PSCustomObject]@{ FullName = $script:BulkBackupFiles[0] }
@@ -729,9 +729,9 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
                         [PSCustomObject]@{ FullName = $script:BulkBackupFiles[2] }
                         [PSCustomObject]@{ FullName = $additionalFile }
                     )
-                    Write-Host "Mock Get-ChildItem returning $($files.Count) files"
+                    Write-Debug "Mock Get-ChildItem returning $($files.Count) files"
                     foreach ($file in $files) {
-                        Write-Host "  File: $($file.FullName)"
+                        Write-Debug "  File: $($file.FullName)"
                     }
                     return $files
                 }
@@ -741,34 +741,34 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
             # Mock Import-Clixml to return appropriate backup data based on the file path
             Mock Import-Clixml {
                 param($Path)
-                Write-Host "Mock Import-Clixml called with Path: $Path"
+                Write-Debug "Mock Import-Clixml called with Path: $Path"
                 switch ($Path) {
                     $script:BulkBackupFiles[0] { 
                         $data = $script:TestBackupData.Clone()
                         $data.ObjectDN = 'CN=User1,OU=Users,DC=company,DC=com'
-                        Write-Host "Returning data for User1 with DN: $($data.ObjectDN)"
+                        Write-Debug "Returning data for User1 with DN: $($data.ObjectDN)"
                         return $data
                     }
                     $script:BulkBackupFiles[1] { 
                         $data = $script:TestBackupData.Clone()
                         $data.ObjectDN = 'CN=User2,OU=Users,DC=company,DC=com'
-                        Write-Host "Returning data for User2 with DN: $($data.ObjectDN)"
+                        Write-Debug "Returning data for User2 with DN: $($data.ObjectDN)"
                         return $data
                     }
                     $script:BulkBackupFiles[2] { 
                         $data = $script:TestBackupData.Clone()
                         $data.ObjectDN = 'CN=User3,OU=Users,DC=company,DC=com'
-                        Write-Host "Returning data for User3 with DN: $($data.ObjectDN)"
+                        Write-Debug "Returning data for User3 with DN: $($data.ObjectDN)"
                         return $data
                     }
                     $additionalFile { 
                         $additionalData = $script:TestBackupData.Clone()
                         $additionalData.ObjectDN = 'CN=AdditionalUser,OU=Users,DC=company,DC=com'
-                        Write-Host "Returning data for AdditionalUser with DN: $($additionalData.ObjectDN)"
+                        Write-Debug "Returning data for AdditionalUser with DN: $($additionalData.ObjectDN)"
                         return $additionalData
                     }
                     default { 
-                        Write-Host "Returning default data for path: $Path"
+                        Write-Debug "Returning default data for path: $Path"
                         return $script:TestBackupData 
                     }
                 }
@@ -812,24 +812,24 @@ Describe "Invoke-RestoreWorkflow" -Tag "Unit", "Backup", "RestoreWorkflow" {
                 }
             }
             
-            Write-Host "TEST: Calling Invoke-RestoreWorkflow with TargetObjectDN: 'OU=Users,DC=company,DC=com' and BackupPath: $script:TestBackupDir"
+            Write-Debug "TEST: Calling Invoke-RestoreWorkflow with TargetObjectDN: 'OU=Users,DC=company,DC=com' and BackupPath: $script:TestBackupDir"
             
             try {
                 $result = Invoke-RestoreWorkflow -TargetObjectDN "OU=Users,DC=company,DC=com" -BackupPath $script:TestBackupDir
-                Write-Host "TEST: Function returned successfully"
+                Write-Debug "TEST: Function returned successfully"
             } catch {
-                Write-Host "TEST: Function threw error: $($_.Exception.Message)"
+                Write-Debug "TEST: Function threw error: $($_.Exception.Message)"
                 throw
             }
             
             # Debug output to understand what's happening
-            Write-Host "Debug: TotalObjects = $($result.TotalObjects)"
-            Write-Host "Debug: SuccessfulRestores = $($result.SuccessfulRestores)"
-            Write-Host "Debug: FailedRestores = $($result.FailedRestores)"
-            Write-Host "Debug: RestoreMode = $($result.RestoreMode)"
-            Write-Host "Debug: PSTypeName = $($result.PSObject.TypeNames[0])"
-            Write-Host "Debug: All properties:"
-            $result.PSObject.Properties | ForEach-Object { Write-Host "  $($_.Name) = $($_.Value)" }
+            Write-Debug "Debug: TotalObjects = $($result.TotalObjects)"
+            Write-Debug "Debug: SuccessfulRestores = $($result.SuccessfulRestores)"
+            Write-Debug "Debug: FailedRestores = $($result.FailedRestores)"
+            Write-Debug "Debug: RestoreMode = $($result.RestoreMode)"
+            Write-Debug "Debug: PSTypeName = $($result.PSObject.TypeNames[0])"
+            Write-Debug "Debug: All properties:"
+            $result.PSObject.Properties | ForEach-Object { Write-Debug "  $($_.Name) = $($_.Value)" }
             
             # The function should process at least 4 objects (User1, User2, User3, AdditionalUser)
             $result.TotalObjects | Should BeGreaterThan 0

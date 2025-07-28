@@ -1,0 +1,126 @@
+{
+  "standardACLs": [
+    {
+      "objectPath": "CN=TestFolder,OU=Resources,DC=contoso,DC=com",
+      "owner": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+      "group": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+      "accessRules": [
+        {
+          "identity": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false
+        },
+        {
+          "identity": "S-1-5-32-544",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false
+        },
+        {
+          "identity": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+          "accessControlType": "Allow",
+          "fileSystemRights": "ReadAndExecute",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": true
+        }
+      ]
+    },
+    {
+      "objectPath": "CN=SharedData,OU=Resources,DC=contoso,DC=com",
+      "owner": "S-1-5-32-544",
+      "group": "S-1-5-32-545",
+      "accessRules": [
+        {
+          "identity": "S-1-5-32-544",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false
+        },
+        {
+          "identity": "S-1-5-32-545",
+          "accessControlType": "Allow",
+          "fileSystemRights": "ReadAndExecute",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false
+        }
+      ]
+    }
+  ],
+  "complexACLs": [
+    {
+      "objectPath": "CN=SecureFolder,OU=Sensitive,DC=contoso,DC=com",
+      "owner": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+      "group": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+      "accessRules": [
+        {
+          "identity": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false
+        },
+        {
+          "identity": "S-1-5-21-9999999999-9999999999-9999999999-9999",
+          "accessControlType": "Allow",
+          "fileSystemRights": "Modify",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": false,
+          "isOrphaned": true
+        },
+        {
+          "identity": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+          "accessControlType": "Deny",
+          "fileSystemRights": "Delete",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "InheritOnly",
+          "isInherited": false
+        }
+      ]
+    }
+  ],
+  "inheritedACLs": [
+    {
+      "objectPath": "CN=ChildFolder,CN=TestFolder,OU=Resources,DC=contoso,DC=com",
+      "owner": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+      "group": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+      "accessRules": [
+        {
+          "identity": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": true,
+          "inheritedFrom": "CN=TestFolder,OU=Resources,DC=contoso,DC=com"
+        },
+        {
+          "identity": "S-1-5-32-544",
+          "accessControlType": "Allow",
+          "fileSystemRights": "FullControl",
+          "inheritanceFlags": "ContainerInherit,ObjectInherit",
+          "propagationFlags": "None",
+          "isInherited": true,
+          "inheritedFrom": "CN=TestFolder,OU=Resources,DC=contoso,DC=com"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "totalACLEntries": 3,
+    "orphanedSIDsFound": 1,
+    "inheritedEntries": 2,
+    "createdDate": "2025-07-27T00:00:00Z",
+    "testPurpose": "ACL structure and inheritance testing"
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "validSIDs": [
+    {
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+      "type": "User",
+      "domain": "CONTOSO",
+      "name": "TestUser1",
+      "lastSeen": "2025-07-20T10:30:00Z",
+      "riskLevel": "Low",
+      "isActive": true
+    },
+    {
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1002",
+      "type": "User",
+      "domain": "CONTOSO",
+      "name": "TestUser2",
+      "lastSeen": "2025-07-19T14:45:00Z",
+      "riskLevel": "Low",
+      "isActive": true
+    },
+    {
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+      "type": "Group",
+      "domain": "CONTOSO",
+      "name": "TestGroup1",
+      "lastSeen": "2025-07-18T09:15:00Z",
+      "riskLevel": "Medium",
+      "isActive": true
+    },
+    {
+      "sid": "S-1-5-32-544",
+      "type": "BuiltinGroup",
+      "domain": "BUILTIN",
+      "name": "Administrators",
+      "isProtected": true,
+      "riskLevel": "Critical",
+      "isActive": true
+    },
+    {
+      "sid": "S-1-5-32-545",
+      "type": "BuiltinGroup",
+      "domain": "BUILTIN",
+      "name": "Users",
+      "isProtected": true,
+      "riskLevel": "Low",
+      "isActive": true
+    }
+  ],
+  "orphanedSIDs": [
+    {
+      "sid": "S-1-5-21-9999999999-9999999999-9999999999-9999",
+      "type": "Unknown",
+      "domain": "UNKNOWN",
+      "name": null,
+      "lastSeen": "2025-06-15T12:00:00Z",
+      "riskLevel": "High",
+      "isActive": false,
+      "reasonOrphaned": "Account deleted but SID remains in ACLs",
+      "foundInACLs": [
+        "CN=TestFolder,OU=Resources,DC=contoso,DC=com",
+        "CN=SharedData,OU=Resources,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "sid": "S-1-5-21-8888888888-8888888888-8888888888-8888",
+      "type": "User",
+      "domain": "LEGACY",
+      "name": "OldUser",
+      "lastSeen": "2025-01-01T00:00:00Z",
+      "riskLevel": "Medium",
+      "isActive": false,
+      "reasonOrphaned": "Domain migration - old domain SID",
+      "foundInACLs": [
+        "CN=LegacyFolder,OU=Archive,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "sid": "S-1-5-21-7777777777-7777777777-7777777777-7777",
+      "type": "Group",
+      "domain": "CONTOSO",
+      "name": "DeletedTestGroup",
+      "lastSeen": "2025-05-20T16:30:00Z",
+      "riskLevel": "Medium",
+      "isActive": false,
+      "reasonOrphaned": "Group deleted but permissions remain",
+      "foundInACLs": [
+        "CN=TeamFolder,OU=Groups,DC=contoso,DC=com"
+      ]
+    }
+  ],
+  "malformedSIDs": [
+    {
+      "sid": "S-1-5-21-1234567890-1234567890",
+      "issue": "Incomplete SID - missing RID",
+      "severity": "High"
+    },
+    {
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-ABC",
+      "issue": "Non-numeric RID",
+      "severity": "High"
+    },
+    {
+      "sid": "S-2-5-21-1234567890-1234567890-1234567890-1001",
+      "issue": "Invalid revision number",
+      "severity": "Medium"
+    },
+    {
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1001-extra",
+      "issue": "Extra components in SID",
+      "severity": "Medium"
+    }
+  ],
+  "specialSIDs": [
+    {
+      "sid": "S-1-1-0",
+      "name": "Everyone",
+      "type": "WellKnown",
+      "isProtected": true,
+      "riskLevel": "Critical"
+    },
+    {
+      "sid": "S-1-5-18",
+      "name": "Local System",
+      "type": "WellKnown",
+      "isProtected": true,
+      "riskLevel": "Critical"
+    },
+    {
+      "sid": "S-1-5-19",
+      "name": "Local Service",
+      "type": "WellKnown",
+      "isProtected": true,
+      "riskLevel": "High"
+    },
+    {
+      "sid": "S-1-5-20",
+      "name": "Network Service",
+      "type": "WellKnown",
+      "isProtected": true,
+      "riskLevel": "High"
+    }
+  ],
+  "metadata": {
+    "totalValidSIDs": 5,
+    "totalOrphanedSIDs": 3,
+    "totalMalformedSIDs": 4,
+    "totalSpecialSIDs": 4,
+    "createdDate": "2025-07-27T00:00:00Z",
+    "testPurpose": "Comprehensive SID testing scenarios"
+  }
+}

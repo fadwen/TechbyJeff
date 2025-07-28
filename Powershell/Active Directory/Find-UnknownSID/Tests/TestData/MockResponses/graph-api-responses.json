@@ -1,0 +1,245 @@
+{
+  "metadata": {
+    "purpose": "API responses for external service integrations",
+    "service": "Microsoft Graph API",
+    "version": "v1.0",
+    "scenarios": "User lookup, group membership, directory object resolution"
+  },
+  "userLookupResponses": {
+    "successful": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT",
+        "Request-Id": "12345678-1234-1234-1234-123456789012"
+      },
+      "body": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users/$entity",
+        "id": "12345678-1234-1234-1234-123456789012",
+        "userPrincipalName": "john.doe@contoso.com",
+        "displayName": "John Doe",
+        "mail": "john.doe@contoso.com",
+        "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+        "accountEnabled": true,
+        "createdDateTime": "2023-01-15T10:30:00Z",
+        "userType": "Member"
+      }
+    },
+    "userNotFound": {
+      "status": 404,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT",
+        "Request-Id": "12345678-1234-1234-1234-123456789012"
+      },
+      "body": {
+        "error": {
+          "code": "Request_ResourceNotFound",
+          "message": "Resource '12345678-1234-1234-1234-123456789999' does not exist or one of its queried reference-property objects are not present.",
+          "innerError": {
+            "date": "2024-01-15T10:30:00",
+            "request-id": "12345678-1234-1234-1234-123456789012",
+            "client-request-id": "12345678-1234-1234-1234-123456789012"
+          }
+        }
+      }
+    },
+    "rateLimited": {
+      "status": 429,
+      "headers": {
+        "Content-Type": "application/json",
+        "Retry-After": "60",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT",
+        "Request-Id": "12345678-1234-1234-1234-123456789012"
+      },
+      "body": {
+        "error": {
+          "code": "TooManyRequests",
+          "message": "Too many requests",
+          "innerError": {
+            "code": "429",
+            "date": "2024-01-15T10:30:00",
+            "request-id": "12345678-1234-1234-1234-123456789012"
+          }
+        }
+      }
+    }
+  },
+  "groupMembershipResponses": {
+    "successful": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups",
+        "value": [
+          {
+            "id": "87654321-4321-4321-4321-210987654321",
+            "displayName": "IT Administrators",
+            "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+            "groupTypes": ["Unified"],
+            "securityEnabled": true
+          },
+          {
+            "id": "11111111-2222-3333-4444-555555555555",
+            "displayName": "Finance Users",
+            "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-2002",
+            "groupTypes": [],
+            "securityEnabled": true
+          }
+        ]
+      }
+    },
+    "noGroups": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups",
+        "value": []
+      }
+    }
+  },
+  "directoryObjectResponses": {
+    "resolvedObject": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#directoryObjects/$entity",
+        "@odata.type": "#microsoft.graph.user",
+        "id": "12345678-1234-1234-1234-123456789012",
+        "displayName": "John Doe",
+        "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-1001"
+      }
+    },
+    "deletedObject": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#directoryObjects/$entity",
+        "@odata.type": "#microsoft.graph.user",
+        "id": "99999999-9999-9999-9999-999999999999",
+        "displayName": "Deleted User",
+        "securityIdentifier": "S-1-5-21-9999999999-9999999999-9999999999-9999",
+        "deletedDateTime": "2024-01-01T00:00:00Z"
+      }
+    }
+  },
+  "errorScenarios": {
+    "authenticationError": {
+      "status": 401,
+      "headers": {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": "Bearer realm=\"\", authorization_uri=\"https://login.microsoftonline.com/common/oauth2/authorize\", client_id=\"00000003-0000-0000-c000-000000000000\"",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "error": {
+          "code": "InvalidAuthenticationToken",
+          "message": "Access token is empty.",
+          "innerError": {
+            "date": "2024-01-15T10:30:00",
+            "request-id": "12345678-1234-1234-1234-123456789012"
+          }
+        }
+      }
+    },
+    "insufficientPermissions": {
+      "status": 403,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "error": {
+          "code": "Forbidden",
+          "message": "Insufficient privileges to complete the operation.",
+          "innerError": {
+            "date": "2024-01-15T10:30:00",
+            "request-id": "12345678-1234-1234-1234-123456789012"
+          }
+        }
+      }
+    },
+    "serviceUnavailable": {
+      "status": 503,
+      "headers": {
+        "Content-Type": "application/json",
+        "Retry-After": "300",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "error": {
+          "code": "ServiceUnavailable",
+          "message": "Service is temporarily unavailable. Please retry after some time.",
+          "innerError": {
+            "date": "2024-01-15T10:30:00",
+            "request-id": "12345678-1234-1234-1234-123456789012"
+          }
+        }
+      }
+    }
+  },
+  "batchResponses": {
+    "mixedResults": {
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Date": "Mon, 15 Jan 2024 10:30:00 GMT"
+      },
+      "body": {
+        "responses": [
+          {
+            "id": "1",
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "@odata.type": "#microsoft.graph.user",
+              "id": "12345678-1234-1234-1234-123456789012",
+              "displayName": "John Doe",
+              "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-1001"
+            }
+          },
+          {
+            "id": "2",
+            "status": 404,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "error": {
+                "code": "Request_ResourceNotFound",
+                "message": "Resource not found"
+              }
+            }
+          },
+          {
+            "id": "3",
+            "status": 200,
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "@odata.type": "#microsoft.graph.group",
+              "id": "87654321-4321-4321-4321-210987654321",
+              "displayName": "IT Administrators",
+              "securityIdentifier": "S-1-5-21-1234567890-1234567890-1234567890-2001"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

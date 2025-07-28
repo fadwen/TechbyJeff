@@ -147,38 +147,38 @@ function Global:Get-ADObjectFromSearchBase {
     # Increment call counter for legacy tests
     $script:GetADObjectFromSearchBaseCallCount++
     
-    Write-Host "GLOBAL MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey" -ForegroundColor Cyan
+    Write-Debug "GLOBAL MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey"
     
     $containsKeyResult = $Global:TestConfig.TestObjects.ContainsKey($searchBaseKey)
     
-    Write-Host "GLOBAL MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey" -ForegroundColor Cyan
+    Write-Debug "GLOBAL MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey"
     
     if ($containsKeyResult) {
         $result = $Global:TestConfig.TestObjects[$searchBaseKey]
         # If the search base is marked as invalid (null value), throw an exception
         if ($result -eq $null -and $searchBaseKey -like "*Invalid*") {
-            Write-Host "GLOBAL MOCK: Simulating error for invalid $searchBaseKey" -ForegroundColor Red
+            Write-Debug "GLOBAL MOCK: Simulating error for invalid $searchBaseKey"
             if ($searchBaseKey -eq 'OU=Invalid,DC=contoso,DC=com') {
                 throw "The specified domain either does not exist or could not be contacted."
             } else {
                 throw "The specified domain either does not exist or could not be contacted."
             }
         } elseif ($result -ne $null) {
-            Write-Host "GLOBAL MOCK: Returning $($result.Count) objects for $searchBaseKey" -ForegroundColor Green
+            Write-Debug "GLOBAL MOCK: Returning $($result.Count) objects for $searchBaseKey"
             return $result
         } else {
-            Write-Host "GLOBAL MOCK: No test objects found for $searchBaseKey" -ForegroundColor Yellow
+            Write-Debug "GLOBAL MOCK: No test objects found for $searchBaseKey"
             return @()
         }
     } elseif ($searchBaseKey -like "*Invalid*") {
-        Write-Host "GLOBAL MOCK: Simulating error for $searchBaseKey" -ForegroundColor Red
+        Write-Debug "GLOBAL MOCK: Simulating error for $searchBaseKey"
         if ($searchBaseKey -eq 'OU=Invalid,DC=contoso,DC=com') {
             throw "The specified domain either does not exist or could not be contacted."
         } else {
             throw "The specified domain either does not exist or could not be contacted."
         }
     } else {
-        Write-Host "GLOBAL MOCK: No test objects found for $searchBaseKey" -ForegroundColor Yellow
+        Write-Debug "GLOBAL MOCK: No test objects found for $searchBaseKey"
         return @()
     }
 }
@@ -207,17 +207,17 @@ function script:Get-ADObjectFromSearchBase {
     # Increment call counter for legacy tests
     $script:GetADObjectFromSearchBaseCallCount++
     
-    Write-Host "SCRIPT MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey" -ForegroundColor Magenta
+    Write-Debug "SCRIPT MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey"
     
     $containsKeyResult = $Global:TestConfig.TestObjects.ContainsKey($searchBaseKey)
     
-    Write-Host "SCRIPT MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey" -ForegroundColor Magenta
+    Write-Debug "SCRIPT MOCK: Get-ADObjectFromSearchBase called with SearchBase: $searchBaseKey"
     
     if ($containsKeyResult) {
         $result = $Global:TestConfig.TestObjects[$searchBaseKey]
         # If the search base is marked as invalid (null value), throw an exception
         if ($result -eq $null -and $searchBaseKey -like "*Invalid*") {
-            Write-Host "SCRIPT MOCK: Simulating error for invalid $searchBaseKey" -ForegroundColor Red
+            Write-Debug "SCRIPT MOCK: Simulating error for invalid $searchBaseKey"
             if ($searchBaseKey -eq 'OU=Invalid,DC=contoso,DC=com') {
                 throw "The specified domain either does not exist or could not be contacted."
             } elseif ($searchBaseKey -like 'OU=Invalid*,DC=contoso,DC=com') {
@@ -226,14 +226,14 @@ function script:Get-ADObjectFromSearchBase {
                 throw "The specified domain either does not exist or could not be contacted."
             }
         } elseif ($result -ne $null) {
-            Write-Host "SCRIPT MOCK: Returning $($result.Count) objects for $searchBaseKey" -ForegroundColor Green
+            Write-Debug "SCRIPT MOCK: Returning $($result.Count) objects for $searchBaseKey"
             return $result
         } else {
-            Write-Host "SCRIPT MOCK: No test objects found for $searchBaseKey" -ForegroundColor Yellow
+            Write-Debug "SCRIPT MOCK: No test objects found for $searchBaseKey"
             return @()
         }
     } elseif ($searchBaseKey -like "*Invalid*") {
-        Write-Host "SCRIPT MOCK: Simulating error for $searchBaseKey" -ForegroundColor Red
+        Write-Debug "SCRIPT MOCK: Simulating error for $searchBaseKey"
         # Handle both old and new invalid test patterns
         if ($searchBaseKey -eq 'OU=Invalid,DC=contoso,DC=com') {
             throw "The specified domain either does not exist or could not be contacted."
@@ -243,7 +243,7 @@ function script:Get-ADObjectFromSearchBase {
             throw "The specified domain either does not exist or could not be contacted."
         }
     } else {
-        Write-Host "SCRIPT MOCK: No test objects found for $searchBaseKey" -ForegroundColor Yellow
+        Write-Debug "SCRIPT MOCK: No test objects found for $searchBaseKey"
         return @()
     }
 }
@@ -407,16 +407,16 @@ Describe "Get-ADObjectsSequential" {
     
     Context "Core Functionality - Sequential Processing" {
         It "Should process multiple search bases sequentially" {
-            Write-Host "TestConfig ValidSearchBases count:" $Global:TestConfig.ValidSearchBases.Count -ForegroundColor Yellow
-            Write-Host "TestConfig TestObjects keys:" ($Global:TestConfig.TestObjects.Keys -join ', ') -ForegroundColor Yellow
-            Write-Host "About to call Get-ADObjectsSequential with:" ($Global:TestConfig.ValidSearchBases -join ', ') -ForegroundColor Cyan
+            Write-Debug "TestConfig ValidSearchBases count: $($Global:TestConfig.ValidSearchBases.Count)"
+            Write-Debug "TestConfig TestObjects keys: $($Global:TestConfig.TestObjects.Keys -join ', ')"
+            Write-Debug "About to call Get-ADObjectsSequential with: $($Global:TestConfig.ValidSearchBases -join ', ')"
             
             $results = Get-ADObjectsSequential -SearchBase $Global:TestConfig.ValidSearchBases
             
-            Write-Host "Returned $($results.Count) results" -ForegroundColor Green
-            Write-Host "GetADObjectFromSearchBaseCalls count:" $Global:GetADObjectFromSearchBaseCalls.Count -ForegroundColor Yellow
+            Write-Debug "Returned $($results.Count) results"
+            Write-Debug "GetADObjectFromSearchBaseCalls count: $($Global:GetADObjectFromSearchBaseCalls.Count)"
             foreach ($call in $Global:GetADObjectFromSearchBaseCalls) {
-                Write-Host "Called with: $($call.SearchBase)" -ForegroundColor Cyan
+                Write-Debug "Called with: $($call.SearchBase)"
             }
             
             $results.Count | Should Be 5  # 3 users + 1 group + 1 computer

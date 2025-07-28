@@ -1,0 +1,105 @@
+{
+  "standardObjects": [
+    {
+      "distinguishedName": "CN=TestUser1,OU=Users,DC=contoso,DC=com",
+      "objectClass": "user",
+      "samAccountName": "testuser1",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+      "lastLogon": "2025-07-20T10:30:00Z",
+      "whenCreated": "2025-01-15T08:00:00Z",
+      "userAccountControl": 512,
+      "memberOf": [
+        "CN=TestGroup1,OU=Groups,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=TestUser2,OU=Users,DC=contoso,DC=com",
+      "objectClass": "user",
+      "samAccountName": "testuser2",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1002",
+      "lastLogon": "2025-07-19T14:45:00Z",
+      "whenCreated": "2025-02-10T09:30:00Z",
+      "userAccountControl": 512,
+      "memberOf": [
+        "CN=TestGroup2,OU=Groups,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=TestGroup1,OU=Groups,DC=contoso,DC=com",
+      "objectClass": "group",
+      "samAccountName": "testgroup1",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+      "groupType": -2147483646,
+      "whenCreated": "2025-01-10T10:00:00Z",
+      "member": [
+        "CN=TestUser1,OU=Users,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=TestGroup2,OU=Groups,DC=contoso,DC=com",
+      "objectClass": "group",
+      "samAccountName": "testgroup2",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-2002",
+      "groupType": -2147483646,
+      "whenCreated": "2025-02-05T11:15:00Z",
+      "member": [
+        "CN=TestUser2,OU=Users,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=TestComputer1,OU=Computers,DC=contoso,DC=com",
+      "objectClass": "computer",
+      "samAccountName": "TESTPC01$",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-3001",
+      "operatingSystem": "Windows 11",
+      "whenCreated": "2025-03-01T12:00:00Z",
+      "lastLogon": "2025-07-26T16:20:00Z"
+    }
+  ],
+  "complexObjects": [
+    {
+      "distinguishedName": "OU=ComplexOU,DC=contoso,DC=com",
+      "objectClass": "organizationalUnit",
+      "whenCreated": "2025-01-01T00:00:00Z",
+      "managedBy": "CN=TestUser1,OU=Users,DC=contoso,DC=com",
+      "description": "Complex organizational unit for testing",
+      "children": [
+        "CN=NestedGroup,OU=ComplexOU,DC=contoso,DC=com",
+        "CN=ServiceAccount,OU=ComplexOU,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=NestedGroup,OU=ComplexOU,DC=contoso,DC=com",
+      "objectClass": "group",
+      "samAccountName": "nestedgroup",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-2003",
+      "groupType": -2147483646,
+      "memberOf": [
+        "CN=ParentGroup,OU=Groups,DC=contoso,DC=com"
+      ],
+      "member": [
+        "CN=TestUser1,OU=Users,DC=contoso,DC=com",
+        "CN=TestUser2,OU=Users,DC=contoso,DC=com"
+      ]
+    },
+    {
+      "distinguishedName": "CN=ServiceAccount,OU=ComplexOU,DC=contoso,DC=com",
+      "objectClass": "user",
+      "samAccountName": "svc_test",
+      "sid": "S-1-5-21-1234567890-1234567890-1234567890-1003",
+      "userAccountControl": 66048,
+      "servicePrincipalName": [
+        "HTTP/testservice.contoso.com",
+        "HTTP/testservice"
+      ],
+      "whenCreated": "2025-01-20T15:30:00Z"
+    }
+  ],
+  "metadata": {
+    "domain": "contoso.com",
+    "domainSid": "S-1-5-21-1234567890-1234567890-1234567890",
+    "totalObjects": 8,
+    "createdDate": "2025-07-27T00:00:00Z",
+    "testPurpose": "Standard Active Directory object testing"
+  }
+}

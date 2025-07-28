@@ -1,0 +1,75 @@
+{
+  "memoryThresholdMB": 2048,
+  "maxRetryAttempts": 5,
+  "retryDelaySeconds": 10,
+  "batchSize": 500,
+  "enableDetailedLogging": true,
+  "auditTrailEnabled": true,
+  "securityValidationLevel": "Enterprise",
+  "backupRetentionDays": 365,
+  "correlationIdPrefix": "ENT",
+  "outputFormats": ["CSV", "JSON", "XML"],
+  "performanceMonitoring": {
+    "enabled": true,
+    "memoryCheckIntervalSeconds": 15,
+    "performanceLogPath": "./Tests/Results/enterprise-performance.log"
+  },
+  "security": {
+    "allowedSearchBases": [
+      "OU=Production,DC=enterprise,DC=com",
+      "OU=Staging,DC=enterprise,DC=com",
+      "OU=Development,DC=enterprise,DC=com"
+    ],
+    "protectedSIDs": [
+      "S-1-5-32-544",
+      "S-1-5-32-548",
+      "S-1-5-32-549",
+      "S-1-5-32-550",
+      "S-1-5-32-551",
+      "S-1-5-32-552",
+      "S-1-5-21-*-512",
+      "S-1-5-21-*-513",
+      "S-1-5-21-*-519"
+    ],
+    "inputValidation": {
+      "maxSearchBaseLength": 512,
+      "allowedCharacters": "^[a-zA-Z0-9=,\\s\\-\\u00C0-\\u024F]+$",
+      "pathTraversalProtection": true
+    }
+  },
+  "performance": {
+    "discovery": {
+      "maxExecutionTimeMs": 120000,
+      "maxMemoryUsageMB": 2048,
+      "maxConcurrentConnections": 50
+    },
+    "removal": {
+      "maxExecutionTimeMs": 180000,
+      "maxMemoryUsageMB": 1024,
+      "batchSize": 200
+    },
+    "restore": {
+      "maxExecutionTimeMs": 240000,
+      "maxMemoryUsageMB": 1536,
+      "maxParallelOperations": 25
+    }
+  },
+  "testing": {
+    "maxTestExecutionTimeMs": 15000,
+    "mockDataSize": 1000,
+    "validateTestData": true,
+    "isolatedTestRuns": true
+  },
+  "compliance": {
+    "enableAuditTrail": true,
+    "requireSecureLogging": true,
+    "dataRetentionDays": 2555,
+    "encryptSensitiveData": true
+  },
+  "validation": {
+    "validateInputs": true,
+    "strictModeEnabled": true,
+    "crossPlatformTesting": true,
+    "memoryLeakDetection": true
+  }
+}

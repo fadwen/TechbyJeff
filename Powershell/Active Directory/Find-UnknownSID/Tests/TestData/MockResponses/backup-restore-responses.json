@@ -1,0 +1,90 @@
+{
+  "backupOperations": {
+    "successfulBackup": {
+      "operation": "backup",
+      "timestamp": "2025-07-27T10:30:00Z",
+      "sourceOU": "OU=TestOU,DC=contoso,DC=com",
+      "backupFile": "backup_20250727_103000.xml",
+      "itemCount": 25,
+      "sizeBytes": 102400,
+      "executionTimeMs": 1250,
+      "checksumMD5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "failedBackup": {
+      "operation": "backup",
+      "timestamp": "2025-07-27T11:15:00Z",
+      "sourceOU": "OU=ProtectedOU,DC=contoso,DC=com",
+      "error": "Access denied",
+      "errorCode": "0x80072020",
+      "executionTimeMs": 150
+    },
+    "partialBackup": {
+      "operation": "backup",
+      "timestamp": "2025-07-27T12:00:00Z",
+      "sourceOU": "OU=MixedOU,DC=contoso,DC=com",
+      "backupFile": "backup_20250727_120000.xml",
+      "itemCount": 15,
+      "expectedCount": 20,
+      "sizeBytes": 76800,
+      "executionTimeMs": 980,
+      "warnings": [
+        "Unable to access 5 objects due to permissions"
+      ]
+    }
+  },
+  "restoreOperations": {
+    "successfulRestore": {
+      "operation": "restore",
+      "timestamp": "2025-07-27T14:30:00Z",
+      "targetOU": "OU=TestOU,DC=contoso,DC=com",
+      "backupFile": "backup_20250727_103000.xml",
+      "itemCount": 25,
+      "restoredCount": 25,
+      "executionTimeMs": 2100,
+      "verification": "passed"
+    },
+    "failedRestore": {
+      "operation": "restore",
+      "timestamp": "2025-07-27T15:15:00Z",
+      "targetOU": "OU=TestOU,DC=contoso,DC=com",
+      "backupFile": "corrupted_backup.xml",
+      "error": "Backup file is corrupted or invalid",
+      "errorCode": "BACKUP_CORRUPTED",
+      "executionTimeMs": 50
+    },
+    "partialRestore": {
+      "operation": "restore",
+      "timestamp": "2025-07-27T16:00:00Z",
+      "targetOU": "OU=TestOU,DC=contoso,DC=com",
+      "backupFile": "backup_20250727_120000.xml",
+      "itemCount": 15,
+      "restoredCount": 12,
+      "failedCount": 3,
+      "executionTimeMs": 1800,
+      "warnings": [
+        "3 objects could not be restored due to conflicts"
+      ]
+    }
+  },
+  "validationChecks": {
+    "checksumValidation": {
+      "backupFile": "backup_20250727_103000.xml",
+      "expectedChecksum": "d41d8cd98f00b204e9800998ecf8427e",
+      "actualChecksum": "d41d8cd98f00b204e9800998ecf8427e",
+      "result": "passed"
+    },
+    "schemaValidation": {
+      "backupFile": "backup_20250727_103000.xml",
+      "schemaVersion": "1.0",
+      "validationResult": "passed",
+      "errors": []
+    },
+    "integrityCheck": {
+      "backupFile": "backup_20250727_103000.xml",
+      "itemCount": 25,
+      "orphanedSIDCount": 3,
+      "validACLCount": 22,
+      "result": "passed"
+    }
+  }
+}

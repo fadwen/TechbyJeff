@@ -34,6 +34,40 @@
     - Memory pressure detection
 #>
 
+function Get-SystemGCTotalMemory {
+    <#
+    .SYNOPSIS
+        Wrapper for System.GC.GetTotalMemory to enable mocking in tests
+    
+    .DESCRIPTION
+        Provides a mockable wrapper around the static .NET method
+        System.GC.GetTotalMemory for testing purposes.
+    
+    .PARAMETER ForceFullCollection
+        Forces a full garbage collection before measuring memory
+    #>
+    param([bool]$ForceFullCollection = $false)
+    
+    return [System.GC]::GetTotalMemory($ForceFullCollection)
+}
+
+function Get-SystemGCCollectionCount {
+    <#
+    .SYNOPSIS
+        Wrapper for System.GC.CollectionCount to enable mocking in tests
+    
+    .DESCRIPTION
+        Provides a mockable wrapper around the static .NET method
+        System.GC.CollectionCount for testing purposes.
+    
+    .PARAMETER Generation
+        The generation number (0, 1, 2)
+    #>
+    param([int]$Generation)
+    
+    return [System.GC]::CollectionCount($Generation)
+}
+
 function Invoke-MemoryCheck {
     <#
     .SYNOPSIS
@@ -46,6 +80,9 @@ function Invoke-MemoryCheck {
 
     .PARAMETER MemoryManager
         MemoryManager instance to perform check on
+
+    .PARAMETER CorrelationId
+        Correlation identifier for tracking operations
 
     .PARAMETER Force
         Forces memory check regardless of interval counter
@@ -83,15 +120,22 @@ function Invoke-MemoryCheck {
         [MemoryManager]$MemoryManager,
 
         [Parameter()]
+        [string]$CorrelationId = [System.Guid]::NewGuid().ToString(),
+
+        [Parameter()]
         [switch]$Force
     )
 
     process {
         try {
+            if (-not $CorrelationId.Trim()) {
+                $CorrelationId = $MemoryManager.CorrelationId
+            }
+
             # Memory checks always execute - critical for system stability
             # Only logging respects ShouldProcess
             if ($PSCmdlet.ShouldProcess("Memory", "Check usage and cleanup if needed")) {
-                Write-StructuredLog "Performing memory check..." -Level Debug -Component 'MemoryManagement' -CorrelationId $MemoryManager.CorrelationId
+                Write-StructuredLog "Performing memory check..." -Level Debug -Component 'MemoryManagement' -CorrelationId $CorrelationId
             } else {
                 Write-Verbose "WhatIf: Would check memory usage and cleanup if needed"
             }
@@ -102,10 +146,51 @@ function Invoke-MemoryCheck {
                 $MemoryManager.CheckCounter = $MemoryManager.CheckInterval
             }
 
+            # Get current memory usage for analysis
+            $currentMemory = [math]::Round((Get-SystemGCTotalMemory) / 1MB, 2)
+            $beforeTime = Get-Date
+            
             $MemoryManager.CheckMemoryUsage()
+            
+            # Return comprehensive monitoring results
+            $memoryStatus = if ($currentMemory -gt 1000) { 'Critical' } 
+                           elseif ($currentMemory -gt 500) { 'High' } 
+                           else { 'Normal' }
+            
+            $thresholdExceeded = $currentMemory -gt $MemoryManager.MaxMemoryMB
+            $recommendations = @()
+            
+            if ($memoryStatus -eq 'High') {
+                $recommendations += 'Consider running garbage collection'
+            } elseif ($memoryStatus -eq 'Critical') {
+                $recommendations += 'Immediate action required: Stop processing and run garbage collection'
+                $recommendations += 'Consider LOH compaction for large object cleanup'
+            }
+            
+            if ($thresholdExceeded) {
+                $recommendations += 'Consider adjusting memory threshold settings'
+            }
+
+            return [PSCustomObject]@{
+                CurrentMemoryMB = $currentMemory
+                MaxMemoryMB = $MemoryManager.MaxMemoryMB
+                ThresholdExceeded = $thresholdExceeded
+                MemoryUsagePercent = [math]::Round(($currentMemory / $MemoryManager.MaxMemoryMB) * 100, 0)
+                MemoryStatus = $memoryStatus
+                Recommendations = $recommendations
+                MonitoringTime = Get-Date
+                SystemMemoryTotal = Get-SystemGCTotalMemory
+                MemoryToThresholdRatio = [math]::Round($currentMemory / $MemoryManager.MaxMemoryMB, 1)
+                Gen0Collections = Get-SystemGCCollectionCount -Generation 0
+                Gen1Collections = Get-SystemGCCollectionCount -Generation 1
+                Gen2Collections = Get-SystemGCCollectionCount -Generation 2
+                WhatIfMode = $WhatIfPreference
+                CorrelationId = $CorrelationId
+            }
         }
         catch {
-            Write-StructuredLog "Memory check operation failed: $($_.Exception.Message)" -Level Warning -Component 'MemoryManagement' -CorrelationId $MemoryManager.CorrelationId
+            Write-StructuredLog "Memory check operation failed: $($_.Exception.Message)" -Level Warning -Component 'MemoryManagement' -CorrelationId $CorrelationId
+            throw
         }
     }
 }

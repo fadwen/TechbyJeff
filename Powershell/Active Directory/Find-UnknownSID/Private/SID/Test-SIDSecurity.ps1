@@ -191,20 +191,15 @@ function Test-SIDSecurity {
             }
 
             # Check if SID is in protected list
-            Write-Host "DEBUG: Checking if SID '$SIDString' is in protected list"
-            Write-Host "DEBUG: script:Config exists: $($script:Config -ne $null)"
-            Write-Host "DEBUG: script:Config.ProtectedSIDs exists: $($script:Config.ProtectedSIDs -ne $null)"
-            Write-Host "DEBUG: script:Config.ProtectedSIDs count: $($script:Config.ProtectedSIDs.Count)"
-            Write-Host "DEBUG: script:Config.ProtectedSIDs contains '$SIDString': $($script:Config.ProtectedSIDs -contains $SIDString)"
+            try { Write-StructuredLog "Checking if SID '$SIDString' is in protected list" -Level Debug -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
             
             if ($script:Config -and $script:Config.ProtectedSIDs -contains $SIDString) {
-                Write-Host "PROTECTED SID DETECTED: $SIDString"
+                try { Write-StructuredLog "SID $SIDString blocked - found in protected SIDs list" -Level Warning -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
+                
                 $validation.IsValid = $false
                 $validation.RiskLevel = "Critical"
                 $validation.Issues += "SID is in protected SIDs list - removal blocked by security policy"
                 $validation.BlockedSIDs += $SIDString
-
-                try { Write-StructuredLog "SID $SIDString blocked - found in protected SIDs list" -Level Warning -Component 'SIDSecurity' -CorrelationId $CorrelationId } catch { }
 
                 # Log security blocking event
                 $securityContext = @{
@@ -214,13 +209,9 @@ function Test-SIDSecurity {
                     RiskLevel = 'Critical'
                     ObjectDN = $ObjectDN
                 }
-                Write-Host "SECURITY CONTEXT CREATED: $($securityContext | ConvertTo-Json -Compress)"
                 try {
-                    Write-Host "CALLING Write-SecurityLog with Outcome=Failure"
                     Write-SecurityLog -SecurityEventType 'DataValidation' -Message "Protected SID validation blocked - removal denied" -Outcome 'Failure' -CorrelationId $CorrelationId -SecurityContext $securityContext
-                    Write-Host "Write-SecurityLog call completed"
                 } catch { 
-                    Write-Host "Write-SecurityLog call failed: $($_.Exception.Message)"
                     # Store security context for test access even if logging fails
                     $script:LastSecurityContext = $securityContext
                 }

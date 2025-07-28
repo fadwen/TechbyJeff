@@ -1,0 +1,65 @@
+{
+  "memoryThresholdMB": 128,
+  "maxRetryAttempts": 1,
+  "retryDelaySeconds": 2,
+  "batchSize": 25,
+  "enableDetailedLogging": false,
+  "auditTrailEnabled": false,
+  "securityValidationLevel": "Basic",
+  "backupRetentionDays": 7,
+  "correlationIdPrefix": "MINIMAL",
+  "outputFormats": ["CSV"],
+  "performanceMonitoring": {
+    "enabled": false,
+    "memoryCheckIntervalSeconds": 60,
+    "performanceLogPath": "./Tests/Results/minimal-performance.log"
+  },
+  "security": {
+    "allowedSearchBases": [
+      "OU=Test,DC=minimal,DC=local"
+    ],
+    "protectedSIDs": [
+      "S-1-5-32-544"
+    ],
+    "inputValidation": {
+      "maxSearchBaseLength": 128,
+      "allowedCharacters": "^[a-zA-Z0-9=,\\s\\-]+$",
+      "pathTraversalProtection": true
+    }
+  },
+  "performance": {
+    "discovery": {
+      "maxExecutionTimeMs": 15000,
+      "maxMemoryUsageMB": 128,
+      "maxConcurrentConnections": 2
+    },
+    "removal": {
+      "maxExecutionTimeMs": 20000,
+      "maxMemoryUsageMB": 64,
+      "batchSize": 10
+    },
+    "restore": {
+      "maxExecutionTimeMs": 25000,
+      "maxMemoryUsageMB": 96,
+      "maxParallelOperations": 1
+    }
+  },
+  "testing": {
+    "maxTestExecutionTimeMs": 2000,
+    "mockDataSize": 25,
+    "validateTestData": false,
+    "isolatedTestRuns": true
+  },
+  "compliance": {
+    "enableAuditTrail": false,
+    "requireSecureLogging": false,
+    "dataRetentionDays": 30,
+    "encryptSensitiveData": false
+  },
+  "validation": {
+    "validateInputs": true,
+    "strictModeEnabled": false,
+    "crossPlatformTesting": false,
+    "memoryLeakDetection": false
+  }
+}

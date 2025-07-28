@@ -1,0 +1,78 @@
+{
+  "ldapQueries": {
+    "findOrphanedSIDs": {
+      "filter": "(&(objectClass=user)(objectSid=S-1-5-21-9999999999-9999999999-9999999999-9999))",
+      "properties": ["objectSid", "distinguishedName", "objectClass"],
+      "expectedResult": "noResults",
+      "executionTimeMs": 150
+    },
+    "getUserBySID": {
+      "filter": "(&(objectClass=user)(objectSid=S-1-5-21-1234567890-1234567890-1234567890-1001))",
+      "properties": ["objectSid", "distinguishedName", "sAMAccountName", "objectClass"],
+      "expectedResult": "singleResult",
+      "executionTimeMs": 45,
+      "resultData": {
+        "objectSid": "S-1-5-21-1234567890-1234567890-1234567890-1001",
+        "distinguishedName": "CN=Test User,OU=Users,DC=contoso,DC=com",
+        "sAMAccountName": "testuser",
+        "objectClass": "user"
+      }
+    },
+    "getGroupBySID": {
+      "filter": "(&(objectClass=group)(objectSid=S-1-5-21-1234567890-1234567890-1234567890-2001))",
+      "properties": ["objectSid", "distinguishedName", "sAMAccountName", "objectClass"],
+      "expectedResult": "singleResult",
+      "executionTimeMs": 38,
+      "resultData": {
+        "objectSid": "S-1-5-21-1234567890-1234567890-1234567890-2001",
+        "distinguishedName": "CN=Test Group,OU=Groups,DC=contoso,DC=com",
+        "sAMAccountName": "testgroup",
+        "objectClass": "group"
+      }
+    },
+    "searchAllObjects": {
+      "filter": "(objectSid=*)",
+      "properties": ["objectSid", "distinguishedName", "objectClass"],
+      "expectedResult": "multipleResults",
+      "executionTimeMs": 2340,
+      "resultCount": 1250
+    }
+  },
+  "errorResponses": {
+    "connectionTimeout": {
+      "errorCode": "0x8007203A",
+      "errorMessage": "The server is not operational",
+      "type": "LdapException",
+      "category": "ConnectionError"
+    },
+    "accessDenied": {
+      "errorCode": "0x80072020",
+      "errorMessage": "An operations error occurred",
+      "type": "DirectoryServiceException",
+      "category": "AuthenticationError"
+    },
+    "invalidFilter": {
+      "errorCode": "0x80072032",
+      "errorMessage": "The search filter is invalid",
+      "type": "DirectoryServiceException",
+      "category": "InvalidOperation"
+    }
+  },
+  "performanceBaselines": {
+    "smallQuery": {
+      "maxExecutionTimeMs": 100,
+      "averageExecutionTimeMs": 45,
+      "memoryUsageKB": 512
+    },
+    "mediumQuery": {
+      "maxExecutionTimeMs": 500,
+      "averageExecutionTimeMs": 180,
+      "memoryUsageKB": 2048
+    },
+    "largeQuery": {
+      "maxExecutionTimeMs": 5000,
+      "averageExecutionTimeMs": 2340,
+      "memoryUsageKB": 8192
+    }
+  }
+}

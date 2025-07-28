@@ -1,0 +1,89 @@
+{
+  "memoryThresholdMB": 256,
+  "maxRetryAttempts": 5,
+  "retryDelaySeconds": 8,
+  "batchSize": 50,
+  "enableDetailedLogging": true,
+  "auditTrailEnabled": true,
+  "securityValidationLevel": "Enhanced",
+  "backupRetentionDays": 90,
+  "correlationIdPrefix": "SEC",
+  "outputFormats": ["JSON"],
+  "performanceMonitoring": {
+    "enabled": true,
+    "memoryCheckIntervalSeconds": 10,
+    "performanceLogPath": "./Tests/Results/security-performance.log"
+  },
+  "security": {
+    "strictInputValidation": true,
+    "sanitizeAllInputs": true,
+    "allowedSearchBases": [
+      "OU=SecureTest,DC=secure,DC=local"
+    ],
+    "denyDangerousOperations": true,
+    "maxObjectsPerOperation": 50,
+    "requireApprovalForRemoval": true,
+    "protectedSIDs": [
+      "S-1-5-32-544",
+      "S-1-5-32-548",
+      "S-1-5-32-549",
+      "S-1-5-32-550",
+      "S-1-5-32-551",
+      "S-1-5-32-552",
+      "S-1-5-21-*-512",
+      "S-1-5-21-*-513",
+      "S-1-5-21-*-514",
+      "S-1-5-21-*-515",
+      "S-1-5-21-*-516",
+      "S-1-5-21-*-517",
+      "S-1-5-21-*-518",
+      "S-1-5-21-*-519",
+      "S-1-5-21-*-520"
+    ],
+    "inputValidation": {
+      "maxSearchBaseLength": 128,
+      "allowedCharacters": "^[a-zA-Z0-9=,\\s\\-]+$",
+      "commandInjectionProtection": true,
+      "pathTraversalProtection": true,
+      "ldapInjectionProtection": true,
+      "xssProtection": true
+    }
+  },
+  "performance": {
+    "discovery": {
+      "maxExecutionTimeMs": 20000,
+      "maxMemoryUsageMB": 256,
+      "maxConcurrentConnections": 5
+    },
+    "removal": {
+      "maxExecutionTimeMs": 30000,
+      "maxMemoryUsageMB": 128,
+      "batchSize": 25
+    },
+    "restore": {
+      "maxExecutionTimeMs": 40000,
+      "maxMemoryUsageMB": 192,
+      "maxParallelOperations": 3
+    }
+  },
+  "testing": {
+    "maxTestExecutionTimeMs": 3000,
+    "mockDataSize": 50,
+    "validateTestData": true,
+    "isolatedTestRuns": true
+  },
+  "compliance": {
+    "enableAuditTrail": true,
+    "requireSecureLogging": true,
+    "dataRetentionDays": 365,
+    "encryptSensitiveData": true,
+    "requireMFA": true,
+    "encryptBackups": true
+  },
+  "validation": {
+    "validateInputs": true,
+    "strictModeEnabled": true,
+    "crossPlatformTesting": false,
+    "memoryLeakDetection": true
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "logs": {
+    "standard": [
+      {
+        "timestamp": "2025-07-27T10:30:15.123Z",
+        "level": "Information",
+        "message": "Starting SID analysis for OU: OU=TestOU,DC=contoso,DC=com",
+        "correlationId": "12345678-1234-1234-1234-123456789012",
+        "component": "SIDAnalysis",
+        "operation": "Initialize"
+      },
+      {
+        "timestamp": "2025-07-27T10:30:16.456Z",
+        "level": "Debug",
+        "message": "Processing ACL for object: CN=TestObject,OU=TestOU,DC=contoso,DC=com",
+        "correlationId": "12345678-1234-1234-1234-123456789012",
+        "component": "ACLProcessor",
+        "operation": "ProcessACL"
+      },
+      {
+        "timestamp": "2025-07-27T10:30:17.789Z",
+        "level": "Warning",
+        "message": "Orphaned SID detected: S-1-5-21-9999999999-9999999999-9999999999-9999",
+        "correlationId": "12345678-1234-1234-1234-123456789012",
+        "component": "SIDValidator",
+        "operation": "ValidateSID",
+        "data": {
+          "orphanedSID": "S-1-5-21-9999999999-9999999999-9999999999-9999",
+          "objectPath": "CN=TestObject,OU=TestOU,DC=contoso,DC=com"
+        }
+      },
+      {
+        "timestamp": "2025-07-27T10:30:18.012Z",
+        "level": "Information",
+        "message": "SID analysis completed successfully",
+        "correlationId": "12345678-1234-1234-1234-123456789012",
+        "component": "SIDAnalysis",
+        "operation": "Complete",
+        "data": {
+          "totalObjects": 25,
+          "orphanedSIDs": 3,
+          "executionTimeMs": 2789
+        }
+      }
+    ],
+    "error": [
+      {
+        "timestamp": "2025-07-27T11:15:30.555Z",
+        "level": "Error",
+        "message": "Failed to connect to domain controller",
+        "correlationId": "87654321-4321-4321-4321-210987654321",
+        "component": "ADConnection",
+        "operation": "Connect",
+        "error": {
+          "type": "DirectoryServiceException",
+          "code": "0x8007203A",
+          "details": "The server is not operational"
+        }
+      },
+      {
+        "timestamp": "2025-07-27T11:15:31.888Z",
+        "level": "Error",
+        "message": "Access denied while reading ACL",
+        "correlationId": "87654321-4321-4321-4321-210987654321",
+        "component": "ACLProcessor",
+        "operation": "ReadACL",
+        "error": {
+          "type": "UnauthorizedAccessException",
+          "code": "0x80072020",
+          "details": "Insufficient privileges to read object security"
+        },
+        "data": {
+          "objectPath": "CN=ProtectedObject,OU=SecureOU,DC=contoso,DC=com"
+        }
+      }
+    ],
+    "performance": [
+      {
+        "timestamp": "2025-07-27T12:00:00.000Z",
+        "level": "Information",
+        "message": "Performance metrics collected",
+        "correlationId": "PERF-001-2025-07-27",
+        "component": "PerformanceMonitor",
+        "operation": "CollectMetrics",
+        "data": {
+          "memoryUsageMB": 125.6,
+          "cpuUsagePercent": 15.2,
+          "executionTimeMs": 5000,
+          "objectsProcessed": 1000,
+          "throughputObjectsPerSecond": 200
+        }
+      }
+    ]
+  },
+  "logFormat": {
+    "timestamp": "ISO 8601 format with milliseconds",
+    "level": ["Debug", "Information", "Warning", "Error", "Critical"],
+    "correlationId": "GUID format for request tracing",
+    "component": "Source component generating the log",
+    "operation": "Specific operation being performed",
+    "data": "Optional structured data object",
+    "error": "Optional error information object"
+  }
+}
