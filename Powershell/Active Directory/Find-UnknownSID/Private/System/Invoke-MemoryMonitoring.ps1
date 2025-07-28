@@ -128,7 +128,8 @@ function Invoke-MemoryCheck {
 
     process {
         try {
-            if (-not $CorrelationId.Trim()) {
+            # Use MemoryManager CorrelationId if none provided
+            if (-not $PSBoundParameters.ContainsKey('CorrelationId') -or -not $CorrelationId.Trim()) {
                 $CorrelationId = $MemoryManager.CorrelationId
             }
 
@@ -153,8 +154,9 @@ function Invoke-MemoryCheck {
             $MemoryManager.CheckMemoryUsage()
             
             # Return comprehensive monitoring results
-            $memoryStatus = if ($currentMemory -gt 1000) { 'Critical' } 
-                           elseif ($currentMemory -gt 500) { 'High' } 
+            $usagePercent = [Math]::Round(($currentMemory / $MemoryManager.MaxMemoryMB) * 100, 1)
+            $memoryStatus = if ($usagePercent -gt 90) { 'Critical' } 
+                           elseif ($usagePercent -gt 75) { 'High' } 
                            else { 'Normal' }
             
             $thresholdExceeded = $currentMemory -gt $MemoryManager.MaxMemoryMB
@@ -175,7 +177,7 @@ function Invoke-MemoryCheck {
                 CurrentMemoryMB = $currentMemory
                 MaxMemoryMB = $MemoryManager.MaxMemoryMB
                 ThresholdExceeded = $thresholdExceeded
-                MemoryUsagePercent = [math]::Round(($currentMemory / $MemoryManager.MaxMemoryMB) * 100, 0)
+                MemoryUsagePercent = [math]::Round($usagePercent, 0)
                 MemoryStatus = $memoryStatus
                 Recommendations = $recommendations
                 MonitoringTime = Get-Date

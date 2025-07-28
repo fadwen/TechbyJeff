@@ -242,6 +242,8 @@ Describe "Test-MemoryThreshold" {
 
     Context "Basic Threshold Testing" {
         It "Should test memory against threshold" {
+            Mock Get-CurrentMemoryUsage { return @{ WorkingSetMB = 500 } }
+            
             $result = Test-MemoryThreshold -ThresholdMB 1024
             
             $result.ThresholdExceeded | Should Be $false
@@ -249,7 +251,7 @@ Describe "Test-MemoryThreshold" {
         }
 
         It "Should detect when threshold is exceeded" {
-            Mock Get-SystemGCTotalMemory { return 2048MB }
+            Mock Get-CurrentMemoryUsage { return @{ WorkingSetMB = 2048 } }
             
             $result = Test-MemoryThreshold -ThresholdMB 1024
             

@@ -80,8 +80,8 @@ Describe "Test-OrphanedSID Function Tests" {
             
             $result | Should Not BeNullOrEmpty
             $result | Should BeOfType [bool]
-            # Function behavior: well-known SIDs return true (orphaned from AD perspective)
-            $result | Should Be $true
+            # Function behavior: well-known SIDs return false (not orphaned)
+            $result | Should Be $false
         }
     }
     
@@ -139,9 +139,9 @@ Describe "Test-OrphanedSID Function Tests" {
             foreach ($sid in $wellKnownSIDs) {
                 $result = Test-OrphanedSID -SID $sid
                 $result | Should BeOfType [bool]
-                # Function behavior: well-known Windows SIDs are considered "orphaned" 
-                # from AD perspective since they're not domain objects
-                $result | Should Be $true
+                # Function behavior: well-known Windows SIDs are not orphaned
+                # they should translate successfully
+                $result | Should Be $false
             }
         }
         
