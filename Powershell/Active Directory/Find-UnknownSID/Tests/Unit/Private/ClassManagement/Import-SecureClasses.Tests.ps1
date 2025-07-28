@@ -4,6 +4,26 @@
 # Load the function
 . "$PSScriptRoot\..\..\..\..\Private\ClassManagement\Import-SecureClasses.ps1"
 
+# Create stubs for missing functions
+function Resolve-ClassPath {
+    param($ClassName, $CorrelationId)
+    return "C:\TestClasses\$ClassName.ps1"
+}
+
+function Get-ApprovedClassList { 
+    param($CorrelationId)
+    return @('Class1', 'Class2', 'Class3')
+}
+
+function Test-ClassIntegrity { 
+    param($ClassPath, $CorrelationId)
+    return @{ Valid = $true; Issues = @() }
+}
+
+function Write-SecurityLogEvent { 
+    param($Message, $EventType, $CorrelationId, $AdditionalData)
+}
+
 # Load dependencies for mocking
 $dependencies = @(
     "$PSScriptRoot\..\..\..\..\Tests\Unit\Private\ClassManagement\Test-ClassIntegrity.ps1"
@@ -21,7 +41,7 @@ foreach ($dep in $dependencies) {
 
 Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
     
-    BeforeAll {
+    # Setup for Pester 3.4 compatibility (moved from BeforeAll)
         # Mock dependencies for testing
         $script:TestCorrelationId = [System.Guid]::NewGuid().ToString()
         $script:ValidClassNames = @('ScriptConfiguration', 'MemoryManager', 'ProcessingStatistics')
@@ -56,6 +76,7 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         
         # Mock the Get-ApprovedClassList function to return test data
         Mock Get-ApprovedClassList {
+            param($CorrelationId)
             return @{
                 Classes = @{
                     'ScriptConfiguration.ps1' = @{
@@ -127,7 +148,6 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
             }
             return $results
         }
-    }
 
     Context "Parameter Validation" {
         It "Should require ClassNames parameter" {
@@ -415,6 +435,7 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
     Context "Security and Compliance" {
         BeforeEach {
             Mock Get-ApprovedClassList {
+                param($CorrelationId)
                 return @{
                     Classes = @{
                         'ScriptConfiguration.ps1' = @{ RequiredTypes = @('ScriptConfiguration') }
@@ -424,7 +445,7 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
             }
             
             Mock Resolve-ClassPath {
-                param($ClassNames)
+                param($ClassNames, $CorrelationId)
                 return $ClassNames | ForEach-Object {
                     [PSCustomObject]@{
                         ClassName = $_
@@ -444,12 +465,46 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         }
         
         It "Should track correlation ID for audit purposes" {
+            # Create variables to capture correlation IDs passed to mocks
+            $script:CapturedCorrelationIds = @{
+                GetApprovedClassList = $null
+                ResolveClassPath = $null
+            }
+            
+            # Reset mocks for this specific test with correlation ID capture
+            Mock Get-ApprovedClassList {
+                param($CorrelationId)
+                $script:CapturedCorrelationIds.GetApprovedClassList = $CorrelationId
+                return @{
+                    Classes = @{
+                        'ScriptConfiguration.ps1' = @{ RequiredTypes = @('ScriptConfiguration') }
+                    }
+                }
+            }
+            
+            Mock Resolve-ClassPath {
+                param($ClassNames, $CorrelationId)
+                $script:CapturedCorrelationIds.ResolveClassPath = $CorrelationId
+                return $ClassNames | ForEach-Object {
+                    [PSCustomObject]@{
+                        ClassName = $_
+                        FullPath = Join-Path "C:\TestClasses" "$_.ps1"
+                        IsValid = $true
+                    }
+                }
+            }
+            
             $testCorrelationId = [System.Guid]::NewGuid().ToString()
             
             Import-SecureClasses -ClassNames @('ScriptConfiguration') -CorrelationId $testCorrelationId -ValidationOnly
             
-            Assert-MockCalled Get-ApprovedClassList -ParameterFilter { $CorrelationId -eq $testCorrelationId }
-            Assert-MockCalled Resolve-ClassPath -ParameterFilter { $CorrelationId -eq $testCorrelationId }
+            # Verify functions were called
+            Assert-MockCalled Get-ApprovedClassList -Times 1
+            Assert-MockCalled Resolve-ClassPath -Times 1
+            
+            # Verify correlation ID was passed through correctly (the meaningful validation)
+            $script:CapturedCorrelationIds.GetApprovedClassList | Should Be $testCorrelationId
+            $script:CapturedCorrelationIds.ResolveClassPath | Should Be $testCorrelationId
         }
         
         It "Should support security validation through integrity checking" {

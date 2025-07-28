@@ -4,6 +4,14 @@
 # Load the function
 . "$PSScriptRoot\..\..\..\..\Private\ClassManagement\Resolve-ClassPath.ps1"
 
+# Create stub for missing function if it doesn't exist
+if (-not (Get-Command 'Write-StructuredLogEntry' -ErrorAction SilentlyContinue)) {
+    function Write-StructuredLogEntry { 
+        param($Level, $Message, $CorrelationId, $Data = @{})
+        Write-Host "[$Level] $Message"
+    }
+}
+
 Describe "Resolve-ClassPath" -Tag @("Unit", "Private", "ClassManagement") {
     
     BeforeAll {

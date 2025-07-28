@@ -4,6 +4,14 @@
 # Load the function
 . "$PSScriptRoot\..\..\..\..\Private\ClassManagement\Test-ClassInstantiation.ps1"
 
+# Create stub for missing function if it doesn't exist
+if (-not (Get-Command 'Write-StructuredLogEntry' -ErrorAction SilentlyContinue)) {
+    function Write-StructuredLogEntry { 
+        param($Level, $Message, $CorrelationId, $Data = @{})
+        Write-Host "[$Level] $Message"
+    }
+}
+
 Describe "Test-ClassInstantiation" -Tag @("Unit", "Private", "ClassManagement") {
     BeforeAll {
         # Mock dependencies for testing
