@@ -1,6 +1,7 @@
 #Requires -Version 5.1
 
 # Import required modules and dependencies
+. $PSScriptRoot\..\..\..\..\Private\Logging\Write-StructuredLogEntry.ps1
 . $PSScriptRoot\..\..\..\..\Private\Logging\Write-StructuredLog.ps1
 . $PSScriptRoot\..\..\..\..\Private\Logging\Initialize-LoggingSystem.ps1
 . $PSScriptRoot\..\..\..\..\Private\FileSystem\Test-DirectoryAccess.ps1

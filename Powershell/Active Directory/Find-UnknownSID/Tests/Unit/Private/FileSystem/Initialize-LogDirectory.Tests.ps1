@@ -51,6 +51,29 @@ Describe "Initialize-LogDirectory" {
                 }
             }
         }
+        
+        # Also clean up the specific file created by the path traversal test
+        $projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
+        $traversalFile = Join-Path $projectRoot "windows\system32\test.log"
+        $traversalDir = Join-Path $projectRoot "windows"
+        
+        if (Test-Path $traversalFile) {
+            Write-Warning "Cleaning up path traversal test file: $traversalFile"
+            try {
+                Remove-Item $traversalFile -Force -ErrorAction SilentlyContinue
+            } catch {
+                Write-Warning "Could not remove test file $traversalFile : $($_.Exception.Message)"
+            }
+        }
+        
+        if (Test-Path $traversalDir) {
+            Write-Warning "Cleaning up path traversal test directory: $traversalDir"
+            try {
+                Remove-Item $traversalDir -Recurse -Force -ErrorAction SilentlyContinue
+            } catch {
+                Write-Warning "Could not remove test directory $traversalDir : $($_.Exception.Message)"
+            }
+        }
     }
 
     Context "Parameter Validation" {
@@ -180,10 +203,25 @@ Describe "Initialize-LogDirectory" {
             # Test with a path containing .. in the raw input
             $traversalPath = "..\..\..\windows\system32\test.log"
             
-            # The function should handle this gracefully and not create actual directories
-            $result = Initialize-LogDirectory -LogPath $traversalPath
-            $result | Should Not Be $null
-            # Just verify it completes without creating the dangerous path
+            # The function should either throw an error or sanitize the path
+            # It should NOT create directories outside the project structure
+            try {
+                $result = Initialize-LogDirectory -LogPath $traversalPath
+                
+                # If it succeeds, verify the dangerous path was NOT created
+                $projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
+                $dangerousPath = Join-Path $projectRoot "windows\system32\test.log"
+                
+                Test-Path $dangerousPath | Should Be $false
+                
+                # Result should be a safe fallback path
+                $result | Should Not Be $null
+                $result | Should Not Match "windows.*system32"
+            }
+            catch {
+                # It's also acceptable for the function to throw an error for path traversal
+                $_.Exception.Message | Should Match "traversal|invalid path|security"
+            }
         }
         
         It "Should validate write permissions" {

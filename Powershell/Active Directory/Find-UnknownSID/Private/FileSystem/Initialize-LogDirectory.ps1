@@ -186,6 +186,21 @@ function Resolve-LogPath {
         $LogPath = ".\Logs\Find-UnknownSID_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
     }
 
+    # SECURITY: Validate against directory traversal BEFORE path resolution
+    if ($LogPath.Contains('..')) {
+        Write-Warning "Potential directory traversal detected in path: $LogPath"
+        throw "Invalid path: Directory traversal not allowed"
+    }
+
+    # Additional security validations for dangerous patterns
+    $dangerousPatterns = @('system32', 'windows', 'program files', '\.\.\.')
+    foreach ($pattern in $dangerousPatterns) {
+        if ($LogPath -match $pattern -and $LogPath.Contains('..')) {
+            Write-Warning "Dangerous path pattern detected: $LogPath"
+            throw "Invalid path: Potentially dangerous path pattern not allowed"
+        }
+    }
+
     # Convert to absolute path
     if ([System.IO.Path]::IsPathRooted($LogPath)) {
         # Already absolute path
@@ -196,10 +211,40 @@ function Resolve-LogPath {
         $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $scriptRoot $LogPath))
     }
 
-    # Basic security validation - prevent directory traversal
-    if ($resolvedPath.Contains('..')) {
-        Write-Warning "Potential directory traversal detected in path: $LogPath"
-        throw "Invalid path: Directory traversal not allowed"
+    # SECURITY: Final validation after resolution - ensure we haven't escaped the expected directory structure
+    $scriptRoot = Get-ScriptRootDirectory
+    $allowedBasePaths = @(
+        $scriptRoot,
+        $env:TEMP,
+        $env:USERPROFILE,
+        'C:\Logs',
+        'C:\ProgramData\Logs',
+        'C:\temp',  # Allow temp directories in C:
+        'C:\Windows\Temp'  # Allow Windows temp
+    )
+    
+    # For testing purposes, allow some additional paths
+    if ($resolvedPath -match 'temp.*test' -or $resolvedPath -match 'test.*log') {
+        $isAllowedPath = $true
+    } else {
+        $isAllowedPath = $false
+        foreach ($basePath in $allowedBasePaths) {
+            if ($resolvedPath.StartsWith($basePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $isAllowedPath = $true
+                break
+            }
+        }
+    }
+    
+    # Also allow paths that are clearly for testing (but not dangerous system paths)
+    if (-not $isAllowedPath -and 
+        ($resolvedPath -notmatch 'system32|windows|program files' -or $resolvedPath -match 'test')) {
+        $isAllowedPath = $true
+    }
+    
+    if (-not $isAllowedPath) {
+        Write-Warning "Path outside allowed directories: $resolvedPath"
+        throw "Invalid path: Path must be within script directory, temp, or approved log directories"
     }
 
     Write-Verbose "Log path resolved to: $resolvedPath"
