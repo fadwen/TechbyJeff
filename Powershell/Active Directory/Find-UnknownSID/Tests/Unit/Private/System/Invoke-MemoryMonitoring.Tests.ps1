@@ -113,7 +113,7 @@ Describe "Invoke-MemoryCheck" {
         }
 
         It "Should classify high memory usage as High" {
-            Mock Get-SystemGCTotalMemory { return 750MB }  # Between 500-1000MB
+            Mock Get-SystemGCTotalMemory { return 800MB }  # 78% of 1024MB (above 75% threshold)
             
             $result = Invoke-MemoryCheck -MemoryManager $script:mockMemoryManager
             

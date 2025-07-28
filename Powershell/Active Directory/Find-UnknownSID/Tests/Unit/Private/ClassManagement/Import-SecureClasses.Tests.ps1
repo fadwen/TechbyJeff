@@ -28,6 +28,32 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         $script:InvalidClassNames = @('NonExistentClass', 'UnauthorizedClass')
         $script:TestClassesPath = "C:\TestClasses"
         
+        # Mock the Get-ApprovedClassList function to return test data - provide function definition first
+        function Get-ApprovedClassList {
+            return @{
+                Classes = @{
+                    'ScriptConfiguration.ps1' = @{
+                        FileName = 'ScriptConfiguration.ps1'
+                        ExpectedHash = 'abc123def456'
+                        RequiredTypes = @('System.Object')
+                        Dependencies = @()
+                    }
+                    'MemoryManager.ps1' = @{
+                        FileName = 'MemoryManager.ps1'
+                        ExpectedHash = 'def456ghi789'
+                        RequiredTypes = @('System.Object')
+                        Dependencies = @()
+                    }
+                    'ProcessingStatistics.ps1' = @{
+                        FileName = 'ProcessingStatistics.ps1'
+                        ExpectedHash = 'ghi789jkl012'
+                        RequiredTypes = @('System.Object')
+                        Dependencies = @()
+                    }
+                }
+            }
+        }
+        
         # Mock the Get-ApprovedClassList function to return test data
         Mock Get-ApprovedClassList {
             return @{

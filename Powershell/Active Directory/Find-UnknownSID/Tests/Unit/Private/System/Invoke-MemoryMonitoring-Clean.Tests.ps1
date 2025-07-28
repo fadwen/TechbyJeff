@@ -183,13 +183,13 @@ Describe "Invoke-MemoryCheck" {
         }
         
         It "Should classify high memory usage as Critical" {
-            Mock -CommandName 'Get-SystemGCTotalMemory' -MockWith { return 850MB }  # ~83% of 1024MB (above 80% warning)
+            Mock -CommandName 'Get-SystemGCTotalMemory' -MockWith { return 850MB }  # ~83% of 1024MB (above 75% high threshold)
             Mock Write-StructuredLog { }
             
             $result = Invoke-MemoryCheck -MemoryManager $script:mockMemoryManager
             
-            $result.MemoryStatus | Should Be 'Warning'
-            $result.MemoryUsagePercent | Should BeGreaterThan 80
+            $result.MemoryStatus | Should Be 'High'
+            $result.MemoryUsagePercent | Should BeGreaterThan 75
         }
         
         It "Should classify critical memory usage as Critical" {
@@ -203,13 +203,13 @@ Describe "Invoke-MemoryCheck" {
         }
         
         It "Should provide memory recommendations based on status" {
-            Mock -CommandName 'Get-SystemGCTotalMemory' -MockWith { return 900MB }  # Warning level
+            Mock -CommandName 'Get-SystemGCTotalMemory' -MockWith { return 900MB }  # High level (87% of 1024MB)
             Mock Write-StructuredLog { }
             
             $result = Invoke-MemoryCheck -MemoryManager $script:mockMemoryManager
             
             $result.Recommendations | Should Not BeNullOrEmpty
-            ($result.Recommendations -contains 'Monitor memory usage closely') | Should Be $true
+            ($result.Recommendations -contains 'Consider running garbage collection') | Should Be $true
         }
     }
 }

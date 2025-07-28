@@ -3,13 +3,29 @@
 # Source the function directly
 . "$PSScriptRoot\..\..\..\..\Private\Security\Test-ClassIntegrity.ps1"
 
-# Try to source logging function but don't fail if it doesn't exist
-try {
-    . "$PSScriptRoot\..\..\..\..\Private\Logging\Write-StructuredLog.ps1"
-} catch {
-    # Create a mock Write-StructuredLog if it doesn't exist
-    function Write-StructuredLog { param($Level, $Message, $CorrelationId, $Data) }
+# Create mock logging functions to prevent dependency issues
+function Write-StructuredLogEntry { 
+    param(
+        [string]$Level, 
+        [string]$Message, 
+        [string]$Component = 'General',
+        [string]$CorrelationId, 
+        [hashtable]$Details = @{},
+        [string]$LogPath
+    ) 
+    # Mock implementation - just return success
 }
+
+function Write-StructuredLog { 
+    param(
+            [string]$Level, 
+            [string]$Message, 
+            [string]$Component = 'General',
+            [string]$CorrelationId, 
+            [hashtable]$Data = @{}
+        ) 
+        # Mock implementation - just return success
+    }
 
 Describe "Test-ClassIntegrity" {
     Context "Parameter Validation" {

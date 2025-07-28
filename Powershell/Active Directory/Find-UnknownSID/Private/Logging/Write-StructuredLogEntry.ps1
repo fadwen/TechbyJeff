@@ -50,16 +50,24 @@
             }
         }
 
-        # Format the entry - use PlainText for console, JSON for file
-        $formattedEntryForFile = Format-LogMessage -Message $Message -Level $Level -Component $Component -CorrelationId $CorrelationId -AdditionalData $Details -Format JSON
-        $formattedEntryForConsole = Format-LogMessage -Message $Message -Level $Level -Component $Component -CorrelationId $CorrelationId -AdditionalData $Details -Format PlainText
+        # Format the entry - create simple formatted strings
+        $timestamp = Get-Date -Format "yyyy-MM-ddTHH:mm:ss.fff"
+        $formattedEntryForFile = "[$timestamp] [$Level] [$Component] [$CorrelationId] $Message"
+        if ($Details.Count -gt 0) {
+            $detailsJson = $Details | ConvertTo-Json -Compress
+            $formattedEntryForFile += " | Details: $detailsJson"
+        }
+        
+        $formattedEntryForConsole = "[$Level] [$Component] $Message"
 
-        # Determine the log path - use parameter if provided, otherwise get from logging system state
+        # Determine the log path - use parameter if provided, otherwise try to get from logging system state
         $effectiveLogPath = $LogPath
         if (-not $effectiveLogPath) {
             try {
-                $loggingState = Get-LoggingSystemState
-                $effectiveLogPath = $loggingState.LogPath
+                if (Get-Command Get-LoggingSystemState -ErrorAction SilentlyContinue) {
+                    $loggingState = Get-LoggingSystemState
+                    $effectiveLogPath = $loggingState.LogPath
+                }
             } catch {
                 # If we can't get logging state, just use console output
                 Write-Verbose "Could not retrieve logging system state: $($_.Exception.Message)"
