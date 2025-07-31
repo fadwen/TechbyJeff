@@ -5,8 +5,11 @@ Describe "Test-PathTraversal" {
         # Set environment variable to suppress warnings during testing
         $env:PESTER_TESTING = $true
         
-        # Dot-source the function
+        # Dot-source the function under test
         . "$PSScriptRoot\..\..\..\..\Private\Security\Test-PathTraversal.ps1"
+        
+        # Dot-source the Write-StructuredLog function so we can mock it
+        . "$PSScriptRoot\..\..\..\..\Private\Logging\Write-StructuredLog.ps1"
 
         # Mock Write-StructuredLog
         Mock Write-StructuredLog { }
@@ -50,6 +53,9 @@ Describe "Test-PathTraversal" {
         if (Test-Path $script:TestBasePath) {
             Remove-Item $script:TestBasePath -Recurse -Force -ErrorAction SilentlyContinue
         }
+        
+        # Clean up environment variable
+        Remove-Item -Path "env:PESTER_TESTING" -ErrorAction SilentlyContinue
     }
 
     Context "Parameter Validation" {
@@ -391,10 +397,5 @@ Describe "Test-PathTraversal" {
             $memoryUsedMB | Should BeLessThan 50  # Should use less than 50MB
             $result.TotalPaths | Should Be 500
         }
-    }
-    
-    AfterAll {
-        # Clean up environment variable
-        Remove-Item -Path "env:PESTER_TESTING" -ErrorAction SilentlyContinue
     }
 }
