@@ -54,9 +54,36 @@ function Test-PathTraversal {
 
                 if (Test-Path $currentPath) {
                     $resolvedPath = Resolve-Path $currentPath -ErrorAction Stop
+                    
+                    # Check if this is a symbolic link or junction and resolve to target
+                    $finalTargetPath = $resolvedPath.Path
+                    $isSymbolicLink = $false
+                    
+                    try {
+                        $item = Get-Item $currentPath -ErrorAction Stop
+                        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+                            $isSymbolicLink = $true
+                            # For symbolic links/junctions, get the actual target
+                            if ($item.Target) {
+                                $targetPath = $item.Target[0]  # Get first target
+                                if ([System.IO.Path]::IsPathRooted($targetPath)) {
+                                    $finalTargetPath = $targetPath
+                                } else {
+                                    # Relative target - resolve relative to link directory
+                                    $linkDirectory = Split-Path $resolvedPath.Path -Parent
+                                    $finalTargetPath = Join-Path $linkDirectory $targetPath
+                                    $finalTargetPath = [System.IO.Path]::GetFullPath($finalTargetPath)
+                                }
+                            }
+                        }
+                    }
+                    catch {
+                        # If we can't determine symbolic link status, continue with original path
+                        Write-Verbose "Could not determine symbolic link status for $currentPath : $($_.Exception.Message)"
+                    }
 
-                    # Check if resolved path is within base path
-                    $isWithinBasePath = $resolvedPath.Path.StartsWith($resolvedBasePath.Path, [System.StringComparison]::OrdinalIgnoreCase)
+                    # Check if final target path is within base path
+                    $isWithinBasePath = $finalTargetPath.StartsWith($resolvedBasePath.Path, [System.StringComparison]::OrdinalIgnoreCase)
 
                     $isSafe = $isWithinBasePath -and (-not $patternFound)
 
@@ -69,7 +96,9 @@ function Test-PathTraversal {
                     $validationResults += [PSCustomObject]@{
                         OriginalPath = $currentPath
                         ResolvedPath = $resolvedPath.Path
+                        FinalTargetPath = $finalTargetPath
                         BasePath = $resolvedBasePath.Path
+                        IsSymbolicLink = $isSymbolicLink
                         IsWithinBasePath = $isWithinBasePath
                         ContainsTraversalPattern = $patternFound
                         IsSafe = $isSafe

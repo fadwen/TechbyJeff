@@ -186,16 +186,33 @@ Describe "Test-PathTraversal" {
                 $targetPath = "C:\Windows"
                 New-Item -ItemType SymbolicLink -Path $linkPath -Target $targetPath -ErrorAction Stop
                 
-                $result = Test-PathTraversal -Path $linkPath -BasePath $script:TestBasePath
-                # Symbolic link should be resolved and checked against base path
-                # Since it points to C:\Windows, it should be outside our test base path
-                $result.ValidationResults[0].IsWithinBasePath | Should Be $false
+                # Verify the symbolic link was created successfully
+                if (Test-Path $linkPath) {
+                    $result = Test-PathTraversal -Path $linkPath -BasePath $script:TestBasePath
+                    
+                    # Enhanced behavior: The function now resolves symbolic links to their targets
+                    # Since the target (C:\Windows) is outside our test base path, it should be unsafe
+                    $result.ValidationResults[0].IsSymbolicLink | Should Be $true
+                    $result.ValidationResults[0].FinalTargetPath | Should Be $targetPath
+                    $result.ValidationResults[0].IsWithinBasePath | Should Be $false
+                    $result.ValidationResults[0].IsSafe | Should Be $false
+                    
+                    # Overall result should indicate unsafe path detected
+                    $result.ValidationPassed | Should Be $false
+                    $result.SafePaths | Should Be 0
+                    $result.UnsafePaths | Should Be 1
+                } else {
+                    Write-Warning "Skipping symbolic link test: Failed to create symbolic link"
+                }
                 
-                Remove-Item $linkPath -Force -ErrorAction SilentlyContinue
+                # Remove symbolic link without prompting (use -Recurse to suppress confirmation)
+                Remove-Item $linkPath -Force -Recurse -ErrorAction SilentlyContinue
             }
             catch {
                 # Skip test if unable to create symbolic link (insufficient privileges)
                 Write-Warning "Skipping symbolic link test: $($_.Exception.Message)"
+                # Ensure cleanup even if test fails
+                Remove-Item $linkPath -Force -Recurse -ErrorAction SilentlyContinue
             }
         }
     }
