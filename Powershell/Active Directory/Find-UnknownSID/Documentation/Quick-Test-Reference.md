@@ -126,29 +126,6 @@ Invoke-Pester -Path ".\Tests\Unit\Public\Find-UnknownSID.Tests.ps1" -Verbose    
 
 # Public Tests Status: 20/20 passing (100%)
 ```
-
-**Test Categories Summary:**
-- Core Tests: 154/154 (100%)
-- Legacy Core Tests: 178/178 (100%)
-- Security Tests: 95/95 (100%)  
-- ACL Tests: 51/51 (100%)
-- ActiveDirectory Tests: 132/132 (100%)
-- Backup Tests: 474/474 (100%)
-- ClassManagement Tests: 166/166 (100%)
-- Utilities Tests: 141/141 (100%)
-- Operations Tests: 20/20 (100%)
-- Reporting Tests: 92/92 (100%)
-- Class Tests: 208/208 (100%)
-- SID Tests: 171/171 (100%)
-- FileSystem Tests: 121/121 (100%)
-- Logging Tests: 106/106 (100%)
-- Public Tests: 20/20 (100%)
-
-**Total Test Coverage: 2,772/2,772 tests passing (100%)**
-- **Unit Tests: 2,386 tests**
-- **Integration Tests: 216 tests** 
-- **Performance Tests: 170 tests**
-
 ## Run All Tests
 
 Execute all test categories in sequence:
