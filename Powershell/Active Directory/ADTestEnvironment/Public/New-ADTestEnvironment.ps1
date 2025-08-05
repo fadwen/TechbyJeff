@@ -8,7 +8,8 @@ function New-ADTestEnvironment {
         1. Creating the OU structure
         2. Creating user accounts from CSV data
         3. Creating device objects from CSV data  
-        4. Creating security groups and assigning memberships
+        4. Creating service accounts from CSV data (with optional SecretStore password storage)
+        5. Creating security groups and assigning memberships
         
         This is the main entry point for setting up the entire test environment.
 
@@ -29,9 +30,36 @@ function New-ADTestEnvironment {
     .PARAMETER PassThru
         Return the detailed results object. By default, only summary information is displayed.
 
+    .PARAMETER UseSecretStore
+        Use PowerShell SecretManagement/SecretStore modules to store service account passwords 
+        in a secure vault instead of exporting to a plain text file. Will install required modules if not present.
+
+    .PARAMETER VaultName
+        Name of the secret vault to use when UseSecretStore is specified. Defaults to "ADTestEnvironment"
+
+    .PARAMETER VaultPassword
+        Password for the secret vault when UseSecretStore is specified. If not provided, 
+        will use "ADTestEnvironmentPassword" as the default to avoid prompting.
+
+    .PARAMETER GlobalVault
+        Create SecretStore vault at AllUsers scope instead of CurrentUser scope.
+        Requires administrative privileges. Only applies when UseSecretStore is specified.
+
     .EXAMPLE
         New-ADTestEnvironment
         Creates the complete test environment
+
+    .EXAMPLE
+        New-ADTestEnvironment -UseSecretStore
+        Creates the complete test environment with service account passwords stored in SecretStore vault
+
+    .EXAMPLE
+        New-ADTestEnvironment -UseSecretStore -VaultName "ProdVault" -VaultPassword (ConvertTo-SecureString "VaultPass123!" -AsPlainText -Force)
+        Creates the environment with passwords stored in a custom named vault
+
+    .EXAMPLE
+        New-ADTestEnvironment -UseSecretStore -GlobalVault
+        Creates the environment with service account passwords in a global vault (requires admin privileges)
 
     .EXAMPLE
         New-ADTestEnvironment -WhatIf
@@ -54,20 +82,26 @@ function New-ADTestEnvironment {
 
     .NOTES
         Author: Jeffrey Stuhr
-        Version: 1.0.0
-        Last Updated: 2025-08-02
+        Version: 2.0.0
+        Last Updated: 2025-08-05
         
         REQUIREMENTS:
         - Active Directory PowerShell module
         - Domain administrator privileges
         - CSV data files in Data folder
         
+        SECRETSTORE FEATURES:
+        - Use -UseSecretStore to store service account passwords in an encrypted vault
+        - Automatically installs required SecretManagement/SecretStore modules if not present
+        - Creates computer-level vault for shared access (when run as administrator)
+        - Retrieve passwords later using Get-ADTestPasswordFromVault function
+        
 
     .LINK
         New-ADTestOUStructure
-        New-ADTestUsers
-        New-ADTestDevices
-        New-ADTestServiceAccounts
+        New-ADTestUser
+        New-ADTestDevice
+        New-ADTestServiceAccount
         New-ADTestSecurityGroups
     #>
 
@@ -76,8 +110,25 @@ function New-ADTestEnvironment {
     param(
         [ValidateSet('OUStructure', 'Users', 'Devices', 'ServiceAccounts', 'Groups')]
         [string[]]$Skip = @(),
+        
+        [Parameter()]
         [switch]$ShowProgress,
-        [switch]$PassThru
+        
+        [Parameter()]
+        [switch]$PassThru,
+        
+        [Parameter()]
+        [switch]$UseSecretStore,
+        
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$VaultName = "ADTestEnvironment",
+        
+        [Parameter()]
+        [System.Security.SecureString]$VaultPassword,
+        
+        [Parameter()]
+        [switch]$GlobalVault
     )
 
     begin {
@@ -85,7 +136,7 @@ function New-ADTestEnvironment {
         Write-Verbose "Starting New-ADTestEnvironment - CorrelationId: $correlationId"
         
         # Test prerequisites
-        if (-not (Test-ADTestPrerequisites -CheckDataFiles)) {
+        if (-not (Test-ADTestPrerequisite -CheckDataFiles)) {
             throw "Prerequisites not met for AD test environment creation"
         }
     }
@@ -149,7 +200,7 @@ function New-ADTestEnvironment {
                 
                 try {
                     if ($PSCmdlet.ShouldProcess("User Accounts", "Create AD Test Users")) {
-                        $userResults = New-ADTestUsers
+                        $userResults = New-ADTestUser
                         $results.Operations.Users.Success = $true
                         $results.Operations.Users.Results = $userResults
                         $results.Summary.SuccessfulOperations++
@@ -176,7 +227,7 @@ function New-ADTestEnvironment {
                 
                 try {
                     if ($PSCmdlet.ShouldProcess("Device Objects", "Create AD Test Devices")) {
-                        $deviceResults = New-ADTestDevices
+                        $deviceResults = New-ADTestDevice
                         $results.Operations.Devices.Success = $true
                         $results.Operations.Devices.Results = $deviceResults
                         $results.Summary.SuccessfulOperations++
@@ -203,14 +254,65 @@ function New-ADTestEnvironment {
                 
                 try {
                     if ($PSCmdlet.ShouldProcess("Service Accounts", "Create AD Test Service Accounts")) {
-                        $serviceAccountResults = New-ADTestServiceAccounts
+                        # Create service accounts (simplified - no SecretStore orchestration)
+                        $serviceAccountResults = New-ADTestServiceAccount -PassThru
                         $results.Operations.ServiceAccounts.Success = $true
                         $results.Operations.ServiceAccounts.Results = $serviceAccountResults
                         $results.Summary.SuccessfulOperations++
                         
+                        # Handle SecretStore orchestration separately if requested
+                        if ($UseSecretStore -and $serviceAccountResults.PasswordData.Count -gt 0) {
+                            try {
+                                $orchestrationParams = @{
+                                    PasswordData = $serviceAccountResults.PasswordData
+                                    VaultName = $VaultName
+                                    GlobalVault = $GlobalVault
+                                    CorrelationId = $correlationId
+                                }
+                                
+                                if ($VaultPassword) {
+                                    $orchestrationParams.VaultPassword = $VaultPassword
+                                }
+                                
+                                $secretStoreResult = Invoke-ADTestSecretStoreOrchestration @orchestrationParams
+                                
+                                # Add SecretStore results to service account results
+                                $serviceAccountResults | Add-Member -NotePropertyName "SecretStoreResult" -NotePropertyValue $secretStoreResult -Force
+                                $serviceAccountResults | Add-Member -NotePropertyName "UseSecretStore" -NotePropertyValue $true -Force
+                                $serviceAccountResults | Add-Member -NotePropertyName "VaultName" -NotePropertyValue $VaultName -Force
+                                
+                                if ($secretStoreResult.Errors.Count -gt 0) {
+                                    Write-Warning "SecretStore orchestration completed with errors: $($secretStoreResult.Errors -join '; ')"
+                                    # Fall back to file export
+                                    $passwordFile = Export-PasswordDocumentation -PasswordData $serviceAccountResults.PasswordData -FilePrefix "ServiceAccountPW"
+                                    Write-Warning "Passwords exported to file as fallback: $passwordFile"
+                                    $serviceAccountResults | Add-Member -NotePropertyName "PasswordFile" -NotePropertyValue $passwordFile -Force
+                                }
+                            }
+                            catch {
+                                Write-Warning "SecretStore orchestration failed: $($_.Exception.Message)"
+                                # Fall back to file export
+                                $passwordFile = Export-PasswordDocumentation -PasswordData $serviceAccountResults.PasswordData -FilePrefix "ServiceAccountPW"
+                                Write-Warning "Passwords exported to file as fallback: $passwordFile"
+                                $serviceAccountResults | Add-Member -NotePropertyName "PasswordFile" -NotePropertyValue $passwordFile -Force
+                            }
+                        }
+                        elseif ($serviceAccountResults.PasswordData.Count -gt 0) {
+                            # Export to file when not using SecretStore
+                            $passwordFile = Export-PasswordDocumentation -PasswordData $serviceAccountResults.PasswordData -FilePrefix "ServiceAccountPW"
+                            $serviceAccountResults | Add-Member -NotePropertyName "PasswordFile" -NotePropertyValue $passwordFile -Force
+                        }
+                        
                         if ($ShowProgress) {
-                            Write-Verbose "Processed $($serviceAccountResults.TotalServiceAccounts) service accounts"
-                            Write-Verbose "Created $($serviceAccountResults.CreatedServiceAccounts) new service accounts"
+                            Write-Verbose "Processed $($serviceAccountResults.TotalAccounts) service accounts"
+                            Write-Verbose "Created $($serviceAccountResults.CreatedAccounts) new service accounts"
+                            
+                            if ($UseSecretStore -and $serviceAccountResults.SecretStoreResult) {
+                                Write-Verbose "Stored $($serviceAccountResults.SecretStoreResult.TotalStored) passwords in vault: $VaultName"
+                            }
+                            elseif ($serviceAccountResults.PasswordFile) {
+                                Write-Verbose "Password file created: $($serviceAccountResults.PasswordFile)"
+                            }
                         }
                     }
                 } catch {

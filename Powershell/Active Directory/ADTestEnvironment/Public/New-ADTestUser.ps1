@@ -1,4 +1,4 @@
-function New-ADTestUsers {
+function New-ADTestUser {
     <#
     .SYNOPSIS
         Creates Active Directory test user accounts from CSV data
@@ -25,19 +25,19 @@ function New-ADTestUsers {
         Returns a PSCustomObject with creation results and statistics
 
     .EXAMPLE
-        New-ADTestUsers
+        New-ADTestUser
         Creates all users from ADUsers.csv
 
     .EXAMPLE
-        New-ADTestUsers -BatchSize 20 -ThrottleLimit 3
+        New-ADTestUser -BatchSize 20 -ThrottleLimit 3
         Creates users in batches of 20 with maximum 3 concurrent batches
 
     .EXAMPLE
-        New-ADTestUsers -WhatIf
+        New-ADTestUser -WhatIf
         Shows what users would be created
 
     .EXAMPLE
-        $results = New-ADTestUsers -PassThru -BatchSize 10
+        $results = New-ADTestUser -PassThru -BatchSize 10
         Creates users in batches of 10 and returns results object
 
     .OUTPUTS
@@ -71,7 +71,7 @@ function New-ADTestUsers {
 
     begin {
         $correlationId = [System.Guid]::NewGuid()
-        Write-Verbose "Starting New-ADTestUsers - CorrelationId: $correlationId"
+        Write-Verbose "Starting New-ADTestUser - CorrelationId: $correlationId"
         
         # Get data paths
         $dataPath = Get-ADTestDataPath
@@ -519,6 +519,6 @@ function New-ADTestUsers {
     }
 
     end {
-        Write-Verbose "Completed New-ADTestUsers - CorrelationId: $correlationId"
+        Write-Verbose "Completed New-ADTestUser - CorrelationId: $correlationId"
     }
 }

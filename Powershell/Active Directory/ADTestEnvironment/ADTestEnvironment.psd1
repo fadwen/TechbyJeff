@@ -19,10 +19,10 @@
     FunctionsToExport = @(
         'New-ADTestEnvironment',
         'New-ADTestOUStructure',
-        'New-ADTestUsers',
-        'New-ADTestDevices', 
+        'New-ADTestUser',
+        'New-ADTestDevice', 
         'New-ADTestSecurityGroups',
-        'New-ADTestServiceAccounts',
+        'New-ADTestServiceAccount',
         'Get-ADTestEnvironmentReport',
         'Remove-ADTestEnvironment'
     )

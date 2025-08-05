@@ -158,9 +158,9 @@ Test environment creation complete!
 |----------|---------|--------------|
 | **New-ADTestEnvironment** | Complete environment orchestration | Skip logic, WhatIf support, correlation tracking |
 | **New-ADTestOUStructure** | Standardized OU hierarchy creation | Department-based organization, protection settings |
-| **New-ADTestUsers** | Realistic user account creation | Photo import, manager relationships, department assignment |
-| **New-ADTestDevices** | Computer object management | Device categories, realistic naming, OS assignment |
-| **New-ADTestServiceAccounts** | Service account provisioning | Secure passwords, manager assignment, documentation export |
+| **New-ADTestUser** | Realistic user account creation | Photo import, manager relationships, department assignment |
+| **New-ADTestDevice** | Computer object management | Device categories, realistic naming, OS assignment |
+| **New-ADTestServiceAccount** | Service account provisioning | Secure passwords, manager assignment, documentation export |
 | **New-ADTestSecurityGroups** | Security group automation | Automatic membership, role-based access, group hierarchy |
 | **Get-ADTestEnvironmentReport** | Comprehensive environment reporting | Multiple formats, detailed analytics, audit trail |
 | **Remove-ADTestEnvironment** | Safe environment cleanup | Hierarchical removal, confirmation prompts, completeness validation |
@@ -177,7 +177,7 @@ Test environment creation complete!
 | **New-HTMLReport** | HTML format report generation | Called by Get-ADTestEnvironmentReport for HTML output |
 | **New-JSONReport** | JSON format report generation | Called by Get-ADTestEnvironmentReport for JSON output |
 | **New-SecureRandomPassword** | Cryptographically secure password generation | Complexity requirements, entropy validation |
-| **Test-ADTestPrerequisites** | Environment validation | Checks permissions, module availability, domain connectivity |
+| **Test-ADTestPrerequisite** | Environment validation | Checks permissions, module availability, domain connectivity |
 | **Write-ADTestProgress** | Standardized progress reporting | Consistent messaging with correlation ID tracking |
 
 ## 📊 Test Data Overview
@@ -275,12 +275,12 @@ Install-WindowsFeature -Name RSAT-AD-PowerShell
 Generate-TestData/
 ├── Public/                               # Main exported functions
 │   ├── Get-ADTestEnvironmentReport.ps1   # Environment reporting
-│   ├── New-ADTestDevices.ps1             # Device creation
+│   ├── New-ADTestDevice.ps1             # Device creation
 │   ├── New-ADTestEnvironment.ps1         # Full environment orchestration
 │   ├── New-ADTestOUStructure.ps1         # OU structure creation
 │   ├── New-ADTestSecurityGroups.ps1      # Security group management
-│   ├── New-ADTestServiceAccounts.ps1     # Service account creation
-│   ├── New-ADTestUsers.ps1               # User account creation
+│   ├── New-ADTestServiceAccount.ps1     # Service account creation
+│   ├── New-ADTestUser.ps1               # User account creation
 │   └── Remove-ADTestEnvironment.ps1      # Environment cleanup
 ├── Private/                              # Internal helper functions
 │   ├── Export-PasswordDocumentation.ps1  # Password export logic
@@ -288,7 +288,7 @@ Generate-TestData/
 │   ├── Get-ADTestDomain.ps1              # Domain detection
 │   ├── New-ADTestOU.ps1                  # OU creation helper
 │   ├── New-SecureRandomPassword.ps1      # Password generation
-│   ├── Test-ADTestPrerequisites.ps1      # Prerequisite validation
+│   ├── Test-ADTestPrerequisite.ps1      # Prerequisite validation
 │   └── Write-ADTestProgress.ps1          # Progress messaging
 ├── Data/                                 # Test data definitions
 │   ├── ADUsers.csv                       # User account data
@@ -319,7 +319,7 @@ You can modify the CSV files to customize your test environment:
 notepad .\Data\ADUsers.csv
 
 # Recreate just the users
-New-ADTestUsers
+New-ADTestUser
 ```
 
 ### Modular Creation
@@ -330,7 +330,7 @@ Create specific components independently:
 New-ADTestOUStructure
 
 # Add users to existing structure  
-New-ADTestUsers
+New-ADTestUser
 
 # Create security groups with automatic membership
 New-ADTestSecurityGroups
@@ -351,7 +351,7 @@ New-ADTestEnvironment -WhatIf
 Each operation generates a correlation ID for tracking:
 
 ```powershell
-$result = New-ADTestUsers
+$result = New-ADTestUser
 Write-Host "Operation ID: $($result.CorrelationId)"
 ```
 

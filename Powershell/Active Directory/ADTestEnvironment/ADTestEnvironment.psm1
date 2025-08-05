@@ -30,10 +30,10 @@ $script:ModuleDataPath = Join-Path $ModuleRoot "Data"
 Export-ModuleMember -Function @(
     'New-ADTestEnvironment',
     'New-ADTestOUStructure',
-    'New-ADTestUsers',
-    'New-ADTestDevices',
-    'New-ADTestSecurityGroups', 
-    'New-ADTestServiceAccounts',
+    'New-ADTestUser',
+    'New-ADTestDevice',
+    'New-ADTestSecurityGroups',
+    'New-ADTestServiceAccount',
     'Get-ADTestEnvironmentReport',
     'Remove-ADTestEnvironment'
 )

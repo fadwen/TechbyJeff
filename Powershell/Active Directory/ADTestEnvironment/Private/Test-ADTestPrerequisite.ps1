@@ -1,4 +1,4 @@
-function Test-ADTestPrerequisites {
+function Test-ADTestPrerequisite {
     <#
     .SYNOPSIS
         Tests prerequisites for AD test data operations
@@ -14,7 +14,7 @@ function Test-ADTestPrerequisites {
         Boolean indicating if all prerequisites are met
     
     .EXAMPLE
-        if (-not (Test-ADTestPrerequisites)) {
+        if (-not (Test-ADTestPrerequisite)) {
             throw "Prerequisites not met"
         }
 

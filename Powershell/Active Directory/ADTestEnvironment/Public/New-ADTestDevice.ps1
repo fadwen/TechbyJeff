@@ -1,4 +1,4 @@
-function New-ADTestDevices {
+function New-ADTestDevice {
     <#
     .SYNOPSIS
         Creates Active Directory test device objects from CSV data
@@ -22,15 +22,15 @@ function New-ADTestDevices {
         Shows what would be created without making changes
 
     .EXAMPLE
-        New-ADTestDevices
+        New-ADTestDevice
         Creates all devices from ADDevices.csv using default batch size
 
     .EXAMPLE
-        New-ADTestDevices -BatchSize 20 -ThrottleLimit 3
+        New-ADTestDevice -BatchSize 20 -ThrottleLimit 3
         Creates devices in batches of 20 with maximum 3 concurrent batches
 
     .EXAMPLE
-        $results = New-ADTestDevices -PassThru -BatchSize 15
+        $results = New-ADTestDevice -PassThru -BatchSize 15
         Creates all devices in batches of 15 and returns results for further processing
 
     .OUTPUTS
@@ -58,7 +58,7 @@ function New-ADTestDevices {
 
     begin {
         $correlationId = [System.Guid]::NewGuid()
-        Write-Verbose "Starting New-ADTestDevices - CorrelationId: $correlationId"
+        Write-Verbose "Starting New-ADTestDevice - CorrelationId: $correlationId"
         
         # Get data paths
         $dataPath = Get-ADTestDataPath
@@ -516,6 +516,6 @@ function New-ADTestDevices {
             $script:ProcessingJobs.Clear()
         }
         
-        Write-Verbose "Completed New-ADTestDevices - CorrelationId: $correlationId"
+        Write-Verbose "Completed New-ADTestDevice - CorrelationId: $correlationId"
     }
 }

@@ -10,8 +10,20 @@ function Remove-ADTestEnvironment {
     .PARAMETER RemoveOUs
         Also removes the test OU structure (WARNING: This is destructive)
 
+    .PARAMETER VaultName
+        Name of the SecretStore vault to remove. Defaults to "ADTestEnvironment"
+
     .PARAMETER Force
         Bypasses confirmation prompts (use with caution)
+
+    .PARAMETER ResetSecretStore
+        Also reset the global SecretStore configuration to defaults.
+        WARNING: This will affect ALL SecretStore vaults on the system.
+        Use with caution if you have other vaults configured.
+
+    .PARAMETER GlobalVault
+        Create/remove vault at AllUsers scope instead of CurrentUser scope.
+        Requires administrative privileges.
 
     .PARAMETER PassThru
         Returns detailed results object (default: summary only)
@@ -25,25 +37,53 @@ function Remove-ADTestEnvironment {
 
     .EXAMPLE
         Remove-ADTestEnvironment -RemoveOUs -Force
-        Removes all test data including OUs without confirmation
+        Removes all test data including OUs and SecretStore vault without confirmation
+
+    .EXAMPLE
+        Remove-ADTestEnvironment -VaultName "CustomVault"
+        Removes test data and a custom named vault
+
+    .EXAMPLE
+        Remove-ADTestEnvironment -ResetSecretStore -Force
+        Removes test data, vault, AND resets SecretStore configuration without prompts
+
+    .EXAMPLE
+        Remove-ADTestEnvironment -GlobalVault -Force
+        Removes test data and a global vault (requires admin privileges)
 
     .OUTPUTS
         Hashtable with removal results and statistics
 
     .NOTES
         Author: Jeffrey Stuhr
-        Version: 1.0.0
-        Last Updated: 2025-08-02
+        Version: 2.0.0
+        Last Updated: 2025-08-05
         
         WARNING: This function is destructive. Always test with -WhatIf first.
+        
+        SECRETSTORE CLEANUP:
+        - Automatically removes SecretStore vaults created during environment setup
+        - All stored passwords/secrets will be permanently deleted
+        - Vault removal is a management operation that doesn't require the vault password
     #>
 
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     [OutputType([System.Collections.Hashtable])]
     param(
         [switch]$RemoveOUs,
+        
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$VaultName = "ADTestEnvironment",
+        
         [switch]$Force,
-        [switch]$PassThru
+        [switch]$PassThru,
+        
+        [Parameter()]
+        [switch]$ResetSecretStore,
+        
+        [Parameter()]
+        [switch]$GlobalVault
     )
 
     begin {
@@ -75,6 +115,8 @@ function Remove-ADTestEnvironment {
         $script:DevicesRemoved = 0
         $script:GroupsRemoved = 0
         $script:OUsRemoved = 0
+        $script:VaultsRemoved = 0
+        $script:SecretsRemoved = 0
         $script:Errors = @()
     }
 
@@ -146,7 +188,39 @@ function Remove-ADTestEnvironment {
                 $script:Errors += "Device search error: $($_.Exception.Message)"
             }
             
-            # Step 3: Remove Test Security Groups
+            # Step 3: Remove Test Service Accounts
+            Write-ADTestProgress -Message "Removing test service accounts..." -Type Info
+            try {
+                # Remove all service accounts from ServiceAccounts OU
+                $testServiceAccounts = Get-ADUser -Filter "*" -SearchBase "OU=ServiceAccounts,OU=TestData,$($domain.DomainDN)" -ErrorAction SilentlyContinue
+                
+                foreach ($serviceAccount in $testServiceAccounts) {
+                    if ($Force -or $manuallyConfirmed -or $PSCmdlet.ShouldProcess($serviceAccount.Name, "Remove AD Service Account")) {
+                        try {
+                            Remove-ADUser -Identity $serviceAccount.DistinguishedName -Confirm:$false
+                            Write-Verbose "Removed service account: $($serviceAccount.Name)"
+                            $script:UsersRemoved++
+                        }
+                        catch {
+                            Write-Warning "Failed to remove service account $($serviceAccount.Name): $($_.Exception.Message)"
+                            $script:Errors += "Service account removal error: $($serviceAccount.Name)"
+                        }
+                    }
+                    else {
+                        Write-Host "Would remove service account: $($serviceAccount.Name)" -ForegroundColor Yellow
+                    }
+                }
+            }
+            catch {
+                if ($_.Exception.Message -like "*Directory object not found*") {
+                    Write-Verbose "No test service accounts found (ServiceAccounts OU may not exist)"
+                } else {
+                    Write-Warning "Error searching for test service accounts: $($_.Exception.Message)"
+                }
+                $script:Errors += "Service account search error: $($_.Exception.Message)"
+            }
+            
+            # Step 4: Remove Test Security Groups
             Write-ADTestProgress -Message "Removing test security groups..." -Type Info
             try {
                 # Get groups from the Groups OU structure  
@@ -178,7 +252,7 @@ function Remove-ADTestEnvironment {
                 $script:Errors += "Group search error: $($_.Exception.Message)"
             }
             
-            # Step 4: Remove OUs (if requested)
+            # Step 5: Remove OUs (if requested)
             if ($RemoveOUs) {
                 Write-ADTestProgress -Message "Removing test OU structure..." -Type Info
                 
@@ -262,6 +336,43 @@ function Remove-ADTestEnvironment {
                 }
             }
             
+            # Remove SecretStore vault if it exists
+            try {
+                Write-ADTestProgress -Message "Checking for SecretStore vault removal..." -Type Info
+                
+                if ($Force -or $PSCmdlet.ShouldProcess("SecretStore Vault: $VaultName", "Remove Secret Vault")) {
+                    $vaultResult = Remove-ADTestSecretVault -VaultName $VaultName -Force:$Force -ResetSecretStore:$ResetSecretStore -GlobalVault:$GlobalVault
+                    
+                    if ($vaultResult.VaultRemoved) {
+                        $script:VaultsRemoved++
+                        $script:SecretsRemoved += $vaultResult.SecretsRemoved
+                        Write-Host "  Removed SecretStore vault: $VaultName" -ForegroundColor Green
+                        Write-Host "  Removed $($vaultResult.SecretsRemoved) stored secrets" -ForegroundColor Green
+                        
+                        if ($vaultResult.SecretStoreReset) {
+                            Write-Host "  Reset SecretStore configuration to defaults" -ForegroundColor Green
+                        }
+                    }
+                    elseif ($vaultResult.VaultExists -eq $false) {
+                        Write-Host "  SecretStore vault '$VaultName' was not found" -ForegroundColor Yellow
+                    }
+                    
+                    if ($vaultResult.Errors.Count -gt 0) {
+                        $vaultResult.Errors | ForEach-Object { 
+                            Write-Warning "Vault removal error: $_"
+                            $script:Errors += "Vault removal: $_"
+                        }
+                    }
+                }
+                else {
+                    Write-Host "Would remove SecretStore vault: $VaultName" -ForegroundColor Yellow
+                }
+            }
+            catch {
+                Write-Warning "Error during vault removal: $($_.Exception.Message)"
+                $script:Errors += "Vault removal process error: $($_.Exception.Message)"
+            }
+            
             # Create summary
             $results = @{
                 CorrelationId = $correlationId
@@ -269,9 +380,11 @@ function Remove-ADTestEnvironment {
                 DevicesRemoved = $script:DevicesRemoved
                 GroupsRemoved = $script:GroupsRemoved
                 OUsRemoved = $script:OUsRemoved
+                VaultsRemoved = $script:VaultsRemoved
+                SecretsRemoved = $script:SecretsRemoved
                 OUsRequested = $RemoveOUs
                 Errors = $script:Errors
-                TotalRemoved = $script:UsersRemoved + $script:DevicesRemoved + $script:GroupsRemoved + $script:OUsRemoved
+                TotalRemoved = $script:UsersRemoved + $script:DevicesRemoved + $script:GroupsRemoved + $script:OUsRemoved + $script:VaultsRemoved
             }
             
             # Display summary
@@ -281,6 +394,12 @@ function Remove-ADTestEnvironment {
             Write-Host "  Groups Removed: $($results.GroupsRemoved)" -ForegroundColor Green
             if ($RemoveOUs) {
                 Write-Host "  OUs Removed: $($results.OUsRemoved)" -ForegroundColor Green
+            }
+            if ($results.VaultsRemoved -gt 0) {
+                Write-Host "  SecretStore Vaults Removed: $($results.VaultsRemoved)" -ForegroundColor Green
+            }
+            if ($results.SecretsRemoved -gt 0) {
+                Write-Host "  Secrets Removed: $($results.SecretsRemoved)" -ForegroundColor Green
             }
             Write-Host "  Total Objects Removed: $($results.TotalRemoved)" -ForegroundColor Cyan
             

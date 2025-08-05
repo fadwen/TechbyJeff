@@ -41,7 +41,7 @@ function New-ADTestOUStructure {
         Write-Verbose "Starting New-ADTestOUStructure - CorrelationId: $correlationId"
 
         # Test prerequisites
-        if (-not (Test-ADTestPrerequisites)) {
+        if (-not (Test-ADTestPrerequisite)) {
             throw "Prerequisites not met. Please ensure Active Directory module is installed and you have appropriate permissions."
         }
     }

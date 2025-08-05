@@ -1,42 +1,87 @@
-function New-ADTestServiceAccounts {
+function New-ADTestServiceAccount {
     <#
     .SYNOPSIS
         Creates Active Directory test service accounts from CSV data
 
     .DESCRIPTION
         Creates service accounts in Active Directory based on data from ADServiceAccounts.csv.
-        Service accounts are created with secure passwords, configured for non-interactive use,
-        and passwords are exported to a timestamped file for documentation.
+        Service accounts are created with secure passwords, configured for non-interactive use.
+        
+        Passwords are generated and returned in the results object for external handling
+        (e.g., file export or SecretStore storage by calling functions).
 
     .PARAMETER PassThru
         Returns the results object instead of displaying summary
 
+    .PARAMETER UseSecretStore
+        Use PowerShell SecretManagement/SecretStore modules to store passwords in a secure vault.
+        When specified, triggers SecretStore orchestration after account creation.
+
+    .PARAMETER VaultName
+        Name of the secret vault to use when UseSecretStore is specified. Defaults to "ADTestEnvironment"
+
+    .PARAMETER VaultPassword
+        Password for the secret vault when UseSecretStore is specified. If not provided, 
+        will use "ADTestEnvironmentPassword" as the default to avoid prompting.
+
+    .PARAMETER GlobalVault
+        Create SecretStore vault at AllUsers scope instead of CurrentUser scope.
+        Requires administrative privileges. Only applies when UseSecretStore is specified.
+
     .EXAMPLE
-        New-ADTestServiceAccounts
+        New-ADTestServiceAccount
         Creates all service accounts from ADServiceAccounts.csv and displays summary
 
     .EXAMPLE
-        $results = New-ADTestServiceAccounts -PassThru
-        Creates service accounts and returns results object
+        New-ADTestServiceAccount -UseSecretStore
+        Creates service accounts and stores passwords securely in the ADTestEnvironment vault
+
+    .EXAMPLE
+        New-ADTestServiceAccount -UseSecretStore -GlobalVault
+        Creates service accounts and stores passwords in a global vault (requires admin privileges)
+
+    .EXAMPLE
+        $results = New-ADTestServiceAccount -PassThru
+        Creates service accounts and returns results object with password data
 
     .OUTPUTS
         PSCustomObject with creation results and statistics (when -PassThru is used)
 
     .NOTES
         Author: Jeffrey Stuhr
-        Version: 1.0.0
-        Last Updated: 2025-08-02
+        Version: 2.0.0
+        Last Updated: 2025-08-05
+        
+        SecretStore Features:
+        - Use -UseSecretStore to store passwords in an encrypted vault instead of plain text files
+        - Automatically installs required SecretManagement/SecretStore modules if not present
+        - Creates computer-level vault for shared access (when run as administrator)
+        - Retrieve passwords later using Get-ADTestPasswordFromVault function
     #>
 
     [CmdletBinding(SupportsShouldProcess = $true)]
     [OutputType([System.Collections.Hashtable])]
     param(
-        [switch]$PassThru
+        [Parameter()]
+        [switch]$PassThru,
+        
+        [Parameter()]
+        [switch]$UseSecretStore,
+        
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$VaultName = "ADTestEnvironment",
+        
+        [Parameter()]
+        [System.Security.SecureString]$VaultPassword,
+        
+        [Parameter()]
+        [switch]$GlobalVault
     )
 
     begin {
         $correlationId = [System.Guid]::NewGuid()
-        Write-Verbose "Starting New-ADTestServiceAccounts - CorrelationId: $correlationId"
+        Write-Verbose "Starting New-ADTestServiceAccount - CorrelationId: $correlationId"
         
         # Get data paths
         $dataPath = Get-ADTestDataPath
@@ -190,19 +235,49 @@ function New-ADTestServiceAccounts {
             
             Write-Progress -Activity "Creating Service Accounts" -Status "Complete" -PercentComplete 100 -Completed
             
-            # Export passwords to file if accounts were created
+            # Export passwords to file or SecretStore if accounts were created
             $passwordFile = $null
+            $secretStoreResult = $null
             if ($script:PasswordExports.Count -gt 0 -and -not $WhatIfPreference) {
-                try {
-                    Write-Verbose "Exporting password documentation for $($script:PasswordExports.Count) service accounts"
-                    
-                    $passwordFile = Export-PasswordDocumentation -PasswordData $script:PasswordExports -FilePrefix "ServiceAccountPW"
-                    
-                    Write-Verbose "Service account passwords exported to: $passwordFile"
+                Write-Verbose "Generated passwords for $($script:PasswordExports.Count) service accounts"
+                
+                # Handle SecretStore orchestration if requested
+                if ($UseSecretStore) {
+                    try {
+                        $orchestrationParams = @{
+                            PasswordData = $script:PasswordExports
+                            VaultName = $VaultName
+                            GlobalVault = $GlobalVault
+                            CorrelationId = $correlationId
+                        }
+                        
+                        if ($VaultPassword) {
+                            $orchestrationParams.VaultPassword = $VaultPassword
+                        }
+                        
+                        $secretStoreResult = Invoke-ADTestSecretStoreOrchestration @orchestrationParams
+                        
+                        if ($secretStoreResult.Errors.Count -gt 0) {
+                            Write-Warning "SecretStore orchestration completed with errors: $($secretStoreResult.Errors -join '; ')"
+                            # Fall back to file export
+                            $passwordFile = Export-PasswordDocumentation -PasswordData $script:PasswordExports -FilePrefix "ServiceAccountPW"
+                            Write-Warning "Passwords exported to file as fallback: $passwordFile"
+                        }
+                        else {
+                            Write-Verbose "Successfully stored $($secretStoreResult.PasswordsStored) passwords in SecretStore vault: $VaultName"
+                        }
+                    }
+                    catch {
+                        Write-Warning "SecretStore orchestration failed: $($_.Exception.Message)"
+                        # Fall back to file export
+                        $passwordFile = Export-PasswordDocumentation -PasswordData $script:PasswordExports -FilePrefix "ServiceAccountPW"
+                        Write-Warning "Passwords exported to file as fallback: $passwordFile"
+                    }
                 }
-                catch {
-                    Write-Warning "Failed to export service account passwords: $($_.Exception.Message)"
-                    $script:Errors += "Password export error: $($_.Exception.Message)"
+                else {
+                    # Export to file when not using SecretStore
+                    $passwordFile = Export-PasswordDocumentation -PasswordData $script:PasswordExports -FilePrefix "ServiceAccountPW"
+                    Write-Verbose "Service account passwords exported to: $passwordFile"
                 }
             }
             
@@ -212,7 +287,11 @@ function New-ADTestServiceAccounts {
                 TotalAccounts = $totalAccounts
                 CreatedAccounts = $script:ServiceAccountsCreated
                 SkippedAccounts = $script:ServiceAccountsSkipped
-                PasswordFile = $passwordFile
+                PasswordData = $script:PasswordExports
+                PasswordFile = if ($passwordFile) { $passwordFile } else { $null }
+                SecretStoreResult = if ($secretStoreResult) { $secretStoreResult } else { $null }
+                UseSecretStore = $UseSecretStore
+                VaultName = if ($UseSecretStore) { $VaultName } else { $null }
                 Errors = $script:Errors
             }
             
@@ -224,9 +303,9 @@ function New-ADTestServiceAccounts {
                 Write-Host "  Accounts Created: $($results.CreatedAccounts)" -ForegroundColor Green
                 Write-Host "  Accounts Skipped: $($results.SkippedAccounts)" -ForegroundColor Yellow
                 
-                if ($passwordFile) {
-                    Write-Host "  Password File: $passwordFile" -ForegroundColor Cyan
-                    Write-Host "  WARNING: Store password file securely and delete after use!" -ForegroundColor Red
+                if ($results.PasswordData.Count -gt 0) {
+                    Write-Host "  Passwords Generated: $($results.PasswordData.Count)" -ForegroundColor Cyan
+                    Write-Host "  INFO: Password data available in results object for external handling" -ForegroundColor Green
                 }
                 
                 if ($results.Errors.Count -gt 0) {
@@ -241,6 +320,6 @@ function New-ADTestServiceAccounts {
     }
 
     end {
-        Write-Verbose "Completed New-ADTestServiceAccounts - CorrelationId: $correlationId"
+        Write-Verbose "Completed New-ADTestServiceAccount - CorrelationId: $correlationId"
     }
 }
