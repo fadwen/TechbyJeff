@@ -35,6 +35,7 @@ Export-ModuleMember -Function @(
     'New-ADTestSecurityGroups',
     'New-ADTestServiceAccount',
     'Get-ADTestEnvironmentReport',
+    'Get-ADTestPasswordFromVault',
     'Remove-ADTestEnvironment'
 )
 
