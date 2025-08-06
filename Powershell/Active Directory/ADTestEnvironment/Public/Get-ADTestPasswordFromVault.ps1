@@ -49,7 +49,7 @@ function Get-ADTestPasswordFromVault {
         Author: Jeffrey Stuhr
         Version: 1.0.0
         Last Updated: 2025-08-05
-        
+
         Security Notes:
         - Use -AsPlainText sparingly and ensure secure handling
         - SecureString return type is recommended for production use
@@ -57,25 +57,30 @@ function Get-ADTestPasswordFromVault {
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'ByServiceAccount')]
+    [OutputType([System.Security.SecureString], ParameterSetName = 'ByServiceAccount')]
+    [OutputType([System.Security.SecureString], ParameterSetName = 'BySecretName')]
+    [OutputType([string], ParameterSetName = 'ByServiceAccount')]
+    [OutputType([string], ParameterSetName = 'BySecretName')]
+    [OutputType([PSCustomObject[]], ParameterSetName = 'ListSecrets')]
     param(
         [Parameter(ParameterSetName = 'ByServiceAccount', Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$ServiceAccountName,
-        
+
         [Parameter(ParameterSetName = 'BySecretName', Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SecretName,
-        
+
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$VaultName = "ADTestEnvironment",
-        
+
         [Parameter()]
         [switch]$AsPlainText,
-        
+
         [Parameter(ParameterSetName = 'ListSecrets')]
         [switch]$ListSecrets,
-        
+
         [Parameter()]
         [switch]$IncludeExpired
     )
@@ -91,7 +96,7 @@ function Get-ADTestPasswordFromVault {
             if (-not (Get-Module -ListAvailable -Name Microsoft.PowerShell.SecretManagement)) {
                 throw "Microsoft.PowerShell.SecretManagement module is not installed. Install it using: Install-Module Microsoft.PowerShell.SecretManagement"
             }
-            
+
             Import-Module Microsoft.PowerShell.SecretManagement -Force
 
             # Check if vault exists
@@ -105,7 +110,7 @@ function Get-ADTestPasswordFromVault {
                 Write-Verbose "Listing all secrets in vault: $VaultName"
                 $secrets = Get-SecretInfo -Vault $VaultName
                 $secretList = @()
-                
+
                 foreach ($secret in $secrets) {
                     $secretInfo = [PSCustomObject]@{
                         SecretName = $secret.Name
@@ -119,7 +124,7 @@ function Get-ADTestPasswordFromVault {
                         Source = $secret.Metadata.Source
                         IsExpired = $false
                     }
-                    
+
                     # Check if secret is expired
                     if ($secret.Metadata.ExpirationDate) {
                         try {
@@ -130,30 +135,30 @@ function Get-ADTestPasswordFromVault {
                             Write-Verbose "Could not parse expiration date for secret: $($secret.Name)"
                         }
                     }
-                    
+
                     # Filter expired secrets unless specifically included
                     if ($secretInfo.IsExpired -and -not $IncludeExpired) {
                         Write-Verbose "Excluding expired secret: $($secret.Name)"
                         continue
                     }
-                    
+
                     $secretList += $secretInfo
                 }
-                
+
                 Write-Verbose "Found $($secretList.Count) secrets in vault"
                 return $secretList
             }
             elseif ($PSCmdlet.ParameterSetName -eq 'ByServiceAccount') {
                 # Find secrets for the specified service account
                 Write-Verbose "Searching for secrets for service account: $ServiceAccountName"
-                $secrets = Get-SecretInfo -Vault $VaultName | Where-Object { 
-                    $_.Metadata.ServiceAccount -eq $ServiceAccountName 
+                $secrets = Get-SecretInfo -Vault $VaultName | Where-Object {
+                    $_.Metadata.ServiceAccount -eq $ServiceAccountName
                 }
-                
+
                 if (-not $secrets) {
                     throw "No secrets found for service account '$ServiceAccountName' in vault '$VaultName'"
                 }
-                
+
                 # Filter out expired secrets unless specifically included
                 if (-not $IncludeExpired) {
                     $secrets = $secrets | Where-Object {
@@ -171,17 +176,17 @@ function Get-ADTestPasswordFromVault {
                         return $true
                     }
                 }
-                
+
                 if (-not $secrets) {
                     throw "No non-expired secrets found for service account '$ServiceAccountName' in vault '$VaultName'. Use -IncludeExpired to include expired secrets."
                 }
-                
+
                 # Get the most recent secret (by name which includes timestamp)
                 $latestSecret = $secrets | Sort-Object Name -Descending | Select-Object -First 1
                 Write-Verbose "Retrieved latest secret: $($latestSecret.Name)"
-                
+
                 $password = Get-Secret -Name $latestSecret.Name -Vault $VaultName
-                
+
                 if ($AsPlainText) {
                     Write-Warning "Returning password as plain text - ensure secure handling"
                     return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($password))
@@ -193,13 +198,13 @@ function Get-ADTestPasswordFromVault {
             else {
                 # Get secret by exact name
                 Write-Verbose "Retrieving secret by name: $SecretName"
-                
+
                 # Check if secret exists and is not expired
                 $secretInfo = Get-SecretInfo -Name $SecretName -Vault $VaultName -ErrorAction SilentlyContinue
                 if (-not $secretInfo) {
                     throw "Secret '$SecretName' not found in vault '$VaultName'"
                 }
-                
+
                 # Check expiration if not including expired
                 if (-not $IncludeExpired -and $secretInfo.Metadata.ExpirationDate) {
                     try {
@@ -212,9 +217,9 @@ function Get-ADTestPasswordFromVault {
                         Write-Verbose "Could not parse expiration date for secret: $SecretName"
                     }
                 }
-                
+
                 $password = Get-Secret -Name $SecretName -Vault $VaultName -ErrorAction Stop
-                
+
                 if ($AsPlainText) {
                     Write-Warning "Returning password as plain text - ensure secure handling"
                     return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($password))

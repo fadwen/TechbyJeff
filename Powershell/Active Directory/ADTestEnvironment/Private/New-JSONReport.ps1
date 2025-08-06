@@ -1,4 +1,6 @@
 function New-JSONReport {
+    [CmdletBinding()]
+    [OutputType([void])]
     <#
     .SYNOPSIS
         Generates a JSON report from AD test data
@@ -20,7 +22,7 @@ function New-JSONReport {
         Author: Jeffrey Stuhr
         Version: 1.0.0
         Last Updated: 2025-08-03
-        
+
         Creates a comprehensive JSON report with all available details including:
         - Full object attributes for all AD objects
         - Group membership information
@@ -31,14 +33,14 @@ function New-JSONReport {
     param(
         [Parameter(Mandatory = $true)]
         [PSCustomObject]$ReportData,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$OutputPath
     )
 
     begin {
         Write-Verbose "Starting JSON report generation"
-        
+
         # Ensure output directory exists
         $directory = Split-Path $OutputPath -Parent
         if ($directory -and -not (Test-Path $directory)) {
@@ -54,7 +56,7 @@ function New-JSONReport {
     process {
         try {
             Write-ADTestProgress -Message "Generating JSON report: $OutputPath" -Type Info
-            
+
             # Build structured data for JSON
             $jsonData = @{
                 metadata = @{
@@ -75,10 +77,10 @@ function New-JSONReport {
                     groupMembers = $ReportData.Summary.TotalGroupMembers
                 }
             }
-            
+
             # Always add detailed data (this is what users expect to see)
             $jsonData.details = @{}
-            
+
             # Organizational Units
             if ($ReportData.TestOUs.Count -gt 0) {
                 $jsonData.details.organizationalUnits = @()
@@ -93,7 +95,7 @@ function New-JSONReport {
                     $jsonData.details.organizationalUnits += $ouData
                 }
             }
-            
+
             # Users
             if ($ReportData.TestUsers.Count -gt 0) {
                 $jsonData.details.users = @()
@@ -130,7 +132,7 @@ function New-JSONReport {
                     $jsonData.details.users += $userData
                 }
             }
-            
+
             # Service Accounts
             if ($ReportData.TestServiceAccounts.Count -gt 0) {
                 $jsonData.details.serviceAccounts = @()
@@ -158,7 +160,7 @@ function New-JSONReport {
                     $jsonData.details.serviceAccounts += $serviceAccountData
                 }
             }
-            
+
             # Devices
             if ($ReportData.TestDevices.Count -gt 0) {
                 $jsonData.details.devices = @()
@@ -184,7 +186,7 @@ function New-JSONReport {
                     $jsonData.details.devices += $deviceData
                 }
             }
-            
+
             # Groups
             if ($ReportData.TestGroups.Count -gt 0) {
                 $jsonData.details.groups = @()
@@ -203,7 +205,7 @@ function New-JSONReport {
                         created = if ($group.whenCreated) { $group.whenCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffZ') } else { $null }
                         modified = if ($group.whenChanged) { $group.whenChanged.ToString('yyyy-MM-ddTHH:mm:ss.fffZ') } else { $null }
                     }
-                    
+
                     # Add member information (always included)
                     $groupData.memberCount = $group.MemberCount
                     if ($group.Members) {
@@ -218,18 +220,18 @@ function New-JSONReport {
                             $groupData.members += $memberData
                         }
                     }
-                    
+
                     $jsonData.details.groups += $groupData
                 }
             }
-            
+
             # Convert to JSON with proper formatting
             $jsonContent = $jsonData | ConvertTo-Json -Depth 10
-            
+
             # Write the JSON file
             $jsonContent | Out-File -FilePath $OutputPath -Encoding UTF8
             Write-Host "JSON report saved to: $OutputPath" -ForegroundColor Green
-            
+
         } catch {
             Write-Error "Failed to generate JSON report: $($_.Exception.Message)" -ErrorAction Stop
         }

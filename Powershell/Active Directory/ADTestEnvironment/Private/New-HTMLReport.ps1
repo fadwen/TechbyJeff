@@ -1,4 +1,6 @@
 function New-HTMLReport {
+    [CmdletBinding()]
+    [OutputType([void])]
     <#
     .SYNOPSIS
         Generates an HTML report from AD test data
@@ -31,14 +33,14 @@ function New-HTMLReport {
     param(
         [Parameter(Mandatory = $true)]
         [PSCustomObject]$ReportData,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$OutputPath
     )
 
     begin {
         Write-Verbose "Starting HTML report generation"
-        
+
         # Ensure output directory exists
         $directory = Split-Path $OutputPath -Parent
         if ($directory -and -not (Test-Path $directory)) {
@@ -54,7 +56,7 @@ function New-HTMLReport {
     process {
         try {
             Write-ADTestProgress -Message "Generating HTML report: $OutputPath" -Type Info
-            
+
             # Build HTML content
             $htmlContent = @"
 <!DOCTYPE html>
@@ -70,14 +72,14 @@ function New-HTMLReport {
             padding: 0;
             box-sizing: border-box;
         }
-        
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 20px; 
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
             background-color: #f5f5f5;
             line-height: 1.6;
         }
-        
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -86,12 +88,12 @@ function New-HTMLReport {
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        
+
         /* Header styles */
-        .header { 
+        .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px; 
+            padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
         }
@@ -103,12 +105,12 @@ function New-HTMLReport {
             margin: 5px 0;
             opacity: 0.9;
         }
-        
+
         /* Summary styles */
-        .summary { 
+        .summary {
             background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-            padding: 20px; 
-            margin: 20px 0; 
+            padding: 20px;
+            margin: 20px 0;
             border-radius: 8px;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -130,16 +132,16 @@ function New-HTMLReport {
             font-weight: bold;
             color: #2e7d32;
         }
-        
+
         /* Collapsible section styles */
-        .section { 
+        .section {
             margin: 20px 0;
             border-radius: 8px;
             background: #fafafa;
             border: 1px solid #e0e0e0;
             overflow: hidden;
         }
-        
+
         .section-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -151,60 +153,60 @@ function New-HTMLReport {
             transition: background-color 0.3s ease;
             user-select: none;
         }
-        
+
         .section-header:hover {
             background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
         }
-        
+
         .section-header h2 {
             margin: 0;
             font-size: 1.4em;
         }
-        
+
         .section-toggle {
             font-size: 1.2em;
             font-weight: bold;
             transition: transform 0.3s ease;
         }
-        
+
         .section-content {
             display: none;
             padding: 0;
             background: white;
         }
-        
+
         .section-content.expanded {
             display: block;
         }
-        
+
         .section.expanded .section-toggle {
             /* Remove the rotation transform since we're using text change instead */
         }
-        
+
         /* Table container with horizontal scroll */
         .table-container {
             overflow-x: auto;
             margin: 0;
             border-radius: 0;
         }
-        
+
         /* Table styles */
-        table { 
-            border-collapse: collapse; 
-            width: 100%; 
+        table {
+            border-collapse: collapse;
+            width: 100%;
             min-width: 800px; /* Ensure minimum width for horizontal scroll */
             margin: 0;
             background: white;
         }
-        
-        th, td { 
-            border: 1px solid #e0e0e0; 
-            padding: 12px 16px; 
-            text-align: left; 
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 12px 16px;
+            text-align: left;
             white-space: nowrap; /* Prevent text wrapping */
         }
-        
-        th { 
+
+        th {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             font-weight: 600;
             color: #495057;
@@ -212,27 +214,27 @@ function New-HTMLReport {
             top: 0;
             z-index: 10;
         }
-        
+
         tr:nth-child(even) {
             background-color: #f8f9fa;
         }
-        
+
         tr:hover {
             background-color: #e3f2fd;
         }
-        
+
         /* Nested table styles for group members */
         .group-members-row {
             background-color: #f0f8ff !important;
         }
-        
+
         .nested-table-container {
             padding: 10px 20px;
             background-color: #f8f9fa;
             border-radius: 4px;
             margin: 5px 0;
         }
-        
+
         .nested-table {
             width: 100%;
             min-width: auto; /* Override parent table min-width */
@@ -241,54 +243,54 @@ function New-HTMLReport {
             overflow: hidden;
             background: white;
         }
-        
+
         .nested-table th {
             background: linear-gradient(135deg, #e8f4f8 0%, #d4e4ef 100%);
             color: #2c5282;
             font-size: 0.9em;
             padding: 8px 12px;
         }
-        
+
         .nested-table td {
             padding: 8px 12px;
             border-bottom: 1px solid #e8e8e8;
             font-size: 0.9em;
         }
-        
+
         .nested-table tr:last-child td {
             border-bottom: none;
         }
-        
+
         .nested-table tr:nth-child(even) {
             background-color: #f9f9f9;
         }
-        
+
         .nested-table tr:hover {
             background-color: #e6f3ff;
         }
-        
+
         .group-toggle {
             user-select: none;
             display: inline-block;
             min-width: 20px;
         }
-        
+
         .group-toggle:hover {
             background-color: rgba(0, 123, 186, 0.1);
             border-radius: 3px;
         }
-        
+
         /* Status styles */
-        .enabled { 
-            color: #2e7d32; 
-            font-weight: bold; 
+        .enabled {
+            color: #2e7d32;
+            font-weight: bold;
         }
-        
-        .disabled { 
-            color: #d32f2f; 
-            font-weight: bold; 
+
+        .disabled {
+            color: #d32f2f;
+            font-weight: bold;
         }
-        
+
         /* Footer styles */
         .footer {
             text-align: center;
@@ -298,18 +300,18 @@ function New-HTMLReport {
             border-top: 1px solid #eee;
             margin-top: 40px;
         }
-        
+
         /* Responsive design */
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
                 padding: 15px;
             }
-            
+
             .header h1 {
                 font-size: 1.8em;
             }
-            
+
             .summary {
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                 gap: 10px;
@@ -321,7 +323,7 @@ function New-HTMLReport {
             const section = document.getElementById(sectionId);
             const content = section.querySelector('.section-content');
             const toggle = section.querySelector('.section-toggle');
-            
+
             if (content.classList.contains('expanded')) {
                 content.classList.remove('expanded');
                 section.classList.remove('expanded');
@@ -332,7 +334,7 @@ function New-HTMLReport {
                 toggle.textContent = '[-]';
             }
         }
-        
+
         function expandAll() {
             const sections = document.querySelectorAll('.section');
             sections.forEach(section => {
@@ -343,7 +345,7 @@ function New-HTMLReport {
                 toggle.textContent = '[-]';
             });
         }
-        
+
         function collapseAll() {
             const sections = document.querySelectorAll('.section');
             sections.forEach(section => {
@@ -354,11 +356,11 @@ function New-HTMLReport {
                 toggle.textContent = '[+]';
             });
         }
-        
+
         function toggleGroupMembers(groupId) {
             const memberRow = document.getElementById('members-' + groupId);
             const toggle = document.getElementById('toggle-' + groupId);
-            
+
             if (memberRow.style.display === 'none' || memberRow.style.display === '') {
                 memberRow.style.display = 'table-row';
                 toggle.textContent = '-';
@@ -367,7 +369,7 @@ function New-HTMLReport {
                 toggle.textContent = '+';
             }
         }
-        
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // All sections start collapsed by default
@@ -382,7 +384,7 @@ function New-HTMLReport {
             <p><strong>Generated:</strong> $($ReportData.GeneratedOn)</p>
             <p><strong>Report ID:</strong> $($ReportData.CorrelationId)</p>
         </div>
-        
+
         <div class="summary">
             <div class="summary-item">
                 <div class="label">Organizational Units</div>
@@ -409,9 +411,9 @@ function New-HTMLReport {
                 <div class="count">$($ReportData.Summary.TotalGroupMembers)</div>
             </div>
 "@
-            
+
             $htmlContent += "        </div>`n"
-            
+
             # Add Expand/Collapse buttons after summary but before tables
             $htmlContent += @"
         <div style="text-align: center; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
@@ -419,7 +421,7 @@ function New-HTMLReport {
             <button onclick="collapseAll()" style="background: #6c757d; color: white; border: none; padding: 10px 15px; margin: 5px; border-radius: 4px; cursor: pointer; font-weight: bold;">Collapse All</button>
         </div>
 "@
-            
+
             # Show detailed sections (this is what users expect to see) - all collapsible
             if ($ReportData.TestOUs.Count -gt 0) {
                 $htmlContent += @"
@@ -439,7 +441,7 @@ function New-HTMLReport {
                 }
                 $htmlContent += "                    </table>`n                </div>`n            </div>`n        </div>`n"
             }
-            
+
             if ($ReportData.TestUsers.Count -gt 0) {
                 $htmlContent += @"
         <div class="section" id="users-section">
@@ -454,7 +456,7 @@ function New-HTMLReport {
 
                 # Get a reasonable set of key properties for users instead of all properties
                 $userProps = @('Name', 'SamAccountName', 'UserPrincipalName', 'EmailAddress', 'Title', 'Department', 'Manager', 'Enabled', 'DistinguishedName', 'Description')
-                
+
                 # Filter to only properties that exist in the data
                 $actualUserProps = @()
                 $firstUser = $ReportData.TestUsers | Select-Object -First 1
@@ -483,7 +485,7 @@ function New-HTMLReport {
                 }
                 $htmlContent += "                    </table>`n                </div>`n            </div>`n        </div>`n"
             }
-            
+
             if ($ReportData.TestServiceAccounts.Count -gt 0) {
                 $htmlContent += @"
         <div class="section" id="service-accounts-section">
@@ -498,7 +500,7 @@ function New-HTMLReport {
 
                 # Get key properties for service accounts
                 $serviceAccountProps = @('Name', 'SamAccountName', 'UserPrincipalName', 'Description', 'Manager', 'Enabled', 'DistinguishedName', 'ServicePrincipalNames')
-                
+
                 # Filter to only properties that exist in the data
                 $actualServiceAccountProps = @()
                 $firstServiceAccount = $ReportData.TestServiceAccounts | Select-Object -First 1
@@ -529,7 +531,7 @@ function New-HTMLReport {
                 }
                 $htmlContent += "                    </table>`n                </div>`n            </div>`n        </div>`n"
             }
-            
+
             if ($ReportData.TestDevices.Count -gt 0) {
                 $htmlContent += @"
         <div class="section" id="devices-section">
@@ -544,7 +546,7 @@ function New-HTMLReport {
 
                 # Get key properties for devices
                 $deviceProps = @('Name', 'SamAccountName', 'DNSHostName', 'OperatingSystem', 'OperatingSystemVersion', 'Description', 'Enabled', 'DistinguishedName')
-                
+
                 # Filter to only properties that exist in the data
                 $actualDeviceProps = @()
                 $firstDevice = $ReportData.TestDevices | Select-Object -First 1
@@ -572,7 +574,7 @@ function New-HTMLReport {
                     $htmlContent += "</tr>`n"
                 }
                 $htmlContent += "                    </table>`n                </div>`n            </div>`n        </div>`n"
-            
+
             if ($ReportData.TestGroups.Count -gt 0) {
                 $htmlContent += @"
         <div class="section" id="groups-section">
@@ -599,7 +601,7 @@ function New-HTMLReport {
                 foreach ($group in $ReportData.TestGroups) {
                     $groupId = $group.SamAccountName -replace '[^a-zA-Z0-9]', ''  # Safe ID for HTML
                     $memberCount = if ($group.MemberCount) { $group.MemberCount } else { 0 }
-                    
+
                     $htmlContent += @"
                         <tr>
                             <td>
@@ -658,7 +660,7 @@ function New-HTMLReport {
                 $htmlContent += "                    </table>`n                </div>`n            </div>`n        </div>`n"
             }
         }
-            
+
         $htmlContent += @"
         <div class="footer">
             Generated by AD Test Environment Module | $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -667,11 +669,11 @@ function New-HTMLReport {
 </body>
 </html>
 "@
-            
+
             # Write the HTML file
             $htmlContent | Out-File -FilePath $OutputPath -Encoding UTF8
             Write-Host "HTML report saved to: $OutputPath" -ForegroundColor Green
-            
+
         } catch {
             Write-Error "Failed to generate HTML report: $($_.Exception.Message)" -ErrorAction Stop
         }

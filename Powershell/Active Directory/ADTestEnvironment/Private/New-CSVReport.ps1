@@ -1,4 +1,6 @@
 function New-CSVReport {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    [OutputType([hashtable])]
     <#
     .SYNOPSIS
         Generates CSV reports from AD test data
@@ -43,7 +45,7 @@ function New-CSVReport {
     param(
         [Parameter(Mandatory = $true)]
         [PSCustomObject]$ReportData,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$OutputPath
     )
@@ -56,7 +58,7 @@ function New-CSVReport {
         $baseFileName = [System.IO.Path]::GetFileNameWithoutExtension($OutputPath)
         $parentDirectory = Split-Path $OutputPath -Parent
         if (-not $parentDirectory) { $parentDirectory = "." }
-        
+
         # Create the report folder
         $baseDirectory = Join-Path $parentDirectory $baseFileName
         if (-not (Test-Path $baseDirectory)) {
@@ -73,7 +75,7 @@ function New-CSVReport {
     }    process {
         try {
             Write-ADTestProgress -Message "Generating CSV reports: $OutputPath" -Type Info
-            
+
             # Create summary CSV
             $summaryPath = Join-Path $baseDirectory "$baseFileName`_summary.csv"
             $summaryData = @(
@@ -108,13 +110,13 @@ function New-CSVReport {
                     Description = "Total group memberships"
                 }
             )
-            
+
             $summaryData | Export-Csv -Path $summaryPath -NoTypeInformation -Encoding UTF8
             $createdFiles += $summaryPath
             Write-Host "Summary CSV saved to: $summaryPath" -ForegroundColor Green
-            
+
             # Always create detailed CSVs (this is what users expect to see)
-            
+
             # Organizational Units CSV
             if ($ReportData.TestOUs.Count -gt 0) {
                     $ouPath = Join-Path $baseDirectory "$baseFileName`_organizationalunits.csv"
@@ -132,7 +134,7 @@ function New-CSVReport {
                     $createdFiles += $ouPath
                     Write-Host "OUs CSV saved to: $ouPath" -ForegroundColor Green
                 }
-                
+
                 # Users CSV
                 if ($ReportData.TestUsers.Count -gt 0) {
                     $usersPath = Join-Path $baseDirectory "$baseFileName`_users.csv"
@@ -172,7 +174,7 @@ function New-CSVReport {
                     $createdFiles += $usersPath
                     Write-Host "Users CSV saved to: $usersPath" -ForegroundColor Green
                 }
-                
+
                 # Service Accounts CSV
                 if ($ReportData.TestServiceAccounts.Count -gt 0) {
                     $serviceAccountsPath = Join-Path $baseDirectory "$baseFileName`_serviceaccounts.csv"
@@ -208,7 +210,7 @@ function New-CSVReport {
                     $createdFiles += $serviceAccountsPath
                     Write-Host "Service Accounts CSV saved to: $serviceAccountsPath" -ForegroundColor Green
                 }
-                
+
                 # Devices CSV
                 if ($ReportData.TestDevices.Count -gt 0) {
                     $devicesPath = Join-Path $baseDirectory "$baseFileName`_devices.csv"
@@ -240,7 +242,7 @@ function New-CSVReport {
                     $createdFiles += $devicesPath
                     Write-Host "Devices CSV saved to: $devicesPath" -ForegroundColor Green
                 }
-                
+
                 # Groups CSV
                 if ($ReportData.TestGroups.Count -gt 0) {
                     $groupsPath = Join-Path $baseDirectory "$baseFileName`_groups.csv"
@@ -267,7 +269,7 @@ function New-CSVReport {
                     $groupData | Export-Csv -Path $groupsPath -NoTypeInformation -Encoding UTF8
                     $createdFiles += $groupsPath
                     Write-Host "Groups CSV saved to: $groupsPath" -ForegroundColor Green
-                    
+
                     # Group Members CSV (always created when group data is available)
                     $groupMembersPath = Join-Path $baseDirectory "$baseFileName`_groupmembers.csv"
                     $memberData = @()
@@ -291,7 +293,7 @@ function New-CSVReport {
                         Write-Host "Group Members CSV saved to: $groupMembersPath" -ForegroundColor Green
                     }
                 }
-            
+
             # Create a master file listing all generated CSVs
             $masterPath = Join-Path $baseDirectory "$baseFileName`_manifest.csv"
             $manifestData = @()
@@ -316,7 +318,7 @@ function New-CSVReport {
             }
             $manifestData | Export-Csv -Path $masterPath -NoTypeInformation -Encoding UTF8
             Write-Host "CSV manifest saved to: $masterPath" -ForegroundColor Green
-            
+
         } catch {
             Write-Error "Failed to generate CSV reports: $($_.Exception.Message)" -ErrorAction Stop
         }

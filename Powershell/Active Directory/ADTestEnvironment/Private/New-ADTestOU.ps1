@@ -2,19 +2,19 @@ function New-ADTestOU {
     <#
     .SYNOPSIS
         Creates an Active Directory OU with WhatIf support
-    
+
     .DESCRIPTION
         Helper function to create OUs with consistent error handling and WhatIf support
-    
+
     .PARAMETER Name
         Name of the OU to create
-    
+
     .PARAMETER Path
         Parent path where the OU should be created
-    
+
     .PARAMETER Description
         Description for the OU
-    
+
     .EXAMPLE
         New-ADTestOU -Name "TestUsers" -Path "DC=contoso,DC=com" -Description "Test user accounts"
 
@@ -23,21 +23,22 @@ function New-ADTestOU {
         Version: 1.0.0
         Last Updated: 2025-08-03
     #>
-    
+
     [CmdletBinding(SupportsShouldProcess = $true)]
+    [OutputType([hashtable])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Name,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$Path,
-        
+
         [Parameter(Mandatory = $true)]
         [string]$Description
     )
-    
+
     $fullPath = "OU=$Name,$Path"
-    
+
     try {
         if (-not (Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$fullPath'" -ErrorAction SilentlyContinue)) {
             if ($PSCmdlet.ShouldProcess($fullPath, "Create OU")) {

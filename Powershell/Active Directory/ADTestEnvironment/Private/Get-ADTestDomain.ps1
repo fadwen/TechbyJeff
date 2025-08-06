@@ -2,14 +2,14 @@ function Get-ADTestDomain {
     <#
     .SYNOPSIS
         Gets the current AD domain information for test data operations
-    
+
     .DESCRIPTION
         Automatically detects the current Active Directory domain and returns
         the domain DN and DNS name for use in test data creation operations
-    
+
     .OUTPUTS
         Hashtable with DomainDN and DNSName properties
-    
+
     .EXAMPLE
         $domain = Get-ADTestDomain
         Write-Host "Domain: $($domain.DNSName)"
@@ -19,10 +19,11 @@ function Get-ADTestDomain {
         Version: 1.0.0
         Last Updated: 2025-08-03
     #>
-    
+
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param()
-    
+
     try {
         # Try environment variable first
         $dnsDomain = $env:USERDNSDOMAIN
@@ -33,7 +34,7 @@ function Get-ADTestDomain {
                 $dnsDomain = $currentDomain.DNSRoot
             }
         }
-        
+
         if ($dnsDomain) {
             $split = $dnsDomain.split(".")
             if ($split.Count -eq 3) {
@@ -43,9 +44,9 @@ function Get-ADTestDomain {
             } else {
                 $domainDN = "DC=$($split[0])"
             }
-            
-            Write-Verbose "Detected domain: $dnsDomain (DN: $domainDN)" 
-            
+
+            Write-Verbose "Detected domain: $dnsDomain (DN: $domainDN)"
+
             return @{
                 DNSName = $dnsDomain
                 DomainDN = $domainDN
