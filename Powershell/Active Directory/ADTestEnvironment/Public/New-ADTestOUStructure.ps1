@@ -30,7 +30,7 @@ function New-ADTestOUStructure {
 
     #>
 
-    [CmdletBinding(SupportsShouldProcess = $true)]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     [OutputType([PSCustomObject])]
     param(
         [switch]$PassThru
@@ -87,7 +87,7 @@ function New-ADTestOUStructure {
 
             # Create Group category sub-OUs
             Write-ADTestProgress -Message "Creating Groups category sub-OUs..." -Type Info
-            
+
             # Create Groups OU first
             $groupsOU = "OU=Groups,$testDataOU"
             $result = New-ADTestOU -Name "Groups" -Path $testDataOU -Description "Security groups organized by category"
@@ -96,7 +96,7 @@ function New-ADTestOUStructure {
                 'Skipped' { $results.Skipped += "Groups" }
                 'Failed' { $results.Failed += "Groups: $($result.Message)" }
             }
-            
+
             $groupCategories = @("Department", "Role", "Location", "Device", "Resource", "Administrative")
             foreach ($category in $groupCategories) {
                 $result = New-ADTestOU -Name $category -Path $groupsOU -Description "$category-based security groups"
@@ -109,7 +109,7 @@ function New-ADTestOUStructure {
 
             # Create Device type sub-OUs
             Write-ADTestProgress -Message "Creating Device type sub-OUs..." -Type Info
-            
+
             # Create Devices OU first
             $devicesOU = "OU=Devices,$testDataOU"
             $result = New-ADTestOU -Name "Devices" -Path $testDataOU -Description "Computer and device objects organized by type"
@@ -118,7 +118,7 @@ function New-ADTestOUStructure {
                 'Skipped' { $results.Skipped += "Devices" }
                 'Failed' { $results.Failed += "Devices: $($result.Message)" }
             }
-            
+
             $deviceTypes = @("Workstations", "Servers", "Printers", "Mobile")
             foreach ($deviceType in $deviceTypes) {
                 $result = New-ADTestOU -Name $deviceType -Path $devicesOU -Description "$deviceType devices"
@@ -142,16 +142,16 @@ function New-ADTestOUStructure {
             $dataPath = Get-ADTestDataPath
             $csvPath = Join-Path $dataPath "ADUsers.csv"
             $departments = @()
-            
+
             if (Test-Path $csvPath) {
                 $departments = (Import-csv $csvPath | Select-Object -ExpandProperty Department | Sort-Object -Unique) | Where-Object {![string]::IsNullOrWhiteSpace($_)}
                 Write-ADTestProgress -Message "Creating department sub-OUs..." -Type Info
-                
+
                 foreach ($dept in $departments) {
                     # Clean department name for OU creation
                     $cleanDept = $dept -replace '[^a-zA-Z0-9\s]', '' -replace '\s+', ' '
                     $cleanDept = $cleanDept.Trim()
-                    
+
                     if (![string]::IsNullOrWhiteSpace($cleanDept)) {
                         $result = New-ADTestOU -Name $cleanDept -Path $usersOU -Description "Users in the $dept department"
                         switch ($result.Action) {
@@ -169,7 +169,7 @@ function New-ADTestOUStructure {
             Write-Verbose "TestData OU Structure:"
             Write-Verbose "  TestData"
             Write-Verbose "    Users"
-            
+
             foreach ($dept in $departments) {
                 $cleanDept = $dept -replace '[^a-zA-Z0-9\s]', '' -replace '\s+', ' '
                 $cleanDept = $cleanDept.Trim()
@@ -177,7 +177,7 @@ function New-ADTestOUStructure {
                     Write-Verbose "      $cleanDept"
                 }
             }
-            
+
             Write-Verbose "    Groups"
             foreach ($category in $groupCategories) {
                 Write-Verbose "      $category"
@@ -189,7 +189,7 @@ function New-ADTestOUStructure {
             }
 
             Write-Verbose "    ServiceAccounts"
-            
+
             # Display OU Creation Summary
             Write-ADTestProgress -Message "OU Creation Summary" -Type Info
             Write-ADTestProgress -Message "  OUs Created: $($results.Created.Count)" -Type Info
@@ -197,18 +197,18 @@ function New-ADTestOUStructure {
             if ($results.Failed.Count -gt 0) {
                 Write-ADTestProgress -Message "  OUs Failed: $($results.Failed.Count)" -Type Error
             }
-            
+
             if ($WhatIfPreference) {
                 Write-ADTestProgress -Message "WHATIF: Organizational structure analysis complete!" -Type Warning
                 Write-ADTestProgress -Message "Run without -WhatIf to create the actual OUs." -Type Warning
             } else {
                 Write-ADTestProgress -Message "Organizational structure creation complete!" -Type Success
             }
-            
+
             if ($PassThru) {
                 return [PSCustomObject]$results
             }
-            
+
         } catch {
             Write-Error "Failed to create organizational structure: $($_.Exception.Message)" -ErrorAction Stop
         }
