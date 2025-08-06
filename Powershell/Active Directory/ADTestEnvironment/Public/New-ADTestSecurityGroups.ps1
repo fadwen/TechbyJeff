@@ -593,9 +593,17 @@ function New-ADTestSecurityGroups {
                                     if ($membersToAdd.Count -gt 0) {
                                         try {
                                             # Use batch member addition for efficiency
-                                            $memberDNs = $membersToAdd | ForEach-Object { $_.DistinguishedName }
-                                            Add-ADGroupMember -Identity $adGroup.DistinguishedName -Members $memberDNs -ErrorAction Stop
-                                            $results.MembersAdded += $membersToAdd.Count
+                                            # Filter out null members and get valid DNs
+                                            $validMembers = $membersToAdd | Where-Object { $_ -and $_.DistinguishedName }
+                                            if ($validMembers.Count -gt 0) {
+                                                $memberDNs = $validMembers | ForEach-Object { $_.DistinguishedName }
+                                                Add-ADGroupMember -Identity $adGroup.DistinguishedName -Members $memberDNs -ErrorAction Stop
+                                                $results.MembersAdded += $validMembers.Count
+                                            }
+                                            if ($membersToAdd.Count -ne $validMembers.Count) {
+                                                $invalidCount = $membersToAdd.Count - $validMembers.Count
+                                                $results.Errors += "Skipped $invalidCount null or invalid members for group $($group.GroupName)"
+                                            }
                                         }
                                         catch {
                                             # If batch fails, try individual additions
@@ -604,12 +612,18 @@ function New-ADTestSecurityGroups {
 
                                             foreach ($member in $membersToAdd) {
                                                 try {
-                                                    Add-ADGroupMember -Identity $adGroup.DistinguishedName -Members $member.DistinguishedName -ErrorAction Stop
-                                                    $results.MembersAdded++
+                                                    if ($member -and $member.DistinguishedName) {
+                                                        Add-ADGroupMember -Identity $adGroup.DistinguishedName -Members $member.DistinguishedName -ErrorAction Stop
+                                                        $results.MembersAdded++
+                                                    }
+                                                    else {
+                                                        $results.Errors += "Skipped null or invalid member for group $($group.GroupName)"
+                                                    }
                                                 }
                                                 catch {
                                                     if ($_.Exception.Message -notlike "*already a member*") {
-                                                        $results.Errors += "Failed to add $($member.Name) to $($group.GroupName): $($_.Exception.Message)"
+                                                        $memberName = if ($member -and $member.Name) { $member.Name } else { "Unknown Member" }
+                                                        $results.Errors += "Failed to add $memberName to $($group.GroupName): $($_.Exception.Message)"
                                                     }
                                                     # If already a member, just count it as added (no error)
                                                     elseif ($_.Exception.Message -like "*already a member*") {

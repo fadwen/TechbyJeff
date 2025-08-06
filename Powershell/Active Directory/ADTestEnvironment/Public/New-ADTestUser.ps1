@@ -182,6 +182,17 @@ function New-ADTestUser {
 
                     foreach ($user in $UserBatch) {
                         try {
+                            # Debug: Check if required objects are available
+                            if (-not $Domain) {
+                                throw "Domain parameter is null"
+                            }
+                            if (-not $Domain.DomainDN) {
+                                throw "Domain.DomainDN is null"
+                            }
+                            if (-not $user) {
+                                throw "User object is null"
+                            }
+
                             # Skip if user already exists
                             $existingUser = Get-ADUser -Filter "SamAccountName -eq '$($user.SamAccountName)'" -ErrorAction SilentlyContinue
                             if ($existingUser) {
@@ -237,14 +248,14 @@ function New-ADTestUser {
                                 EmployeeID = $user.EmployeeID
                                 OtherAttributes = @{EmployeeType = $user.EmployeeType}
                                 Path = $ouPath
-                                Enabled = [bool]::Parse($user.Enabled)
+                                Enabled = if ([string]::IsNullOrWhiteSpace($user.Enabled)) { $true } else { [bool]::Parse($user.Enabled) }
                                 PasswordNeverExpires = $true
                                 CannotChangePassword = $false
                                 AccountPassword = (ConvertTo-SecureString -String "Password123!" -AsPlainText -Force)
                             }
 
                             # Create user
-                            if ($PSCmdlet.ShouldProcess($user.Name, "Create AD User Account")) {
+                            if (-not $WhatIfPreference) {
                                 Write-Verbose "Creating user: $($user.Name) in $ouPath"
                                 New-ADUser @userParams
                                 $batchResults.Created++

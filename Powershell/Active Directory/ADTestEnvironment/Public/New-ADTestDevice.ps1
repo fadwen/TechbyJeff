@@ -203,7 +203,7 @@ function New-ADTestDevice {
                             }
 
                             # Create computer object
-                            if ($PSCmdlet.ShouldProcess($device.DeviceName, "Create AD Computer Object")) {
+                            if (-not $WhatIfPreference) {
                                 Write-Verbose "Creating device: $($device.DeviceName) in $ouPath"
                                 New-ADComputer @deviceParams
 
@@ -399,7 +399,7 @@ function New-ADTestDevice {
                             }
 
                             # Retry device creation
-                            if ($PSCmdlet.ShouldProcess($device.DeviceName, 'Retry Create AD Computer Object')) {
+                            if (-not $WhatIfPreference) {
                                 Write-Verbose "Retrying creation of device: $deviceName in $ouPath"
                                 New-ADComputer @deviceParams -ErrorAction Stop
 
