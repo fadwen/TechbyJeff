@@ -1,6 +1,16 @@
 ﻿# SecretStoreManager
 
-A comprehensive PowerShell module for managing secret vaults across multi##  Architecture
+[![GitHub](https://img.shields.io/badge/GitHub-fadwen%2FTechbyJeff-blue?logo=github)](https://github.com/fadwen/TechbyJeff/tree/main/Powershell/SecretStoreManager)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue?logo=powershell)](https://github.com/PowerShell/PowerShell)
+[![License](https://img.shields.io/badge/License-MIT-green)](https://github.com/fadwen/TechbyJeff/blob/main/LICENSE)
+
+A comprehensive PowerShell module for managing secret vaults across multiple providers with enterprise-grade orchestration, testing, and security features.
+
+##  Overview
+
+SecretStoreManager transforms basic secret management into a robust, multi-provider solution that supports SecretStore, CredMan, Bitwarden, AWS Secrets Manager, and Azure Key Vault. Built with enterprise requirements in mind, it provides automated testing, comprehensive error handling, and seamless provider switching.
+
+##  Architecture
 
 ### Module Structure
 ```
@@ -9,26 +19,31 @@ SecretStoreManager/
 ├── SecretStoreManager.psm1         # Module loader
 ├── Public/                         # Exported functions
 │   ├── New-TestSecretVault.ps1    # Main vault creation function
-│   ├── Invoke-SecretStoreOrchestration.ps1
-│   ├── Get-SecretFromVault.ps1
-│   ├── Remove-SecretStoreVault.ps1
-│   └── Test-SecretStorePrerequisite.ps1
+│   ├── Get-SecretFromVault.ps1    # Secure secret retrieval
+│   ├── Set-SecretInVault.ps1      # Secret storage operations
+│   ├── New-VaultConfigurationTemplate.ps1 # Configuration templates
+│   ├── Remove-SecretStoreVault.ps1 # Vault cleanup
+│   └── Test-SecretStorePrerequisite.ps1 # Dependency validation
 ├── Private/                        # Internal management functions
 │   ├── New-VaultProvider.ps1      # Provider factory
 │   ├── Get-VaultProvider.ps1      # Provider discovery
 │   ├── Install-VaultProviderModule.ps1 # Module management
 │   ├── Test-VaultProviderConfiguration.ps1 # Validation
 │   ├── Get-VaultProviderRequirement.ps1 # Requirements
-│   ├── New-VaultConfigurationTemplate.ps1 # Templates
 │   ├── Test-VaultConnectivity.ps1 # Connection testing
 │   ├── Test-VaultSecurity.ps1     # Security validation
-│   └── Set-SecretInVault.ps1      # Secret storage helper
+│   ├── Set-VaultSecret.ps1        # Secret storage helper
+│   ├── ConvertTo-SecureSecret.ps1 # Secret conversion
+│   ├── Get-SecureVaultPassword.ps1 # Password management
+│   ├── Set-SecureVaultPassword.ps1 # Password setting
+│   └── Write-ProgressMessage.ps1  # Progress reporting
 └── Classes/                        # Provider class hierarchy
     ├── BaseVaultProvider.ps1       # Abstract base class
     ├── SecretStoreProvider.ps1     # Local encrypted storage
     ├── CredManProvider.ps1         # Windows Credential Manager
     ├── AzureKeyVaultProvider.ps1   # Azure Key Vault
-    └── AWSSecretsManagerProvider.ps1 # AWS Secrets Manager
+    ├── AWSSecretsManagerProvider.ps1 # AWS Secrets Manager
+    └── BitwardenProvider.ps1       # Bitwarden password manager
 ```
 
 ### Provider Abstraction Pattern
@@ -39,7 +54,7 @@ The module uses object-oriented design with provider classes that inherit from a
 class BaseVaultProvider {
     [string] $ProviderType
     [hashtable] $Configuration
-    
+
     # Abstract methods implemented by each provider
     [object] CreateVault([string] $VaultName, [hashtable] $Config)
     [bool] TestConnection([hashtable] $Config)
@@ -51,6 +66,7 @@ class SecretStoreProvider : BaseVaultProvider { ... }
 class AzureKeyVaultProvider : BaseVaultProvider { ... }
 class CredManProvider : BaseVaultProvider { ... }
 class AWSSecretsManagerProvider : BaseVaultProvider { ... }
+class BitwardenProvider : BaseVaultProvider { ... }
 ```
 
 ### Key Design Principles
@@ -68,8 +84,9 @@ SecretStoreManager transforms basic secret management into a robust, multi-provi
 
 ##  Key Features
 
-- ** Multi-Provider Support**: Unified interface for SecretStore, CredMan, AWS, and Azure
+- ** Multi-Provider Support**: Unified interface for SecretStore, CredMan, AWS, Azure, and Bitwarden
 - ** Provider Abstraction**: Switch between vault providers without code changes
+- ** Configuration Templates**: Generate provider-specific configuration templates
 - ** Automated Orchestration**: End-to-end workflows for vault setup and secret management
 - ** Comprehensive Testing**: Built-in test suites with real execution validation
 - ** Auto-Installation**: Automatic detection and installation of required modules
@@ -80,8 +97,13 @@ SecretStoreManager transforms basic secret management into a robust, multi-provi
 
 ### Installation
 ```powershell
-# Clone and import the module
-git clone <repository-url>
+# Method 1: Clone the entire repository
+git clone https://github.com/fadwen/TechbyJeff.git
+Import-Module .\TechbyJeff\Powershell\SecretStoreManager\SecretStoreManager.psd1
+
+# Method 2: Download just the SecretStoreManager module
+# Navigate to: https://github.com/fadwen/TechbyJeff/tree/main/Powershell/SecretStoreManager
+# Download the folder and import locally
 Import-Module .\SecretStoreManager\SecretStoreManager.psd1
 ```
 
@@ -93,8 +115,8 @@ $secretData = @(
     @{ AccountName = "APIKey"; Secret = "api-key-12345"; SecretType = "String" }
 )
 
-# Orchestrate complete setup
-Invoke-SecretStoreOrchestration -SecretData $secretData -VaultName "ProductionVault" -VaultProvider "SecretStore"
+# Store secrets directly in vault
+Set-SecretInVault -VaultName "ProductionVault" -ProviderType "SecretStore" -SecretData $secretData
 
 # Retrieve secrets securely
 $secrets = Get-SecretFromVault -VaultName "ProductionVault" -SecretName "DatabaseAdmin*" -AsPlainText
@@ -104,9 +126,10 @@ $secrets = Get-SecretFromVault -VaultName "ProductionVault" -SecretName "Databas
 ```powershell
 # Create different vault types using the class-based provider system
 New-TestSecretVault -VaultName "LocalVault" -ProviderType "SecretStore"
-New-TestSecretVault -VaultName "WindowsCredVault" -ProviderType "CredMan"  
+New-TestSecretVault -VaultName "WindowsCredVault" -ProviderType "CredMan"
 New-TestSecretVault -VaultName "AWSVault" -ProviderType "AWSSecretsManager" -Configuration @{ AWSRegion = "us-east-1" }
-New-TestSecretVault -VaultName "AzureVault" -ProviderType "AzureKeyVault" -Configuration @{ SubscriptionId = "your-sub-id"; KeyVaultName = "your-vault" }
+New-TestSecretVault -VaultName "AzureVault" -ProviderType "AzureKeyVault" -Configuration @{ SubscriptionId = "your-sub-id"; AzureVaultName = "your-vault" }
+New-TestSecretVault -VaultName "BitwardenVault" -ProviderType "Bitwarden" -Configuration @{ ServerURL = "https://vault.bitwarden.com" }
 
 # Same secrets, different providers - all use the same interface
 $secretData = @(
@@ -114,8 +137,8 @@ $secretData = @(
     @{ AccountName = "APIKey"; Secret = "api-key-12345"; SecretType = "String" }
 )
 
-Invoke-SecretStoreOrchestration -SecretData $secretData -VaultName "LocalVault" -VaultProvider "SecretStore"
-Invoke-SecretStoreOrchestration -SecretData $secretData -VaultName "AWSVault" -VaultProvider "AWSSecretsManager"
+Set-SecretInVault -VaultName "LocalVault" -ProviderType "SecretStore" -SecretData $secretData
+Set-SecretInVault -VaultName "AWSVault" -ProviderType "AWSSecretsManager" -SecretData $secretData
 ```
 
 ### Provider Class Usage
@@ -135,8 +158,9 @@ $awsVault = $awsProvider.CreateVault("MyAWSVault", @{ AWSRegion = "us-east-1" })
 | Function | Purpose | Example |
 |----------|---------|---------|
 | **New-TestSecretVault** | Create/configure vaults | `New-TestSecretVault -VaultName "MyVault" -ProviderType "SecretStore"` |
-| **Invoke-SecretStoreOrchestration** | End-to-end automation | `Invoke-SecretStoreOrchestration -SecretData $secrets -VaultName "MyVault"` |
+| **Set-SecretInVault** | Store secrets in vault | `Set-SecretInVault -VaultName "MyVault" -SecretData $secrets` |
 | **Get-SecretFromVault** | Secure secret retrieval | `Get-SecretFromVault -VaultName "MyVault" -SecretName "ApiKey*"` |
+| **New-VaultConfigurationTemplate** | Generate config templates | `New-VaultConfigurationTemplate -ProviderType "AzureKeyVault"` |
 | **Remove-SecretStoreVault** | Complete cleanup | `Remove-SecretStoreVault -VaultName "MyVault" -Force` |
 | **Test-SecretStorePrerequisite** | Dependency management | `Test-SecretStorePrerequisite -InstallMissing` |
 
@@ -153,24 +177,32 @@ The module includes specialized management functions that handle provider-specif
 | **New-VaultConfigurationTemplate** | Generate config templates | Provider classes |
 | **Test-VaultConnectivity** | Verify provider connections | Provider classes |
 | **Test-VaultSecurity** | Security validation | Provider classes |
+| **ConvertTo-SecureSecret** | Secret conversion | Set-SecretInVault |
+| **Get-SecureVaultPassword** | Password management | Provider classes |
+| **Set-SecureVaultPassword** | Password setting | Provider classes |
+| **Set-VaultSecret** | Secret storage helper | Set-SecretInVault |
+| **Write-ProgressMessage** | Progress reporting | All functions |
 
 ##  Testing
 
 ### Comprehensive Test Suite
 ```powershell
+# Navigate to the module directory
+cd .\TechbyJeff\Powershell\SecretStoreManager\
+
 # Test all providers and functionality
-.\Test-SecretStoreManager.ps1
+.\Scripts\Test-SecretStoreManager.ps1
 
 # Test specific provider
-.\Test-SecretStoreManager.ps1 -ProviderType SecretStore
+.\Scripts\Test-SecretStoreManager.ps1 -ProviderType SecretStore
 
 # Keep test vaults for debugging
-.\Test-SecretStoreManager.ps1 -SkipCleanup
+.\Scripts\Test-SecretStoreManager.ps1 -SkipCleanup
 ```
 
 The test suite validates:
 - ✅ Module function exports
-- ✅ Prerequisites and dependencies  
+- ✅ Prerequisites and dependencies
 - ✅ Vault creation across all providers
 - ✅ End-to-end orchestration workflows
 - ✅ Secret storage and retrieval
@@ -184,6 +216,7 @@ The test suite validates:
 | **CredMan** | ✅ **Supported*** | SecretManagement.JustinGrote.CredMan | *Session limitations |
 | **AWS Secrets Manager** | ⚙️ **Configured** | SecretsManagement.CAWSSecretsManager | Requires AWS credentials |
 | **Azure Key Vault** | ✅ **Supported** | CredentialStore.AzureKeyVault | Azure cloud vault service |
+| **Bitwarden** | ✅ **Supported** | SecretManagement.Warden | Requires Bitwarden CLI |
 
 ##  Architecture
 
@@ -197,7 +230,7 @@ The SecretStoreManager uses a **data-driven architecture** for managing vault pr
 ### Adding New Providers
 To add a new provider:
 1. Add provider configuration to `VaultProviders.psd1`
-2. Create provider class in `Classes/NewProviderName.ps1` 
+2. Create provider class in `Classes/NewProviderName.ps1`
 3. Test using the comprehensive test suite
 
 ### Provider Abstraction Pattern
@@ -209,7 +242,8 @@ SecretStoreManager
 ├── SecretStore Provider (Local encrypted storage)
 ├── CredMan Provider (Windows Credential Manager)
 ├── AWS Provider (AWS Secrets Manager)
-└── Azure Provider (Azure Key Vault)
+├── Azure Provider (Azure Key Vault)
+└── Bitwarden Provider (Bitwarden password manager)
 `
 
 ### Key Design Principles
@@ -232,10 +266,12 @@ Auto-installed when using `-InstallMissingModules` parameter:
 - SecretManagement.JustinGrote.CredMan (for CredMan)
 - SecretsManagement.CAWSSecretsManager (for AWS)
 - CredentialStore.AzureKeyVault (for Azure)
+- SecretManagement.Warden (for Bitwarden)
 
 ### Cloud Provider Requirements
 - **AWS**: Valid AWS credentials and region configuration
 - **Azure**: Azure authentication and Key Vault access
+- **Bitwarden**: Bitwarden CLI installed and authenticated
 
 ##  Configuration
 
@@ -339,8 +375,9 @@ foreach ($secretName in $secretNames) {
 ### CI/CD Integration
 ```powershell
 # Automated testing in pipeline
+Set-Location .\TechbyJeff\Powershell\SecretStoreManager\
 $testResult = .\Test-SecretStoreManager.ps1
-if ($LASTEXITCODE -ne 0) { 
+if ($LASTEXITCODE -ne 0) {
     throw "Secret management tests failed"
 }
 
@@ -351,13 +388,14 @@ Invoke-SecretStoreOrchestration -SecretData $prodSecrets -VaultName "Production"
 
 ##  Contributing
 
-1. **Fork** the repository
+1. **Fork** the repository at https://github.com/fadwen/TechbyJeff
 2. **Create** a feature branch (git checkout -b feature/amazing-feature)
 3. **Add tests** for new functionality in Test-SecretStoreManager.ps1
-4. **Ensure** all tests pass (.\Test-SecretStoreManager.ps1)
-5. **Commit** changes (git commit -m 'Add amazing feature')
-6. **Push** to branch (git push origin feature/amazing-feature)
-7. **Open** a Pull Request
+4. **Navigate** to module directory (cd .\TechbyJeff\Powershell\SecretStoreManager\)
+5. **Ensure** all tests pass (.\Test-SecretStoreManager.ps1)
+6. **Commit** changes (git commit -m 'Add amazing feature')
+7. **Push** to branch (git push origin feature/amazing-feature)
+8. **Open** a Pull Request
 
 ##  License
 
@@ -366,10 +404,11 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 ##  Support
 
 ### Getting Help
-1. **Run Tests**: .\Test-SecretStoreManager.ps1 for validation
+1. **Run Tests**: Navigate to module directory and run .\Test-SecretStoreManager.ps1 for validation
 2. **Check Logs**: Look for correlation IDs in error messages
 3. **Verify Prerequisites**: Use Test-SecretStorePrerequisite
 4. **Review Provider Status**: Check the Provider Support Matrix above
+5. **GitHub Issues**: Report bugs and request features at https://github.com/fadwen/TechbyJeff/issues
 
 ### Reporting Issues
 Include the following in bug reports:
