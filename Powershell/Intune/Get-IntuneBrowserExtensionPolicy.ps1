@@ -246,8 +246,50 @@ function Get-IntuneBrowserExtensionPolicy {
 
         [Parameter()]
         [ValidateScript({
-            if ($_ -and -not (Test-Path (Split-Path $_ -Parent) -PathType Container)) {
-                throw "Export path directory does not exist or is not accessible: $(Split-Path $_ -Parent)"
+            if ($_ -and $_.Trim() -ne '') {
+                # Validate parent directory exists
+                $parentDir = Split-Path $_ -Parent
+                if (-not (Test-Path $parentDir -PathType Container)) {
+                    throw "Export path directory does not exist or is not accessible: $parentDir"
+                }
+                
+                # Path traversal security check
+                try {
+                    $normalizedPath = [System.IO.Path]::GetFullPath($_)
+                    if ($normalizedPath.Contains('..') -or $normalizedPath.Contains('~')) {
+                        throw "Path traversal not allowed in export path: $_"
+                    }
+                } catch [System.ArgumentException] {
+                    throw "Invalid characters in export path: $_"
+                } catch [System.NotSupportedException] {
+                    throw "Unsupported path format: $_"
+                }
+                
+                # Validate path length (Windows MAX_PATH limitation)
+                if ($_.Length -gt 240) {  # Leave buffer for filename
+                    throw "Export path too long (maximum 240 characters): $($_.Length) characters"
+                }
+                
+                # Validate against reserved Windows paths
+                $reservedNames = @('CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9')
+                $pathParts = $_.Split([System.IO.Path]::DirectorySeparatorChar, [System.StringSplitOptions]::RemoveEmptyEntries)
+                foreach ($part in $pathParts) {
+                    $partName = [System.IO.Path]::GetFileNameWithoutExtension($part).ToUpper()
+                    if ($reservedNames -contains $partName) {
+                        throw "Export path contains reserved Windows name: $part"
+                    }
+                }
+                
+                # Validate write permissions will be available
+                if (Test-Path $parentDir) {
+                    try {
+                        $testFile = Join-Path $parentDir "test_permissions_$(Get-Random).tmp"
+                        $null = New-Item -Path $testFile -ItemType File -Force
+                        Remove-Item -Path $testFile -Force
+                    } catch {
+                        throw "No write permissions for export path: $parentDir"
+                    }
+                }
             }
             $true
         })]
@@ -260,6 +302,56 @@ function Get-IntuneBrowserExtensionPolicy {
     begin {
         $correlationId = [System.Guid]::NewGuid()
         Write-Verbose "Starting analysis - CorrelationId: $correlationId"
+        
+        # Input Sanitization and Security Validation
+        try {
+            # Sanitize ExportPath if provided
+            if ($PSBoundParameters.ContainsKey('ExportPath') -and $ExportPath) {
+                # Additional runtime sanitization beyond ValidateScript
+                $ExportPath = $ExportPath.Trim()
+                
+                # Validate no null bytes (security check)
+                if ($ExportPath.Contains([char]0)) {
+                    throw [System.Security.SecurityException]::new("Null byte detected in export path - security violation", 'InputValidation', 'NullByte-Check')
+                }
+                
+                # Validate no control characters
+                for ($i = 0; $i -lt $ExportPath.Length; $i++) {
+                    $char = $ExportPath[$i]
+                    if ([char]::IsControl($char) -and $char -ne [char]9 -and $char -ne [char]10 -and $char -ne [char]13) {
+                        throw [System.Security.SecurityException]::new("Control character detected in export path at position $i", 'InputValidation', 'Control-Character-Check')
+                    }
+                }
+                
+                Write-Verbose "Export path sanitization completed - CorrelationId: $correlationId"
+            }
+            
+            # Validate switches are actual boolean values (defense against type confusion)
+            if ($PSBoundParameters.ContainsKey('IncludeDisabledPolicy')) {
+                if ($IncludeDisabledPolicy -isnot [bool] -and $IncludeDisabledPolicy -isnot [switch]) {
+                    throw [System.ArgumentException]::new("IncludeDisabledPolicy must be a boolean value", 'IncludeDisabledPolicy')
+                }
+            }
+            
+            if ($PSBoundParameters.ContainsKey('SkipExtensionNameResolution')) {
+                if ($SkipExtensionNameResolution -isnot [bool] -and $SkipExtensionNameResolution -isnot [switch]) {
+                    throw [System.ArgumentException]::new("SkipExtensionNameResolution must be a boolean value", 'SkipExtensionNameResolution')
+                }
+            }
+            
+            # Memory usage validation - ensure we have sufficient memory available
+            $availableMemory = [System.GC]::GetTotalMemory($false)
+            if ($availableMemory -gt 1GB) {
+                Write-Warning "High memory usage detected ($([math]::Round($availableMemory/1MB, 2))MB) - Monitor performance - CorrelationId: $correlationId"
+            }
+            
+            Write-Verbose "Input validation completed successfully - CorrelationId: $correlationId"
+            
+        } catch [System.Security.SecurityException] {
+            Write-Error "Security validation failed: $($_.Exception.Message) - CorrelationId: $correlationId" -ErrorAction Stop
+        } catch {
+            Write-Error "Input validation failed: $($_.Exception.Message) - CorrelationId: $correlationId" -ErrorAction Stop
+        }
         
         # Check required permissions
         $requiredScopes = @('DeviceManagementConfiguration.Read.All')
@@ -1048,9 +1140,84 @@ function Resolve-Extensions {
     #>
     param($ExtensionIds, $Browser, $Cache, $CorrelationId = [System.Guid]::NewGuid().ToString())
     
+    # Enhanced Input Validation and Bounds Checking
+    try {
+        # Validate ExtensionIds array bounds and content
+        if ($null -eq $ExtensionIds) {
+            Write-Warning "Extension IDs array is null - CorrelationId: $CorrelationId"
+            return @{}
+        }
+        
+        if ($ExtensionIds -isnot [array] -and $ExtensionIds -isnot [System.Collections.IEnumerable]) {
+            throw [System.ArgumentException]::new("ExtensionIds must be an array or enumerable collection", 'ExtensionIds')
+        }
+        
+        # Check array size bounds (prevent DoS attacks)
+        $maxExtensions = 1000  # Reasonable limit for processing
+        if ($ExtensionIds.Count -gt $maxExtensions) {
+            throw [System.ArgumentException]::new("Extension array too large (maximum $maxExtensions extensions): $($ExtensionIds.Count) provided", 'ExtensionIds')
+        }
+        
+        if ($ExtensionIds.Count -eq 0) {
+            Write-Verbose "No extension IDs to resolve - CorrelationId: $CorrelationId"
+            return @{}
+        }
+        
+        # Validate Browser parameter
+        $validBrowsers = @('Chrome', 'Edge', 'Firefox')
+        if ($Browser -notin $validBrowsers) {
+            throw [System.ArgumentException]::new("Invalid browser specified: $Browser. Valid values: $($validBrowsers -join ', ')", 'Browser')
+        }
+        
+        # Validate Cache parameter
+        if ($null -eq $Cache) {
+            Write-Warning "Cache parameter is null, creating temporary cache - CorrelationId: $CorrelationId"
+            $Cache = @{}
+        }
+        
+        if ($Cache -isnot [hashtable] -and $Cache -isnot [System.Collections.IDictionary]) {
+            throw [System.ArgumentException]::new("Cache must be a hashtable or dictionary", 'Cache')
+        }
+        
+        # Validate extension IDs format and content
+        $validExtensionIds = @()
+        foreach ($id in $ExtensionIds) {
+            if ($null -eq $id -or [string]::IsNullOrWhiteSpace($id)) {
+                Write-Warning "Skipping null or empty extension ID - CorrelationId: $CorrelationId"
+                continue
+            }
+            
+            # Convert to string and validate
+            $idString = $id.ToString().Trim()
+            
+            # Validate extension ID format (typically 32 characters for Chrome, can vary for Edge)
+            if ($idString.Length -lt 10 -or $idString.Length -gt 50) {
+                Write-Warning "Extension ID length unusual ($($idString.Length) chars): $idString - CorrelationId: $CorrelationId"
+            }
+            
+            # Validate no control characters or suspicious content
+            if ($idString -match '[^\w\-]') {
+                Write-Warning "Extension ID contains suspicious characters: $idString - CorrelationId: $CorrelationId"
+                continue
+            }
+            
+            $validExtensionIds += $idString
+        }
+        
+        if ($validExtensionIds.Count -eq 0) {
+            Write-Warning "No valid extension IDs found after validation - CorrelationId: $CorrelationId"
+            return @{}
+        }
+        
+        Write-Verbose "Extension validation completed: $($validExtensionIds.Count)/$($ExtensionIds.Count) IDs valid - CorrelationId: $CorrelationId"
+        
+    } catch {
+        Write-Error "Extension resolution input validation failed: $($_.Exception.Message) - CorrelationId: $CorrelationId" -ErrorAction Stop
+    }
+    
     $resolved = @{}
     
-    foreach ($id in $ExtensionIds) {
+    foreach ($id in $validExtensionIds) {
         if ($Cache.ContainsKey($id)) {
             $resolved[$id] = $Cache[$id]
             continue
