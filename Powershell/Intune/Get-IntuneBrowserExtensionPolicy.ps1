@@ -258,30 +258,11 @@ function Get-IntuneBrowserExtensionPolicy {
     )
     
     begin {
-        # Module Configuration - Centralized settings for timeouts, retries, and delays
-        $script:ModuleConfig = @{
-            Chrome = @{
-                TimeoutSec = 5
-                MaxRetries = 2
-                BaseUrl = 'https://chrome.google.com/webstore/detail'
-            }
-            Edge = @{
-                TimeoutSec = 10
-                MaxRetries = 2
-                BaseUrl = 'https://microsoftedge.microsoft.com/addons/detail'
-            }
-            RateLimiting = @{
-                DelayMilliseconds = 500
-                RetryBackoffBase = 2
-            }
-            DefaultTimeout = 10
-        }
         $correlationId = [System.Guid]::NewGuid()
         Write-Verbose "Starting analysis - CorrelationId: $correlationId"
         
         # Check required permissions
         $requiredScopes = @('DeviceManagementConfiguration.Read.All')
-        $currentScopes = $context.Scopes
 
         # Validate Graph connection and permissions
         $context = Get-MgContext
@@ -289,7 +270,7 @@ function Get-IntuneBrowserExtensionPolicy {
             throw "No active Microsoft Graph connection found. Please connect with: Connect-MgGraph -Scopes '$($requiredScopes -join "','")'"
         }
         
-        
+        $currentScopes = $context.Scopes
         $missingScopes = @()
         foreach ($scope in $requiredScopes) {
             if ($currentScopes -notcontains $scope) {
@@ -974,7 +955,7 @@ function Invoke-SecureWebRequest {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
-        [int]$TimeoutSec = $script:ModuleConfig.DefaultTimeout,
+        [int]$TimeoutSec = $(if ($script:ModuleConfig) { $script:ModuleConfig.DefaultTimeout } else { 10 }),
         [int]$MaxRetries = 3,
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
@@ -1005,7 +986,8 @@ function Invoke-SecureWebRequest {
                 }
                 
                 # Exponential backoff using configurable base (default: 2, 4, 8 seconds)
-                $backoffSeconds = [Math]::Pow($script:ModuleConfig.RateLimiting.RetryBackoffBase, $attempt)
+                $retryBackoffBase = if ($script:ModuleConfig -and $script:ModuleConfig.RateLimiting) { $script:ModuleConfig.RateLimiting.RetryBackoffBase } else { 2 }
+                $backoffSeconds = [Math]::Pow($retryBackoffBase, $attempt)
                 Write-Verbose "Retrying in $backoffSeconds seconds... - CorrelationId: $CorrelationId"
                 Start-Sleep -Seconds $backoffSeconds
             }
@@ -1083,8 +1065,9 @@ function Resolve-Extensions {
             
             if ($Browser -eq 'Chrome') {
                 # Chrome Web Store with secure request using configuration values
-                $url = "$($script:ModuleConfig.Chrome.BaseUrl)/$id"
-                $response = Invoke-SecureWebRequest -Uri $url -TimeoutSec $script:ModuleConfig.Chrome.TimeoutSec -MaxRetries $script:ModuleConfig.Chrome.MaxRetries -CorrelationId $CorrelationId
+                $chromeConfig = if ($script:ModuleConfig -and $script:ModuleConfig.Chrome) { $script:ModuleConfig.Chrome } else { @{ BaseUrl = 'https://chrome.google.com/webstore/detail'; TimeoutSec = 5; MaxRetries = 2 } }
+                $url = "$($chromeConfig.BaseUrl)/$id"
+                $response = Invoke-SecureWebRequest -Uri $url -TimeoutSec $chromeConfig.TimeoutSec -MaxRetries $chromeConfig.MaxRetries -CorrelationId $CorrelationId
                 
                 if ($response.Content -match '<title>([^<]+)</title>') {
                     $title = $matches[1].Trim() -replace ' - Chrome Web Store$', ''
@@ -1096,8 +1079,9 @@ function Resolve-Extensions {
             }
             elseif ($Browser -eq 'Edge') {
                 # Microsoft Edge Add-ons with secure request using configuration values
-                $url = "$($script:ModuleConfig.Edge.BaseUrl)/$id"
-                $response = Invoke-SecureWebRequest -Uri $url -TimeoutSec $script:ModuleConfig.Edge.TimeoutSec -MaxRetries $script:ModuleConfig.Edge.MaxRetries -CorrelationId $CorrelationId
+                $edgeConfig = if ($script:ModuleConfig -and $script:ModuleConfig.Edge) { $script:ModuleConfig.Edge } else { @{ BaseUrl = 'https://microsoftedge.microsoft.com/addons/detail'; TimeoutSec = 10; MaxRetries = 2 } }
+                $url = "$($edgeConfig.BaseUrl)/$id"
+                $response = Invoke-SecureWebRequest -Uri $url -TimeoutSec $edgeConfig.TimeoutSec -MaxRetries $edgeConfig.MaxRetries -CorrelationId $CorrelationId
                 
                 if ($response.Content -match '<h1[^>]*class="[^"]*productName[^"]*"[^>]*>([^<]+)</h1>') {
                     $title = $matches[1].Trim()
@@ -1141,7 +1125,9 @@ function Resolve-Extensions {
             }
         }
         
-        Start-Sleep -Milliseconds $script:ModuleConfig.RateLimiting.DelayMilliseconds  # Rate limiting delay for store APIs
+        # Rate limiting delay for store APIs with null check
+        $delayMs = if ($script:ModuleConfig -and $script:ModuleConfig.RateLimiting) { $script:ModuleConfig.RateLimiting.DelayMilliseconds } else { 500 }
+        Start-Sleep -Milliseconds $delayMs
     }
     
     return $resolved
@@ -1407,6 +1393,26 @@ $($Results | ForEach-Object { "- $($_.PolicyName) ($($_.Browser) $($_.PolicyType
         JSON = $jsonPath
         Summary = $summaryPath
     }
+}
+
+# Module Configuration - Centralized settings for timeouts, retries, and delays
+# Moved to script-level scope to ensure availability for all helper functions
+$script:ModuleConfig = @{
+    Chrome = @{
+        TimeoutSec = 5
+        MaxRetries = 2
+        BaseUrl = 'https://chrome.google.com/webstore/detail'
+    }
+    Edge = @{
+        TimeoutSec = 10
+        MaxRetries = 2
+        BaseUrl = 'https://microsoftedge.microsoft.com/addons/detail'
+    }
+    RateLimiting = @{
+        DelayMilliseconds = 500
+        RetryBackoffBase = 2
+    }
+    DefaultTimeout = 10
 }
 
 # Display help when script is run directly
