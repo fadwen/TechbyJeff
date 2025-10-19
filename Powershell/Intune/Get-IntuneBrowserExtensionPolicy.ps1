@@ -35,24 +35,6 @@ function Get-IntuneBrowserExtensionPolicy {
         - Audit trail maintained with correlation IDs for compliance tracking
         - No sensitive data exposed in output or logs
 
-    .PARAMETER TenantId
-        [String] (Optional, Pipeline: No)
-        
-        Microsoft 365 tenant ID for multi-tenant scenarios. If not specified,
-        uses the tenant from the current Microsoft Graph connection context.
-        
-        VALIDATION RULES:
-        - Must be a valid GUID format if provided
-        - Tenant must be accessible with current authentication context
-        
-        BUSINESS CONTEXT:
-        Used in managed service provider (MSP) environments or when working with
-        multiple tenants. Ensures policy analysis targets the correct organization.
-        
-        EXAMPLES:
-        - Single tenant: (leave blank - uses current context)
-        - MSP scenario: "12345678-1234-1234-1234-123456789012"
-        
         REQUIRED PERMISSIONS:
         Before running this function, ensure Graph connection includes these scopes:
         - DeviceManagementConfiguration.Read.All (Required)
@@ -172,7 +154,9 @@ function Get-IntuneBrowserExtensionPolicy {
         pose risks if accidentally enabled.
 
     .EXAMPLE
-        PS> $policies = Get-IntuneBrowserExtensionPolicy -TenantId "12345678-1234-1234-1234-123456789012"
+        PS> # For MSP scenarios, connect to specific tenant first
+        PS> Connect-MgGraph -TenantId "12345678-1234-1234-1234-123456789012" -Scopes "DeviceManagementConfiguration.Read.All"
+        PS> $policies = Get-IntuneBrowserExtensionPolicy
         PS> $policies | Group-Object Browser, PolicyType | Select-Object Name, Count
         
         DESCRIPTION: Multi-tenant analysis with statistical summary
@@ -257,15 +241,6 @@ function Get-IntuneBrowserExtensionPolicy {
 
     [CmdletBinding()]
     param(
-        [Parameter()]
-        [ValidateScript({
-            if ($_ -and $_ -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
-                throw "TenantId must be a valid GUID format (e.g., 12345678-1234-1234-1234-123456789012)"
-            }
-            $true
-        })]
-        [string]$TenantId,
-
         [Parameter()]
         [switch]$IncludeDisabledPolicy,
 
