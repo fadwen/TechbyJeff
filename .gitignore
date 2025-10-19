@@ -1,0 +1,20 @@
+# Ignore roadmap files (local tracking only)
+**/ROADMAP.md
+ROADMAP.md
+
+# PowerShell temporary files
+*.tmp
+*.temp
+
+# VS Code settings (if you want to ignore them)
+.vscode/
+
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
