@@ -188,13 +188,9 @@ function Get-IntuneBrowserExtensionPolicy {
         Author: Jeffrey Stuhr
         Blog: https://www.techbyjeff.net
         LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
-        Last Updated: $(Get-Date -Format 'yyyy-MM-dd')
-        Version: 2.0.0 (Streamlined)
+        Last Updated: 2025-10-19
+        Version: 1.1.0
         PowerShell Version: 5.1+ (Windows), 7.x+ (Cross-platform)
-        
-        CHANGE HISTORY:
-        v2.0.0 (2024-10-16) - Streamlined version with 55% code reduction
-        v1.0.0 (2024-10-01) - Initial comprehensive version
         
         DEPENDENCIES:
         - Microsoft.Graph.Authentication (Connect-MgGraph)
@@ -215,13 +211,6 @@ function Get-IntuneBrowserExtensionPolicy {
         - Correlation IDs enable audit trail and compliance tracking
         - All error handling follows secure disclosure practices
         - No direct credential handling - relies on Graph SDK authentication
-        
-        TROUBLESHOOTING RESOURCES:
-        - Graph connectivity: .\\Troubleshooting\\Connectivity\\Graph-Authentication.md
-        - Permission issues: .\\Troubleshooting\\Security\\Graph-Permissions.md
-        - Performance tuning: .\\Troubleshooting\\Performance\\Large-Tenant-Optimization.md
-        - Extension resolution: .\\Troubleshooting\\Integration\\Web-Store-APIs.md
-        - Export issues: .\\Troubleshooting\\Common\\File-Export-Problems.md
         
         COMPLIANCE NOTES:
         - SOX compliance: Maintains audit trail with correlation tracking
@@ -359,7 +348,7 @@ function Get-IntuneBrowserExtensionPolicy {
         # Validate Graph connection and permissions
         $context = Get-MgContext
         if (-not $context) {
-            throw "No active Microsoft Graph connection found. Please connect with: Connect-MgGraph -Scopes '$($requiredScopes -join "','")'"
+            Write-Error "No active Microsoft Graph connection found. Please connect with: Connect-MgGraph -Scopes '$($requiredScopes -join "','")' - CorrelationId: $correlationId" -ErrorAction Stop
         }
         
         $currentScopes = $context.Scopes
@@ -372,7 +361,7 @@ function Get-IntuneBrowserExtensionPolicy {
         
         if ($missingScopes.Count -gt 0) {
             $scopeList = $missingScopes -join ', '
-            throw "Missing required Graph permissions: $scopeList. Please reconnect with: Connect-MgGraph -Scopes '$($requiredScopes -join "','")'"
+            Write-Error "Missing required Graph permissions: $scopeList. Please reconnect with: Connect-MgGraph -Scopes '$($requiredScopes -join "','")' - CorrelationId: $correlationId" -ErrorAction Stop
         }
         
         Write-Verbose "Graph connection validated with required permissions: $($requiredScopes -join ', ')"
@@ -401,7 +390,13 @@ function Get-IntuneBrowserExtensionPolicy {
                     $configurationPolicy += $configPolicyResponse.value
                 }
             } catch {
-                Write-Warning "Could not retrieve Settings Catalog policies: $($_.Exception.Message)"
+                $errorContext = @{
+                    Operation = 'GetSettingsCatalogPolicies'
+                    ErrorType = $_.Exception.GetType().Name
+                    InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                    StackTrace = $_.ScriptStackTrace
+                }
+                Write-Warning "Could not retrieve Settings Catalog policies: $($_.Exception.Message) - CorrelationId: $correlationId - Context: $($errorContext | ConvertTo-Json -Compress)"
                 $configurationPolicy = @()
             }
             
@@ -443,7 +438,15 @@ function Get-IntuneBrowserExtensionPolicy {
                     $policyResults | ForEach-Object { $results.Add($_) }
                 }
                 catch {
-                    Write-Warning "Failed to process policy '$($template.displayName)': $($_.Exception.Message)"
+                    $errorContext = @{
+                        Operation = 'ProcessPolicy'
+                        PolicyName = $template.displayName
+                        PolicyId = $template.id
+                        ErrorType = $_.Exception.GetType().Name
+                        InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                        StackTrace = $_.ScriptStackTrace
+                    }
+                    Write-Warning "Failed to process policy '$($template.displayName)': $($_.Exception.Message) - CorrelationId: $correlationId - Context: $($errorContext | ConvertTo-Json -Compress)"
                 }
             }
 
@@ -478,9 +481,17 @@ function Get-IntuneBrowserExtensionPolicy {
             return $actualExtensionPolicy
         }
         catch {
+            $errorContext = @{
+                Operation = 'MainProcessBlock'
+                ErrorType = $_.Exception.GetType().Name
+                InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                Position = $_.InvocationInfo.PositionMessage
+                StackTrace = $_.ScriptStackTrace
+                TargetObject = $_.TargetObject
+            }
             Write-Verbose "Full error details: $($_.Exception | ConvertTo-Json -Depth 3)"
             Write-Verbose "Error occurred at: $($_.InvocationInfo.PositionMessage)"
-            Write-Error "Analysis failed: $($_.Exception.Message)" -ErrorAction Stop
+            Write-Error "Analysis failed: $($_.Exception.Message) - CorrelationId: $correlationId - Context: $($errorContext | ConvertTo-Json -Compress)" -ErrorAction Stop
         }
     }
 
@@ -721,7 +732,15 @@ function Process-DeviceConfiguration {
             $Policy = $detailed
         }
         catch {
-            Write-Verbose "Could not get detailed configuration: $($_.Exception.Message)"
+            $errorContext = @{
+                Operation = 'GetDetailedConfiguration'
+                PolicyId = $Policy.id
+                PolicyName = $Policy.displayName
+                ErrorType = $_.Exception.GetType().Name
+                InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                StackTrace = $_.ScriptStackTrace
+            }
+            Write-Verbose "Could not get detailed configuration: $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)"
         }
     }
     
@@ -815,7 +834,15 @@ function Process-SettingsCatalog {
         }
     }
     catch {
-        Write-Warning "Failed to get Settings Catalog policy settings: $($_.Exception.Message)"
+        $errorContext = @{
+            Operation = 'GetSettingsCatalogPolicySettings'
+            PolicyId = $Policy.id
+            PolicyName = $Policy.displayName
+            ErrorType = $_.Exception.GetType().Name
+            InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+            StackTrace = $_.ScriptStackTrace
+        }
+        Write-Warning "Failed to get Settings Catalog policy settings: $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)"
     }
     
     return $results
@@ -1070,7 +1097,16 @@ function Invoke-SecureWebRequest {
                 return Invoke-WebRequest -Uri $Uri -TimeoutSec $TimeoutSec -UseBasicParsing -ErrorAction Stop
             }
             catch {
-                Write-Verbose "Attempt $attempt failed: $($_.Exception.Message) - CorrelationId: $CorrelationId"
+                $errorContext = @{
+                    Operation = 'WebRequestRetry'
+                    Uri = $Uri
+                    Attempt = $attempt
+                    MaxRetries = $MaxRetries
+                    ErrorType = $_.Exception.GetType().Name
+                    StatusCode = if ($_.Exception.Response) { $_.Exception.Response.StatusCode } else { $null }
+                    InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                }
+                Write-Verbose "Attempt $attempt failed: $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)"
                 
                 if ($attempt -eq $MaxRetries) {
                     Write-Verbose "All retry attempts exhausted for $Uri - CorrelationId: $CorrelationId"
@@ -1086,7 +1122,16 @@ function Invoke-SecureWebRequest {
         }
     }
     catch {
-        Write-Verbose "Secure web request failed for $Uri : $($_.Exception.Message) - CorrelationId: $CorrelationId"
+        $errorContext = @{
+            Operation = 'SecureWebRequest'
+            Uri = $Uri
+            TimeoutSec = $TimeoutSec
+            MaxRetries = $MaxRetries
+            ErrorType = $_.Exception.GetType().Name
+            InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+            StackTrace = $_.ScriptStackTrace
+        }
+        Write-Verbose "Secure web request failed for $Uri : $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)"
         throw
     }
 }
@@ -1212,7 +1257,15 @@ function Resolve-Extensions {
         Write-Verbose "Extension validation completed: $($validExtensionIds.Count)/$($ExtensionIds.Count) IDs valid - CorrelationId: $CorrelationId"
         
     } catch {
-        Write-Error "Extension resolution input validation failed: $($_.Exception.Message) - CorrelationId: $CorrelationId" -ErrorAction Stop
+        $errorContext = @{
+            Operation = 'ExtensionValidation'
+            ExtensionIds = $ExtensionIds
+            Browser = $Browser
+            ErrorType = $_.Exception.GetType().Name
+            InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+            StackTrace = $_.ScriptStackTrace
+        }
+        Write-Error "Extension resolution input validation failed: $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)" -ErrorAction Stop
     }
     
     $resolved = @{}
@@ -1270,7 +1323,16 @@ function Resolve-Extensions {
             $Cache[$id] = $extensionInfo
         }
         catch {
-            Write-Verbose "Failed to resolve extension $id for $Browser : $($_.Exception.Message) - CorrelationId: $CorrelationId"
+            $errorContext = @{
+                Operation = 'ExtensionResolution'
+                ExtensionId = $id
+                Browser = $Browser
+                ErrorType = $_.Exception.GetType().Name
+                StatusCode = if ($_.Exception.Response) { $_.Exception.Response.StatusCode } else { 'Unknown' }
+                InnerException = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $null }
+                StackTrace = $_.ScriptStackTrace
+            }
+            Write-Verbose "Failed to resolve extension $id for $Browser : $($_.Exception.Message) - CorrelationId: $CorrelationId - Context: $($errorContext | ConvertTo-Json -Compress)"
             
             # Categorize failure types for better diagnostics
             $failureReason = 'Resolution Failed'
