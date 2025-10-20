@@ -434,7 +434,7 @@ function Get-IntuneBrowserExtensionPolicy {
             # Process each policy
             foreach ($template in $adminTemplates) {
                 try {
-                    $policyResults = Process-Policy -Policy $template -SkipNameResolution $SkipExtensionNameResolution -ExtensionCache $extensionCache -CorrelationId $correlationId
+                    $policyResults = ConvertFrom-Policy -Policy $template -SkipNameResolution $SkipExtensionNameResolution -ExtensionCache $extensionCache -CorrelationId $correlationId
                     $policyResults | ForEach-Object { $results.Add($_) }
                 }
                 catch {
@@ -474,7 +474,7 @@ function Get-IntuneBrowserExtensionPolicy {
             
             # Export if requested (silently)
             if ($ExportPath) {
-                $script:exportPaths = Export-Results -Results $actualExtensionPolicy -Summary $script:summary -ExportPath $ExportPath -CorrelationId $correlationId -Silent
+                $script:exportPaths = Export-Result -Results $actualExtensionPolicy -Summary $script:summary -ExportPath $ExportPath -CorrelationId $correlationId -Silent
                 $script:exportRequested = $true
             }
 
@@ -640,7 +640,7 @@ function Get-IntuneBrowserExtensionPolicy {
     }
 }
 
-function Process-Policy {
+function ConvertFrom-Policy {
     <#
     .SYNOPSIS
         Routes policy processing based on source type (Device Configuration vs Settings Catalog)
@@ -676,16 +676,16 @@ function Process-Policy {
     
     # Process based on policy source
     if ($Policy.PolicySource -eq 'DeviceConfiguration') {
-        $results += Process-DeviceConfiguration -Policy $Policy -SkipNameResolution $SkipNameResolution -ExtensionCache $ExtensionCache -CorrelationId $CorrelationId
+        $results += ConvertFrom-DeviceConfiguration -Policy $Policy -SkipNameResolution $SkipNameResolution -ExtensionCache $ExtensionCache -CorrelationId $CorrelationId
     }
     else {
-        $results += Process-SettingsCatalog -Policy $Policy -SkipNameResolution $SkipNameResolution -ExtensionCache $ExtensionCache -CorrelationId $CorrelationId
+        $results += ConvertFrom-SettingsCatalog -Policy $Policy -SkipNameResolution $SkipNameResolution -ExtensionCache $ExtensionCache -CorrelationId $CorrelationId
     }
     
     return $results
 }
 
-function Process-DeviceConfiguration {
+function ConvertFrom-DeviceConfiguration {
     <#
     .SYNOPSIS
         Processes legacy Device Configuration policies for browser extension settings
@@ -749,13 +749,13 @@ function Process-DeviceConfiguration {
         foreach ($setting in $Policy.omaSettings) {
             $extensionMatch = Test-ExtensionSetting -Setting $setting
             if ($extensionMatch.IsExtension) {
-                $config = Parse-ExtensionConfig -Setting $setting -Browser $extensionMatch.Browser -PolicyType $extensionMatch.PolicyType
+                $config = ConvertFrom-ExtensionConfig -Setting $setting -Browser $extensionMatch.Browser -PolicyType $extensionMatch.PolicyType
                 
                 if (-not $SkipNameResolution -and $config.ExtensionIds) {
-                    $config.ResolvedExtensions = Resolve-Extensions -ExtensionIds $config.ExtensionIds -Browser $extensionMatch.Browser -Cache $ExtensionCache -CorrelationId $CorrelationId
+                    $config.ResolvedExtensions = Resolve-Extension -ExtensionIds $config.ExtensionIds -Browser $extensionMatch.Browser -Cache $ExtensionCache -CorrelationId $CorrelationId
                 }
                 
-                $results += Create-Result -Policy $Policy -Setting $setting -Config $config -Browser $extensionMatch.Browser -PolicyType $extensionMatch.PolicyType -CorrelationId $CorrelationId
+                $results += ConvertTo-Result -Policy $Policy -Setting $setting -Config $config -Browser $extensionMatch.Browser -PolicyType $extensionMatch.PolicyType -CorrelationId $CorrelationId
             }
         }
     }
@@ -763,7 +763,7 @@ function Process-DeviceConfiguration {
     return $results
 }
 
-function Process-SettingsCatalog {
+function ConvertFrom-SettingsCatalog {
     <#
     .SYNOPSIS
         Processes modern Settings Catalog policies for browser extension configurations
@@ -825,10 +825,10 @@ function Process-SettingsCatalog {
                     }
                     
                     if (-not $SkipNameResolution -and $extensionIds.Count -gt 0) {
-                        $config.ResolvedExtensions = Resolve-Extensions -ExtensionIds $extensionIds -Browser $browser -Cache $ExtensionCache -CorrelationId $CorrelationId
+                        $config.ResolvedExtensions = Resolve-Extension -ExtensionIds $extensionIds -Browser $browser -Cache $ExtensionCache -CorrelationId $CorrelationId
                     }
                     
-                    $results += Create-SettingsCatalogResult -Policy $Policy -Setting $policySetting.settingInstance -Config $config -Browser $browser -PolicyType $policyType -CorrelationId $CorrelationId
+                    $results += ConvertTo-SettingsCatalogResult -Policy $Policy -Setting $policySetting.settingInstance -Config $config -Browser $browser -PolicyType $policyType -CorrelationId $CorrelationId
                 }
             }
         }
@@ -905,7 +905,7 @@ function Test-ExtensionSetting {
     return @{ IsExtension = $false }
 }
 
-function Parse-ExtensionConfig {
+function ConvertFrom-ExtensionConfig {
     <#
     .SYNOPSIS
         Extracts extension configuration details from OMA setting values
@@ -1136,7 +1136,7 @@ function Invoke-SecureWebRequest {
     }
 }
 
-function Resolve-Extensions {
+function Resolve-Extension {
     <#
     .SYNOPSIS
         Resolves browser extension GUIDs to human-readable names via web store APIs
@@ -1180,7 +1180,7 @@ function Resolve-Extensions {
         [hashtable] Extension information with Id, Name, and StoreUrl properties
         
     .EXAMPLE
-        $resolved = Resolve-Extensions -ExtensionIds @("abc123...") -Browser "Chrome" -Cache $cache
+        $resolved = Resolve-Extension -ExtensionIds @("abc123...") -Browser "Chrome" -Cache $cache
         # Returns: @{ "abc123..." = @{ Id="abc123"; Name="Extension Name"; StoreUrl="https://..." } }
     #>
     param($ExtensionIds, $Browser, $Cache, $CorrelationId = [System.Guid]::NewGuid().ToString())
@@ -1362,7 +1362,7 @@ function Resolve-Extensions {
     return $resolved
 }
 
-function Create-Result {
+function ConvertTo-Result {
     <#
     .SYNOPSIS
         Creates standardized result object for Device Configuration policy analysis
@@ -1406,6 +1406,7 @@ function Create-Result {
     .OUTPUTS
         [PSCustomObject] Standardized policy analysis result
     #>
+    [CmdletBinding()]
     param($Policy, $Setting, $Config, $Browser, $PolicyType, $CorrelationId)
     
     return [PSCustomObject]@{
@@ -1423,7 +1424,7 @@ function Create-Result {
     }
 }
 
-function Create-SettingsCatalogResult {
+function ConvertTo-SettingsCatalogResult {
     <#
     .SYNOPSIS
         Creates standardized result object for Settings Catalog policy analysis
@@ -1461,6 +1462,7 @@ function Create-SettingsCatalogResult {
     .OUTPUTS
         [PSCustomObject] Standardized Settings Catalog policy result
     #>
+    [CmdletBinding()]
     param($Policy, $Setting, $Config, $Browser, $PolicyType, $CorrelationId)
     
     return [PSCustomObject]@{
@@ -1478,7 +1480,7 @@ function Create-SettingsCatalogResult {
     }
 }
 
-function Export-Results {
+function Export-Result {
     <#
     .SYNOPSIS
         Exports analysis results in multiple formats for reporting and compliance
@@ -1523,7 +1525,7 @@ function Export-Results {
         [hashtable] Export file paths for confirmation and logging
         
     .EXAMPLE
-        $paths = Export-Results -Results $policies -Summary $summary -ExportPath "C:\Reports"
+        $paths = Export-Result -Results $policies -Summary $summary -ExportPath "C:\Reports"
         # Creates timestamped files and returns paths hashtable
     #>
     param($Results, $Summary, $ExportPath, $CorrelationId, [switch]$Silent)
