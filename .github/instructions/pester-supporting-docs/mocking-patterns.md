@@ -1,5 +1,59 @@
 # Mocking Patterns Guide
 
+Targets **Pester 6.0+**.
+
+**NOTE**: Do not use Unicode emojis in any generated code, documentation, or test output. Use plain
+text descriptions and standard ASCII characters only.
+
+## What Changed in Pester 6
+
+### `Assert-MockCalled` and `Assert-VerifiableMock` were removed
+
+Both commands are **gone**. Calling them fails with a command-not-found error.
+
+| Removed | Replacement (classic) | Replacement (v6 syntax) |
+| --- | --- | --- |
+| `Assert-MockCalled Cmd -Times 1 -Exactly` | `Should -Invoke Cmd -Times 1 -Exactly` | `Should-Invoke Cmd -Times 1 -Exactly` |
+| `Assert-MockCalled Cmd -Times 0` | `Should -Not -Invoke Cmd` | `Should-NotInvoke Cmd` |
+| `Assert-VerifiableMock` | `Should -InvokeVerifiable` | `Should-Invoke -Verifiable` |
+
+The parameters carry over unchanged: `-Times`, `-Exactly`, `-ParameterFilter`, `-ExclusiveFilter`,
+`-ModuleName`, `-Scope`.
+
+### Fall-through to the real command was removed
+
+A mock whose `-ParameterFilter` does not match **no longer quietly calls the real command**. This
+made mocks unpredictable and hid missing cases. Define every case you need explicitly:
+
+```powershell
+# Pester 5: unmatched calls silently hit the real Get-Content. Pester 6: they hit this mock.
+Mock Get-Content { 'default content' } -ModuleName ModuleName
+Mock Get-Content { 'special content' } -ParameterFilter { $Path -like '*special*' } -ModuleName ModuleName
+```
+
+If a test relied on fall-through, add an explicit default mock, or scope the mock more narrowly so
+the real command is genuinely not intercepted.
+
+### Failed mock assertions print the invocation history
+
+When a `Should -Invoke` / `Should-Invoke` assertion fails, Pester prints every recorded call and
+marks whether it matched your `-ParameterFilter` - `[*]` for matched, `[ ]` for not:
+
+```
+[-] emails alice exactly twice
+ Expected Send-Email to be called 2 times exactly, but was called 1 times
+ Performed invocations:
+   [*] Send-Email -To 'alice@example.com' -Subject 'Welcome' from Order.Tests.ps1:7
+   [ ] Send-Email -To 'bob@example.com'   -Subject 'Receipt' from Order.Tests.ps1:7
+```
+
+You no longer need `Write-Host` debugging to work out why a parameter filter did not match.
+
+### Dynamic parameters are handled more robustly
+
+Aliases are matched in `-ParameterFilter`, and mocking falls back gracefully when a command cannot
+produce dynamic parameters.
+
 ## Advanced Mocking Strategies
 
 ### Context-Aware Mocking
@@ -472,31 +526,66 @@ Validate that mocks are called with correct parameters:
 Context "Mock Parameter Validation" {
     It "Should call API with correct parameters" {
         $testData = @{ Name = 'Test'; Value = 'Data' }
-        
+
         Function-Name -Data $testData -Endpoint 'https://api.test.com'
-        
-        Should -Invoke Invoke-RestMethod -Exactly 1 -ModuleName ModuleName -ParameterFilter {
+
+        Should-Invoke Invoke-RestMethod -Times 1 -Exactly -ModuleName ModuleName -ParameterFilter {
             $Uri -eq 'https://api.test.com' -and
             $Method -eq 'POST' -and
             ($Body | ConvertFrom-Json).Name -eq 'Test'
         }
     }
-    
+
     It "Should handle multiple calls with different parameters" {
         $endpoints = @('https://api1.test.com', 'https://api2.test.com')
-        
+
         foreach ($endpoint in $endpoints) {
             Function-Name -Endpoint $endpoint
         }
-        
-        Should -Invoke Invoke-RestMethod -Exactly 2 -ModuleName ModuleName
-        Should -Invoke Invoke-RestMethod -Exactly 1 -ModuleName ModuleName -ParameterFilter {
+
+        Should-Invoke Invoke-RestMethod -Times 2 -Exactly -ModuleName ModuleName
+        Should-Invoke Invoke-RestMethod -Times 1 -Exactly -ModuleName ModuleName -ParameterFilter {
             $Uri -eq 'https://api1.test.com'
         }
-        Should -Invoke Invoke-RestMethod -Exactly 1 -ModuleName ModuleName -ParameterFilter {
+        Should-Invoke Invoke-RestMethod -Times 1 -Exactly -ModuleName ModuleName -ParameterFilter {
             $Uri -eq 'https://api2.test.com'
         }
     }
+
+    It "Should not call the destructive command in WhatIf mode" {
+        Function-Name -Path 'C:\Temp\file.txt' -WhatIf
+
+        Should-NotInvoke Remove-Item -ModuleName ModuleName
+    }
+
+    It "Should call the API only for allowed endpoints" {
+        Function-Name -Endpoint 'https://api1.test.com'
+
+        # -ExclusiveFilter fails if ANY recorded call does not match the filter
+        Should-Invoke Invoke-RestMethod -ModuleName ModuleName -ExclusiveFilter {
+            $Uri -like 'https://api1.*'
+        }
+    }
+}
+```
+
+Note the parameter shape: `-Times 1 -Exactly`, not `-Exactly 1`. `-Exactly` is a switch that changes
+`-Times` from "at least" to "exactly". `Should-Invoke Cmd -Exactly 1` binds `1` positionally to
+`-Times` and happens to work, but writing it out is clearer and matches the classic syntax.
+
+### Asserting a Mock Was Not Called
+
+`Should-NotInvoke` replaces `Should -Not -Invoke` and `Assert-MockCalled -Times 0`. This is the
+assertion most often missing from error-handling tests - proving the failure path stopped before the
+destructive call is usually more valuable than proving it threw:
+
+```powershell
+It "Should not write results when validation fails" {
+    Mock Write-Result { } -ModuleName ModuleName
+
+    { Function-Name -ParameterName '' } | Should-Throw
+
+    Should-NotInvoke Write-Result -ModuleName ModuleName
 }
 ```
 
@@ -534,11 +623,16 @@ Context "Mock Call Sequence" {
     
     It "Should call database operations in correct sequence" {
         Function-Name -DatabaseOperation 'UpdateUser'
-        
-        $script:CallSequence | Should -Be @('Connect', 'StartTransaction', 'Query', 'Commit', 'Disconnect')
+
+        # Should-BeCollection compares item by item and reports the first differing index
+        $script:CallSequence |
+            Should-BeCollection @('Connect', 'StartTransaction', 'Query', 'Commit', 'Disconnect')
     }
 }
 ```
+
+`Should-BeCollection` is the right assertion here rather than `Should-Be`: it compares element by
+element and names the index that diverged, instead of dumping two flattened strings at you.
 
 ## Mock Best Practices
 
@@ -562,6 +656,34 @@ Describe "Function Tests" {
         
         # Tests using failure mock
     }
+}
+```
+
+Each `Context` gets its own `BeforeEach`. Pester 6 **throws** on two `BeforeEach` blocks in the
+*same* block, so when you need several groups of mocks, split them into separate `Context` blocks
+rather than adding a second setup block.
+
+### Mocks Do Not Cross Files
+
+Pester 6 discovers and runs one file at a time, and under `Run.Parallel` each file gets its own
+runspace. A mock defined in one test file is never visible to another. Define every mock a file
+needs inside that file. For mock setup shared across many files, use `Run.BeforeContainer` or a
+`Pester.BeforeContainer.ps1` at the repository root to dot-source a shared mock factory - but note
+that `Mock` itself must still be called inside a `Describe`/`Context`/`BeforeAll` scope:
+
+```powershell
+# TestHelpers/MockFactory.ps1 - dot-sourced via Run.BeforeContainer
+function Set-StandardExternalMock {
+    param([string]$ModuleName)
+    Mock Invoke-RestMethod { @{ Status = 'Healthy' } } -ModuleName $ModuleName
+    Mock Write-Verbose { } -ModuleName $ModuleName
+}
+```
+
+```powershell
+# In each test file
+BeforeAll {
+    Set-StandardExternalMock -ModuleName ModuleName
 }
 ```
 
