@@ -253,7 +253,7 @@ Validate error scenarios:
 - Meaningful error messages
 - Graceful degradation
 - Recovery mechanisms
-- Downstream calls *not* made on failure (`Should-NotInvoke`)
+- Downstream calls _not_ made on failure (`Should-NotInvoke`)
 
 ### Performance Requirements Context
 Establish performance baselines:

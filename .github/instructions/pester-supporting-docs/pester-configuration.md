@@ -404,7 +404,7 @@ $config.CodeCoverage.OutputFormat = 'Cobertura'   # for GitLab, Codecov, and sim
 ```
 
 `CoverageGutters` was **removed** in v6. It only existed to produce repo-root-relative paths, and
-now *all* coverage output is relative to the repository root, so plain `JaCoCo` works with the
+now _all_ coverage output is relative to the repository root, so plain `JaCoCo` works with the
 Coverage Gutters extension.
 
 Paths are relative to `CodeCoverage.ReportRoot`, which defaults to `Run.RepoRoot` (found from the

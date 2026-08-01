@@ -39,7 +39,7 @@ the real command is genuinely not intercepted.
 When a `Should -Invoke` / `Should-Invoke` assertion fails, Pester prints every recorded call and
 marks whether it matched your `-ParameterFilter` - `[*]` for matched, `[ ]` for not:
 
-```
+```text
 [-] emails alice exactly twice
  Expected Send-Email to be called 2 times exactly, but was called 1 times
  Performed invocations:
@@ -64,7 +64,7 @@ BeforeAll {
     # API endpoint mocking with different responses
     Mock Invoke-RestMethod {
         param($Uri, $Method, $Body, $Headers)
-        
+
         switch -Regex ($Uri) {
             '/api/users/\d+$' {
                 if ($Method -eq 'GET') {
@@ -136,18 +136,18 @@ BeforeAll {
             Products = @()
         }
     }
-    
+
     Mock Connect-Database {
         param($ConnectionString, $Credential)
-        
+
         if ($ConnectionString -match 'invalid') {
             throw [System.Data.SqlClient.SqlException]::new('Invalid connection string')
         }
-        
+
         if ($Credential -and $Credential.UserName -eq 'invaliduser') {
             throw [System.Data.SqlClient.SqlException]::new('Login failed for user')
         }
-        
+
         $script:MockDatabase.Connected = $true
         return @{
             ConnectionId = [System.Guid]::NewGuid()
@@ -156,14 +156,14 @@ BeforeAll {
             State = 'Open'
         }
     } -ModuleName ModuleName
-    
+
     Mock Invoke-DatabaseQuery {
         param($Query, $Parameters = @{})
-        
+
         if (-not $script:MockDatabase.Connected) {
             throw [System.InvalidOperationException]::new('Database connection not established')
         }
-        
+
         # Parse simple SQL queries
         switch -Regex ($Query) {
             'SELECT.*FROM Users' {
@@ -203,7 +203,7 @@ BeforeAll {
             }
         }
     } -ModuleName ModuleName
-    
+
     Mock Start-DatabaseTransaction {
         if (-not $script:MockDatabase.Connected) {
             throw [System.InvalidOperationException]::new('Database connection not established')
@@ -211,11 +211,11 @@ BeforeAll {
         $script:MockDatabase.TransactionActive = $true
         return @{ TransactionId = [System.Guid]::NewGuid() }
     } -ModuleName ModuleName
-    
+
     Mock Commit-DatabaseTransaction {
         $script:MockDatabase.TransactionActive = $false
     } -ModuleName ModuleName
-    
+
     Mock Rollback-DatabaseTransaction {
         $script:MockDatabase.TransactionActive = $false
         # In a real mock, you might restore previous state here
@@ -233,59 +233,59 @@ BeforeAll {
         Files = @{}
         Directories = @('C:\', 'C:\Temp\', 'C:\Windows\')
     }
-    
+
     Mock Test-Path {
         param($Path)
-        
+
         $normalizedPath = $Path.Replace('/', '\').TrimEnd('\')
-        
+
         # Check if it's a file
         if ($script:MockFileSystem.Files.ContainsKey($normalizedPath)) {
             return $true
         }
-        
+
         # Check if it's a directory
         return $script:MockFileSystem.Directories -contains "$normalizedPath\"
     } -ModuleName ModuleName
-    
+
     Mock Get-Content {
         param($Path, $Raw, $Encoding = 'UTF8')
-        
+
         $normalizedPath = $Path.Replace('/', '\')
-        
+
         if (-not $script:MockFileSystem.Files.ContainsKey($normalizedPath)) {
             throw [System.IO.FileNotFoundException]::new("File not found: $Path")
         }
-        
+
         $content = $script:MockFileSystem.Files[$normalizedPath]
-        
+
         if ($Raw) {
             return $content
         } else {
             return $content -split "`r?`n"
         }
     } -ModuleName ModuleName
-    
+
     Mock Set-Content {
         param($Path, $Value, $Encoding = 'UTF8')
-        
+
         $normalizedPath = $Path.Replace('/', '\')
         $directory = Split-Path $normalizedPath -Parent
-        
+
         # Ensure directory exists
         if ($directory -and -not ($script:MockFileSystem.Directories -contains "$directory\")) {
             throw [System.IO.DirectoryNotFoundException]::new("Directory not found: $directory")
         }
-        
+
         $script:MockFileSystem.Files[$normalizedPath] = $Value -join "`r`n"
         return @{ Length = $script:MockFileSystem.Files[$normalizedPath].Length }
     } -ModuleName ModuleName
-    
+
     Mock New-Item {
         param($Path, $ItemType, $Force)
-        
+
         $normalizedPath = $Path.Replace('/', '\')
-        
+
         if ($ItemType -eq 'Directory') {
             if (-not ($script:MockFileSystem.Directories -contains "$normalizedPath\")) {
                 $script:MockFileSystem.Directories += "$normalizedPath\"
@@ -296,18 +296,18 @@ BeforeAll {
             return @{ FullName = $normalizedPath; PSIsContainer = $false }
         }
     } -ModuleName ModuleName
-    
+
     Mock Remove-Item {
         param($Path, $Recurse, $Force)
-        
+
         $normalizedPath = $Path.Replace('/', '\')
-        
+
         # Remove file
         if ($script:MockFileSystem.Files.ContainsKey($normalizedPath)) {
             $script:MockFileSystem.Files.Remove($normalizedPath)
             return
         }
-        
+
         # Remove directory
         $directoryPath = "$normalizedPath\"
         if ($script:MockFileSystem.Directories -contains $directoryPath) {
@@ -317,7 +317,7 @@ BeforeAll {
                 foreach ($file in $filesToRemove) {
                     $script:MockFileSystem.Files.Remove($file)
                 }
-                
+
                 $dirsToRemove = $script:MockFileSystem.Directories | Where-Object { $_.StartsWith($directoryPath) }
                 foreach ($dir in $dirsToRemove) {
                     $script:MockFileSystem.Directories = $script:MockFileSystem.Directories | Where-Object { $_ -ne $dir }
@@ -337,7 +337,7 @@ BeforeAll {
     # Mock network services with failure simulation
     Mock Test-NetConnection {
         param($ComputerName, $Port = 80, $InformationLevel = 'Detailed')
-        
+
         # Simulate different network conditions
         switch ($ComputerName) {
             'unreachable.test' {
@@ -378,10 +378,10 @@ BeforeAll {
             }
         }
     } -ModuleName ModuleName
-    
+
     Mock Invoke-WebRequest {
         param($Uri, $Method = 'GET', $Body, $Headers = @{}, $TimeoutSec = 30)
-        
+
         # Simulate different response scenarios
         switch -Regex ($Uri) {
             'timeout\.test' {
@@ -415,7 +415,7 @@ BeforeAll {
                     'DELETE' { '{"status": "deleted"}' }
                     default { '{"status": "ok"}' }
                 }
-                
+
                 return @{
                     StatusCode = 200
                     StatusDescription = 'OK'
@@ -436,10 +436,10 @@ BeforeAll {
     # Mock external commands with different exit codes
     Mock Start-Process {
         param($FilePath, $ArgumentList, $Wait, $PassThru, $RedirectStandardOutput, $RedirectStandardError)
-        
+
         $command = $FilePath
         $args = $ArgumentList -join ' '
-        
+
         # Simulate different command behaviors
         switch -Regex ("$command $args") {
             'git status' {
@@ -491,18 +491,18 @@ def456ghi789   redis     "docker-entrypoint.s…"   2 hours ago   Up 2 hours   6
             }
         }
     } -ModuleName ModuleName
-    
+
     # Mock Windows services
     Mock Get-Service {
         param($Name, $ComputerName = $env:COMPUTERNAME)
-        
+
         $mockServices = @{
             'Spooler' = @{ Name = 'Spooler'; Status = 'Running'; StartType = 'Automatic' }
             'BITS' = @{ Name = 'BITS'; Status = 'Running'; StartType = 'Manual' }
             'Fax' = @{ Name = 'Fax'; Status = 'Stopped'; StartType = 'Manual' }
             'InvalidService' = $null
         }
-        
+
         if ($Name) {
             $service = $mockServices[$Name]
             if ($service) {
@@ -596,31 +596,31 @@ Ensure mocks are called in the correct order:
 Context "Mock Call Sequence" {
     BeforeEach {
         $script:CallSequence = @()
-        
+
         Mock Connect-Database {
             $script:CallSequence += 'Connect'
             return @{ Connected = $true }
         } -ModuleName ModuleName
-        
+
         Mock Start-DatabaseTransaction {
             $script:CallSequence += 'StartTransaction'
             return @{ TransactionId = '12345' }
         } -ModuleName ModuleName
-        
+
         Mock Invoke-DatabaseQuery {
             $script:CallSequence += 'Query'
             return @{ Success = $true }
         } -ModuleName ModuleName
-        
+
         Mock Commit-DatabaseTransaction {
             $script:CallSequence += 'Commit'
         } -ModuleName ModuleName
-        
+
         Mock Disconnect-Database {
             $script:CallSequence += 'Disconnect'
         } -ModuleName ModuleName
     }
-    
+
     It "Should call database operations in correct sequence" {
         Function-Name -DatabaseOperation 'UpdateUser'
 
@@ -645,22 +645,22 @@ Describe "Function Tests" {
         BeforeEach {
             Mock External-Service { return @{ Success = $true } } -ModuleName ModuleName
         }
-        
+
         # Tests using success mock
     }
-    
+
     Context "Failure Scenarios" {
         BeforeEach {
             Mock External-Service { throw 'Service unavailable' } -ModuleName ModuleName
         }
-        
+
         # Tests using failure mock
     }
 }
 ```
 
 Each `Context` gets its own `BeforeEach`. Pester 6 **throws** on two `BeforeEach` blocks in the
-*same* block, so when you need several groups of mocks, split them into separate `Context` blocks
+_same_ block, so when you need several groups of mocks, split them into separate `Context` blocks
 rather than adding a second setup block.
 
 ### Mocks Do Not Cross Files
@@ -698,10 +698,10 @@ BeforeAll {
         @{ Id = 2; Name = 'Jane Smith'; Email = 'jane.smith@example.com'; Department = 'HR'; Active = $true }
         @{ Id = 3; Name = 'Bob Johnson'; Email = 'bob.johnson@example.com'; Department = 'Finance'; Active = $false }
     )
-    
+
     Mock Get-ADUser {
         param($Identity, $Properties)
-        
+
         $user = $script:TestUsers | Where-Object { $_.Name -eq $Identity -or $_.Id -eq $Identity }
         if ($user) {
             return [PSCustomObject]$user
@@ -722,7 +722,7 @@ AfterEach {
         Connected = $false
         Data = @{}
     }
-    
+
     # Clear any temporary files created by mocks
     Get-ChildItem -Path $env:TEMP -Filter "MockTest*" | Remove-Item -Force -ErrorAction SilentlyContinue
 }

@@ -64,7 +64,7 @@ the two behave consistently.
 - A module imported at discovery time in one file (at the top of the file, or inside
   `BeforeDiscovery`) is not guaranteed to be loaded while another file is being discovered. Under
   `Run.Parallel` it definitely is not - each file is discovered in its own runspace.
-- Anything a file needs in order to be *discovered* - helper modules, the data behind a `-ForEach`
+- Anything a file needs in order to be _discovered_ - helper modules, the data behind a `-ForEach`
   or `BeforeDiscovery`, variables - must be set up **by that file**.
 
 ```powershell

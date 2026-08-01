@@ -38,8 +38,8 @@ The actual value comes from the pipeline or from `-Actual`:
 Should-Be -Actual 1 -Expected 1
 ```
 
-The pipeline **unwraps** its input. A *value* assertion sees `1` and `@(1)` identically, and `@()`
-as `$null`. A *collection* assertion sees the same input as `@(1)` and `@()`.
+The pipeline **unwraps** its input. A _value_ assertion sees `1` and `@(1)` identically, and `@()`
+as `$null`. A _collection_ assertion sees the same input as `@(1)` and `@()`.
 
 Use `-Actual` when the exact value or the concrete collection type matters:
 
@@ -183,7 +183,7 @@ Should-Invoke -Verifiable
 When a mock assertion fails, Pester 6 prints the recorded invocation history and marks which calls
 matched the `-ParameterFilter` with `[*]`:
 
-```
+```text
 [-] emails alice exactly twice
  Expected Send-Email to be called 2 times exactly, but was called 1 times
  Performed invocations:

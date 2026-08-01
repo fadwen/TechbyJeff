@@ -9,7 +9,7 @@ text descriptions and standard ASCII characters only.
 
 Create organized test directory structure for enterprise PowerShell projects:
 
-```
+```text
 Tests/
 ├── Unit/
 │   ├── Public/

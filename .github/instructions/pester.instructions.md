@@ -73,7 +73,8 @@ When generating Pester tests:
 
 1. **Analyze Function**: Determine test types needed (Unit/Integration/Performance/Security)
 2. **Apply Templates**: Use appropriate templates from supporting documentation
-3. **Mock Dependencies**: Mock all external calls using [Mocking Patterns Guide](./pester-supporting-docs/mocking-patterns.md)
+3. **Mock Dependencies**: Mock all external calls using the
+   [Mocking Patterns Guide](./pester-supporting-docs/mocking-patterns.md)
 4. **Validate Coverage**: Ensure 80%+ code coverage with meaningful assertions
 5. **Test Data**: Use [Test Data Management Guide](./pester-supporting-docs/test-data-guide.md)
 6. **Integration**: Configure for CI/CD pipeline execution

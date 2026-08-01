@@ -18,7 +18,7 @@ Two facts shape the pipeline:
    zero failed tests. Every gate must also check `FailedContainersCount`, and a cheap discovery-only
    job should run first.
 
-```
+```text
 validate (discovery-only, fast)
     |
     +--> test-parallel  (no coverage, PS 7.4+, fast feedback)
@@ -310,7 +310,7 @@ jobs:
           '(?i)(api[_-]?key|apikey)\s*[:=]\s*["\''']?[a-zA-Z0-9]{20,}'
           '(?i)(secret|token)\s*[:=]\s*["\''']?[a-zA-Z0-9]{16,}'
         )
-        
+
         $issues = @()
         Get-ChildItem -Recurse -Include *.ps1, *.psm1, *.psd1 | ForEach-Object {
           $content = Get-Content $_.FullName -Raw
@@ -320,7 +320,7 @@ jobs:
             }
           }
         }
-        
+
         if ($issues) {
           $issues | ForEach-Object { Write-Warning $_ }
           throw "Credential leaks detected: $($issues.Count) issues"
@@ -371,7 +371,7 @@ jobs:
           branch = "${{ github.ref_name }}"
           performance_results = "Performance test results would be parsed here"
         }
-        
+
         $metrics | ConvertTo-Json | Out-File performance-metrics.json
 
     - name: Upload Performance Results
@@ -555,9 +555,9 @@ stages:
           $config.Run.PassThru = $true
           $config.TestResult.Enabled = $true
           $config.TestResult.OutputPath = '$(Agent.TempDirectory)/LinuxTestResults.xml'
-          
+
           $result = Invoke-Pester -Configuration $config
-          
+
           if ($result.FailedCount -gt 0) {
             Write-Host "##vso[task.logissue type=error]Cross-platform tests failed: $($result.FailedCount) failures"
             exit 1
@@ -580,14 +580,14 @@ stages:
         targetType: 'inline'
         script: |
           Install-Module Pester -Force -Scope CurrentUser
-          
+
           $config = New-PesterConfiguration
           $config.Run.Path = './Tests/Security'
           $config.Filter.Tag = 'Security'
           $config.Run.PassThru = $true
-          
+
           $result = Invoke-Pester -Configuration $config
-          
+
           if ($result.FailedCount -gt 0) {
             Write-Host "##vso[task.logissue type=error]Security tests failed: $($result.FailedCount) critical issues"
             exit 1
@@ -595,7 +595,7 @@ stages:
 
 - stage: Deploy
   displayName: 'Deployment'
-  dependsOn: 
+  dependsOn:
   - Test
   - Security
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
@@ -622,11 +622,11 @@ stages:
 ```groovy
 pipeline {
     agent none
-    
+
     environment {
         POWERSHELL_TELEMETRY_OPTOUT = '1'
     }
-    
+
     stages {
         stage('Test') {
             parallel {
@@ -636,15 +636,15 @@ pipeline {
                         powershell '''
                             Set-PSRepository PSGallery -InstallationPolicy Trusted
                             Install-Module Pester -MinimumVersion 6.0.0 -Force -Scope CurrentUser
-                            
+
                             $config = New-PesterConfiguration
                             $config.Run.Path = './Tests'
                             $config.Run.PassThru = $true
                             $config.TestResult.Enabled = $true
                             $config.TestResult.OutputPath = './TestResults.xml'
-                            
+
                             $result = Invoke-Pester -Configuration $config
-                            
+
                             if ($result.FailedCount -gt 0) {
                                 exit 1
                             }
@@ -656,14 +656,14 @@ pipeline {
                         }
                     }
                 }
-                
+
                 stage('PowerShell 7.x') {
                     agent { label 'pwsh' }
                     steps {
                         pwsh '''
                             Set-PSRepository PSGallery -InstallationPolicy Trusted
                             Install-Module Pester -MinimumVersion 6.0.0 -Force -Scope CurrentUser
-                            
+
                             ./Invoke-Tests.ps1 -TestType All -Environment CI -CodeCoverage
                         '''
                     }
@@ -676,7 +676,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Security Scan') {
             agent { label 'windows' }
             steps {
@@ -685,7 +685,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Deploy') {
             when {
                 branch 'main'
@@ -702,20 +702,20 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             emailext (
                 to: '${DEFAULT_RECIPIENTS}',
                 subject: '${PROJECT_NAME} - Build ${BUILD_NUMBER} - ${BUILD_STATUS}',
                 body: '''${PROJECT_NAME} - Build ${BUILD_NUMBER} - ${BUILD_STATUS}
-                
+
                 Test Results:
                 Total Tests: ${TEST_COUNTS,var="total"}
                 Failed Tests: ${TEST_COUNTS,var="fail"}
                 Passed Tests: ${TEST_COUNTS,var="pass"}
                 Skipped Tests: ${TEST_COUNTS,var="skip"}
-                
+
                 Build URL: ${BUILD_URL}
                 '''
             )
@@ -803,7 +803,7 @@ $env:TEST_RESULTS_PATH = './Tests/Results'
 
 ### Parallel Test Execution
 
-Pester 6 has a built-in parallel runner. `Run.Container` is for *parametrizing* files, not for
+Pester 6 has a built-in parallel runner. `Run.Container` is for _parametrizing_ files, not for
 parallelism - the old snippet using multiple containers ran sequentially.
 
 ```powershell

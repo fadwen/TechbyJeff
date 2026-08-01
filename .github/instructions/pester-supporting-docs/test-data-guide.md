@@ -11,8 +11,8 @@ This is the most important distinction in Pester 6 test data, and getting it wro
 
 | Data drives... | Must be built in | Why |
 | --- | --- | --- |
-| `-ForEach` / `-TestCases` (the test *tree*) | `BeforeDiscovery` | Discovery runs before `BeforeAll` |
-| Assertions inside `It` (the test *body*) | `BeforeAll` / `BeforeEach` | Runs at execution time |
+| `-ForEach` / `-TestCases` (the test _tree_) | `BeforeDiscovery` | Discovery runs before `BeforeAll` |
+| Assertions inside `It` (the test _body_) | `BeforeAll` / `BeforeEach` | Runs at execution time |
 
 ```powershell
 BeforeDiscovery {
@@ -46,7 +46,7 @@ Import helpers in the same file, or provide them via `Run.BeforeContainer` /
 
 `TestDataFactory` below uses `Get-Random`. That is fine for run-time data, but data feeding
 `-ForEach` should be **stable** - under `Run.Parallel` each file is discovered in its own runspace,
-and randomized test *names* make failures hard to correlate across runs and reports.
+and randomized test _names_ make failures hard to correlate across runs and reports.
 
 For discovery-time data, prefer fixed fixtures or a seeded generator:
 
@@ -62,7 +62,7 @@ Keep `Get-Random` for values consumed inside `It` bodies, where the name is alre
 ## Test Data Organization
 
 ### Test Data Directory Structure
-```
+```text
 Tests/
 ├── TestData/
 │   ├── Configurations/
@@ -103,15 +103,15 @@ Tests/
 class TestDataFactory {
     static [hashtable] $Cache = @{}
     static [string] $DataPath = (Join-Path $PSScriptRoot '..\TestData')
-    
+
     # User data generation
     static [object[]] CreateUsers([int]$Count = 5, [string]$Type = 'Standard') {
         $cacheKey = "Users_$($Count)_$Type"
-        
+
         if ([TestDataFactory]::Cache.ContainsKey($cacheKey)) {
             return [TestDataFactory]::Cache[$cacheKey]
         }
-        
+
         $users = switch ($Type) {
             'Standard' { [TestDataFactory]::CreateStandardUsers($Count) }
             'Admin' { [TestDataFactory]::CreateAdminUsers($Count) }
@@ -119,19 +119,19 @@ class TestDataFactory {
             'Mixed' { [TestDataFactory]::CreateMixedUsers($Count) }
             default { [TestDataFactory]::CreateStandardUsers($Count) }
         }
-        
+
         [TestDataFactory]::Cache[$cacheKey] = $users
         return $users
     }
-    
+
     static [object[]] CreateStandardUsers([int]$Count) {
         $departments = @('IT', 'HR', 'Finance', 'Marketing', 'Operations')
         $titles = @('Analyst', 'Specialist', 'Coordinator', 'Manager', 'Director')
-        
+
         return 1..$Count | ForEach-Object {
             $firstName = [TestDataFactory]::GetRandomFirstName()
             $lastName = [TestDataFactory]::GetRandomLastName()
-            
+
             @{
                 Id = $_
                 FirstName = $firstName
@@ -146,14 +146,14 @@ class TestDataFactory {
             }
         }
     }
-    
+
     static [object[]] CreateAdminUsers([int]$Count) {
         $adminTitles = @('System Administrator', 'Database Administrator', 'Network Administrator', 'Security Administrator')
-        
+
         return 1..$Count | ForEach-Object {
             $firstName = [TestDataFactory]::GetRandomFirstName()
             $lastName = [TestDataFactory]::GetRandomLastName()
-            
+
             @{
                 Id = $_ + 1000
                 FirstName = $firstName
@@ -170,15 +170,15 @@ class TestDataFactory {
             }
         }
     }
-    
+
     # Server data generation
     static [object[]] CreateServers([int]$Count = 10, [string]$Environment = 'Mixed') {
         $cacheKey = "Servers_$($Count)_$Environment"
-        
+
         if ([TestDataFactory]::Cache.ContainsKey($cacheKey)) {
             return [TestDataFactory]::Cache[$cacheKey]
         }
-        
+
         $environments = switch ($Environment) {
             'Production' { @('Production') }
             'Development' { @('Development') }
@@ -186,14 +186,14 @@ class TestDataFactory {
             'Mixed' { @('Production', 'Development', 'Testing', 'Staging') }
             default { @('Production', 'Development', 'Testing') }
         }
-        
+
         $roles = @('Web Server', 'Database Server', 'Application Server', 'Domain Controller', 'File Server')
         $operatingSystems = @('Windows Server 2019', 'Windows Server 2022', 'Ubuntu 20.04 LTS', 'CentOS 8')
-        
+
         $servers = 1..$Count | ForEach-Object {
             $environment = Get-Random -InputObject $environments
             $role = Get-Random -InputObject $roles
-            
+
             @{
                 Id = $_
                 Name = "SRV$($environment.Substring(0,1).ToUpper())$($_.ToString('00'))"
@@ -210,11 +210,11 @@ class TestDataFactory {
                 MonitoringEnabled = $true
             }
         }
-        
+
         [TestDataFactory]::Cache[$cacheKey] = $servers
         return $servers
     }
-    
+
     # Configuration data generation
     static [hashtable] CreateConfiguration([string]$Environment = 'Testing', [string]$Application = 'Default') {
         return @{
@@ -256,7 +256,7 @@ class TestDataFactory {
             }
         }
     }
-    
+
     # API Response data generation
     static [hashtable] CreateAPIResponse([string]$Type = 'Success', [object]$Data = $null) {
         $baseResponse = @{
@@ -264,7 +264,7 @@ class TestDataFactory {
             RequestId = [System.Guid]::NewGuid().ToString()
             Version = '1.0.0'
         }
-        
+
         switch ($Type) {
             'Success' {
                 $baseResponse.Success = $true
@@ -314,10 +314,10 @@ class TestDataFactory {
                 }
             }
         }
-        
+
         return $baseResponse
     }
-    
+
     # Database result data generation
     static [object[]] CreateDatabaseResults([string]$Table = 'Users', [int]$Count = 10) {
         switch ($Table) {
@@ -336,7 +336,7 @@ class TestDataFactory {
             }
         }
     }
-    
+
     # Performance baseline data
     static [hashtable] CreatePerformanceBaseline([string]$Component = 'General') {
         return @{
@@ -361,7 +361,7 @@ class TestDataFactory {
             }
         }
     }
-    
+
     # Helper methods
     static [string] GetRandomFirstName() {
         $names = @('John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Maria', 'James', 'Jennifer',
@@ -369,14 +369,14 @@ class TestDataFactory {
                   'Thomas', 'Susan', 'Christopher', 'Jessica', 'Daniel', 'Karen', 'Matthew', 'Nancy')
         return Get-Random -InputObject $names
     }
-    
+
     static [string] GetRandomLastName() {
         $names = @('Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez',
                   'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor',
                   'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez')
         return Get-Random -InputObject $names
     }
-    
+
     static [object[]] CreateLogEntries([int]$Count) {
         $levels = @('Information', 'Warning', 'Error', 'Debug', 'Verbose')
         $sources = @('Application', 'Security', 'System', 'Database', 'Network')
@@ -390,7 +390,7 @@ class TestDataFactory {
             'Service restart initiated',
             'Data synchronization completed'
         )
-        
+
         return 1..$Count | ForEach-Object {
             @{
                 Id = $_
@@ -403,22 +403,22 @@ class TestDataFactory {
             }
         }
     }
-    
+
     # Clear cache
     static [void] ClearCache() {
         [TestDataFactory]::Cache = @{}
     }
-    
+
     # Save data to file
     static [void] SaveTestData([string]$Name, [object]$Data, [string]$Format = 'JSON') {
         $filePath = Join-Path ([TestDataFactory]::DataPath) "Generated\$Name.$($Format.ToLower())"
-        
+
         # Ensure directory exists
         $directory = Split-Path $filePath -Parent
         if (-not (Test-Path $directory)) {
             New-Item -Path $directory -ItemType Directory -Force | Out-Null
         }
-        
+
         switch ($Format.ToUpper()) {
             'JSON' {
                 $Data | ConvertTo-Json -Depth 10 | Out-File $filePath -Encoding UTF8
@@ -441,22 +441,22 @@ class TestDataFactory {
 }
 
 # Convenience functions
-function New-TestUsers { 
+function New-TestUsers {
     param([int]$Count = 5, [string]$Type = 'Standard')
     return [TestDataFactory]::CreateUsers($Count, $Type)
 }
 
-function New-TestServers { 
+function New-TestServers {
     param([int]$Count = 10, [string]$Environment = 'Mixed')
     return [TestDataFactory]::CreateServers($Count, $Environment)
 }
 
-function New-TestConfiguration { 
+function New-TestConfiguration {
     param([string]$Environment = 'Testing', [string]$Application = 'Default')
     return [TestDataFactory]::CreateConfiguration($Environment, $Application)
 }
 
-function New-TestAPIResponse { 
+function New-TestAPIResponse {
     param([string]$Type = 'Success', [object]$Data = $null)
     return [TestDataFactory]::CreateAPIResponse($Type, $Data)
 }
@@ -595,10 +595,10 @@ stops at the first failure and does not tell you the index.
 ```powershell
 function New-PerformanceTestData {
     param([int]$ItemCount = 1000, [string]$DataType = 'Users')
-    
+
     # Generate large datasets for performance testing
     $data = switch ($DataType) {
-        'Users' { 
+        'Users' {
             1..$ItemCount | ForEach-Object {
                 [TestDataFactory]::CreateUsers(1, 'Standard')[0]
             }
@@ -613,7 +613,7 @@ function New-PerformanceTestData {
             }
         }
     }
-    
+
     return $data
 }
 ```
@@ -622,7 +622,7 @@ function New-PerformanceTestData {
 ```powershell
 function New-SecureTestCredentials {
     param([int]$Count = 5)
-    
+
     # Generate test credentials with secure handling
     return 1..$Count | ForEach-Object {
         @{

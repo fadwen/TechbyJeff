@@ -48,7 +48,7 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
             1..$PerformanceConfig.WarmupIterations | ForEach-Object {
                 Function-Name -ParameterName 'WarmupValue' | Out-Null
             }
-            
+
             # Force garbage collection for consistent baseline
             [System.GC]::Collect()
             [System.GC]::WaitForPendingFinalizers()
@@ -181,7 +181,7 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
             # Execute function multiple times
             1..20 | ForEach-Object {
                 Function-Name -ParameterName (1..100)
-                
+
                 # Measure memory every 5 iterations
                 if ($_ % 5 -eq 0) {
                     [System.GC]::Collect()
@@ -220,13 +220,13 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
             $concurrentJobs = 1..5 | ForEach-Object {
                 Start-Job -ScriptBlock {
                     param($ModulePath, $JobId)
-                    
+
                     Import-Module $ModulePath -Force
-                    
+
                     $startTime = Get-Date
                     $result = Function-Name -ParameterName (1..200)
                     $endTime = Get-Date
-                    
+
                     return @{
                         JobId = $JobId
                         ItemsProcessed = $result.Count
@@ -257,15 +257,15 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
     Context "Resource Utilization" {
         It "Should efficiently use CPU resources" {
             $cpuCounter = Get-Counter "\Process(powershell*)\% Processor Time" -ErrorAction SilentlyContinue
-            
+
             if ($cpuCounter) {
                 $beforeCpu = $cpuCounter.CounterSamples | Where-Object { $_.InstanceName -like "*$PID*" } | Select-Object -First 1 -ExpandProperty CookedValue
-                
+
                 Function-Name -ParameterName (1..1000)
-                
+
                 Start-Sleep -Seconds 1  # Allow CPU counter to update
                 $afterCpu = (Get-Counter "\Process(powershell*)\% Processor Time").CounterSamples | Where-Object { $_.InstanceName -like "*$PID*" } | Select-Object -First 1 -ExpandProperty CookedValue
-                
+
                 # CPU usage should be reasonable (less than 80% for single-threaded operation)
                 $cpuUsage = $afterCpu - $beforeCpu
                 $cpuUsage | Should-BeLessThan 80
@@ -276,11 +276,11 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
 
         It "Should not create excessive temporary files" {
             $tempFilesBefore = @(Get-ChildItem -Path $env:TEMP -File | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-5) })
-            
+
             Function-Name -ParameterName (1..500)
-            
+
             $tempFilesAfter = @(Get-ChildItem -Path $env:TEMP -File | Where-Object { $_.LastWriteTime -gt (Get-Date).AddMinutes(-5) })
-            
+
             $newTempFiles = $tempFilesAfter.Count - $tempFilesBefore.Count
 
             # Should not create more than 5 temporary files
@@ -292,14 +292,14 @@ Describe "Performance Tests" -Tag "Performance", "Benchmark" {
 AfterAll {
     # Save performance metrics for baseline comparison
     $resultsPath = Join-Path $PSScriptRoot "..\Results\performance-results-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
-    
+
     $performanceMetrics = @{
         TestDate = Get-Date
         PowerShellVersion = $PSVersionTable.PSVersion
         Platform = $PSVersionTable.Platform
         # Add specific metrics from test execution
     }
-    
+
     $performanceMetrics | ConvertTo-Json -Depth 10 | Out-File $resultsPath
 }
 ```

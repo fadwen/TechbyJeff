@@ -239,7 +239,7 @@ Describe "Security Tests" -Tag "Security", "InputValidation" {
     Context "Data Protection and Encryption" {
         It "Should encrypt sensitive data at rest" {
             $sensitiveData = "Confidential Information 12345"
-            
+
             $result = Function-Name -SensitiveData $sensitiveData -EncryptData
 
             # Verify data is encrypted (not plaintext)
@@ -253,14 +253,14 @@ Describe "Security Tests" -Tag "Security", "InputValidation" {
 
         It "Should implement secure data transmission" {
             # Mock secure transmission
-            Mock Invoke-SecureTransmission { 
+            Mock Invoke-SecureTransmission {
                 param($Data, $Endpoint)
-                
+
                 # Verify data is encrypted before transmission
                 if ($Data -match "plaintext") {
                     throw "Data not encrypted for transmission"
                 }
-                
+
                 return @{ Success = $true; Encrypted = $true }
             }
 
@@ -442,13 +442,13 @@ contain `.`, `$`, `(`, and `\`, which are metacharacters. Escape them:
 $output | Should-NotMatchString ([regex]::Escape($password))
 ```
 
-An unescaped `.` matches any character, which usually makes the assertion *more* likely to match and
-therefore *less* likely to catch a leak - a false sense of security.
+An unescaped `.` matches any character, which usually makes the assertion _more_ likely to match and
+therefore _less_ likely to catch a leak - a false sense of security.
 
 ### Assert the action did not happen
 
 For authorization tests, `Should-NotInvoke` is stronger evidence than `Should-Throw`. A function can
-throw *after* performing the privileged action:
+throw _after_ performing the privileged action:
 
 ```powershell
 Mock Invoke-PrivilegedAction { }

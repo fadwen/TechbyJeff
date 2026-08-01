@@ -44,7 +44,7 @@ AfterAll {
     if (Test-Path $TestEnvironment.TempDirectory) {
         Remove-Item -Path $TestEnvironment.TempDirectory -Recurse -Force
     }
-    
+
     # Cleanup test data
     if ($TestConfig.CleanupRequired) {
         Invoke-TestCleanup -Configuration $TestConfig
@@ -161,17 +161,17 @@ Describe "Integration Tests" -Tag "Integration", "EndToEnd" {
 
         It "Should handle concurrent data access" {
             $testId = [System.Guid]::NewGuid().ToString()
-            
+
             # Create concurrent operations
             $jobs = 1..5 | ForEach-Object {
                 Start-Job -ScriptBlock {
                     param($TestId, $WorkerId)
-                    
+
                     # Simulate concurrent data access
                     Set-TestData -Id $TestId -Worker $WorkerId -Value "Worker$WorkerId-$(Get-Date -Format 'HHmmss')"
                 } -ArgumentList $testId, $_
             }
-            
+
             # Wait for completion
             $results = $jobs | Wait-Job | Receive-Job
             $jobs | Remove-Job
