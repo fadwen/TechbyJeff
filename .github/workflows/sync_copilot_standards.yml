@@ -1,0 +1,76 @@
+name: Sync Copilot Standards
+
+# Keeps .github/copilot-instructions.md, .github/instructions/ and .github/prompts/
+# in sync with fadwen/Powershell-Copilot-Standards. Opens a PR when they drift.
+# Workflows under .github/workflows/ are repo-specific and are never touched.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v7
+
+      - name: Check out the standards repository
+        uses: actions/checkout@v7
+        with:
+          repository: fadwen/Powershell-Copilot-Standards
+          path: .standards
+
+      - name: Mirror instruction files
+        run: |
+          set -euo pipefail
+          src=.standards/.github
+
+          cp "$src/copilot-instructions.md" .github/copilot-instructions.md
+
+          # Mirror, not merge: files deleted upstream are deleted here too.
+          for dir in instructions prompts; do
+            rm -rf ".github/$dir"
+            cp -r "$src/$dir" ".github/$dir"
+          done
+
+          rm -rf .standards
+
+      - name: Detect drift
+        id: drift
+        run: |
+          # Stage first: a file added upstream is untracked here, and plain
+          # `git diff` would not see it.
+          git add -A .github
+          if git diff --cached --quiet -- .github; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Instruction files are already up to date."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --cached --stat -- .github
+          fi
+
+      - name: Open pull request
+        if: steps.drift.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: chore/sync-copilot-standards
+          delete-branch: true
+          commit-message: 'chore: sync Copilot instructions from standards repo'
+          title: 'chore: sync Copilot instructions from standards repo'
+          body: |
+            Automated sync from
+            [fadwen/Powershell-Copilot-Standards](https://github.com/fadwen/Powershell-Copilot-Standards).
+
+            Covers `.github/copilot-instructions.md`, `.github/instructions/` and
+            `.github/prompts/`. Workflows under `.github/workflows/` are repo-specific
+            and are not touched by this job.
+
+            Review the diff before merging — anything intended as a permanent local
+            customisation belongs upstream, or this job will overwrite it again next week.
