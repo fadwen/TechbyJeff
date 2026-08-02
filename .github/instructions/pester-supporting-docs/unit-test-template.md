@@ -8,6 +8,11 @@ text descriptions and standard ASCII characters only.
 
 ## Standard Unit Test Structure
 
+> Complete passing implementations of this template:
+> [Module-Structure-Example/Tests](../../../Documentation/Examples/Module-Structure-Example/Tests/)
+> and
+> [Testing-Examples](../../../Documentation/Examples/Testing-Examples/).
+
 Use this template for all unit tests:
 
 ```powershell
@@ -178,10 +183,12 @@ Describe "Function-Name" -Tag "Unit", "Public" {
 ## Pester 6 Authoring Rules
 
 ### One setup block per scope
+
 Pester 6 **throws** on duplicate `BeforeAll`, `BeforeEach`, `AfterAll`, or `AfterEach` in the same
 block. This catches a common copy-paste mistake. Merge them into one.
 
 ### No `param()` block in `It`
+
 Data from `-ForEach` / `-TestCases` is injected as variables automatically. Do not add a `param()`
 block - it is unnecessary and invites the `$Input` bug below.
 
@@ -202,6 +209,7 @@ Never use `Input`, `Args`, `Error`, `Host`, `Matches`, or `PSItem` as `-ForEach`
 with PowerShell automatic variables.
 
 ### `-ForEach` must not be empty
+
 `Run.FailOnNullOrEmptyForEach` is on by default, so a `-ForEach` that evaluates to `$null` or `@()`
 **fails discovery**. When an empty set is legitimate, opt out explicitly:
 
@@ -215,6 +223,7 @@ Prefer fixing the generator over adding the switch - an empty test case list usu
 source silently returned nothing.
 
 ### Test names expand only `<...>`
+
 Everything outside `<...>` stays literal, including backticks, `$`, and quotes. Inside `<...>` the
 content is evaluated as a full PowerShell expression and rendered through Pester's formatter:
 
@@ -225,13 +234,16 @@ It 'handles a literal `<placeholder>'            # escape the bracket for litera
 ```
 
 ### `-Focus` and `-Pending` are gone
+
 Use `-Skip`, tags, or the `Filter` configuration to select which tests run. Use
 `Set-ItResult -Skipped` or `-Inconclusive` instead of `-Pending`.
 
 ## Test Context Guidelines
 
 ### Parameter Validation Context
+
 Test all parameter validation scenarios:
+
 - Valid input variations
 - Invalid input rejection
 - Pipeline support
@@ -239,7 +251,9 @@ Test all parameter validation scenarios:
 - Mandatory parameter enforcement
 
 ### Core Functionality Context
+
 Test the main business logic:
+
 - Expected return values and types
 - Object structure validation
 - External dependency interaction
@@ -247,7 +261,9 @@ Test the main business logic:
 - Business rule compliance
 
 ### Error Handling Context
+
 Validate error scenarios:
+
 - External dependency failures
 - Invalid state handling
 - Meaningful error messages
@@ -256,7 +272,9 @@ Validate error scenarios:
 - Downstream calls _not_ made on failure (`Should-NotInvoke`)
 
 ### Performance Requirements Context
+
 Establish performance baselines:
+
 - Execution time limits (`Should-BeFasterThan`)
 - Scaling characteristics
 - Memory usage patterns
@@ -266,6 +284,7 @@ Establish performance baselines:
 ## Assertion Guidelines
 
 ### Comprehensive Assertions
+
 - Test return values and types
 - Verify object properties and structure
 - Validate external dependency calls

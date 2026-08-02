@@ -1,4 +1,5 @@
 ---
+mode: 'agent'
 applyTo: "**/*.ps1,**/*.psm1"
 tools: ['codebase', 'githubRepo']
 description: 'Implements comprehensive error handling and structured logging for PowerShell solutions'
@@ -6,11 +7,20 @@ description: 'Implements comprehensive error handling and structured logging for
 
 # PowerShell Error Handling and Logging Implementation
 
-Implement robust error handling and structured logging patterns for PowerShell code that ensure proper error management, correlation tracking, and enterprise-grade diagnostic capabilities.
+Implement robust error handling and structured logging patterns for PowerShell code that ensure proper error management,
+correlation tracking, and enterprise-grade diagnostic capabilities.
+
+> **Worked examples**:
+> [Basic-Function-Example.ps1](../../Documentation/Examples/Basic-Function-Example.ps1) and
+> [Get-ExampleData.ps1](../../Documentation/Examples/Module-Structure-Example/Public/Get-ExampleData.ps1)
+> both generate a correlation ID once in `begin`, carry it through every message, use `$_` in the
+> catch, and `continue` so one failed item does not abort the batch. Both failure paths are covered
+> by tests.
 
 ## Error Handling Implementation
 
 ### Comprehensive Error Handling Pattern
+
 Generate error handling code following this enterprise pattern:
 
 ```powershell
@@ -62,6 +72,7 @@ function Verb-Noun {
 ```
 
 ### Custom Exception Classes
+
 Implement custom exception hierarchies for specific error scenarios:
 
 ```powershell
@@ -99,6 +110,7 @@ class ValidationException : BaseModuleException {
 ## Structured Logging Implementation
 
 ### PSFramework Integration
+
 Set up comprehensive logging with PSFramework:
 
 ```powershell
@@ -127,6 +139,7 @@ function Initialize-ModuleLogging {
 ```
 
 ### Structured Logging Patterns
+
 Implement consistent logging patterns throughout the code:
 
 ```powershell
@@ -173,6 +186,7 @@ function Write-StructuredLog {
 ## Security Event Logging
 
 ### Security-Specific Logging
+
 Implement specialized logging for security events:
 
 ```powershell
@@ -220,6 +234,7 @@ function Write-SecurityLog {
 ## Performance and Correlation Tracking
 
 ### Performance Logging
+
 Track performance metrics with structured logging:
 
 ```powershell
@@ -267,6 +282,7 @@ function Measure-OperationPerformance {
 ```
 
 ### Correlation ID Management
+
 Implement correlation tracking throughout the application:
 
 ```powershell
@@ -317,6 +333,7 @@ function Complete-Operation {
 ## Diagnostic and Troubleshooting Support
 
 ### Diagnostic Data Export
+
 Generate comprehensive diagnostic information:
 
 ```powershell
@@ -358,6 +375,7 @@ function Export-DiagnosticData {
 When implementing error handling and logging:
 
 ### Required Components
+
 1. **Correlation ID tracking** throughout all operations
 2. **Structured logging** with consistent format and context
 3. **Custom exception classes** for specific error scenarios
@@ -366,15 +384,18 @@ When implementing error handling and logging:
 6. **Diagnostic data collection** for troubleshooting support
 
 ### Integration Points
+
 - Reference troubleshooting documentation in `.\Troubleshooting\` folder
 - Integrate with enterprise monitoring and alerting systems
 - Support compliance and audit requirements
 - Enable automated error analysis and trending
 
 ### Quality Standards
+
 - All errors must include correlation IDs for traceability
 - Security events must be logged with appropriate detail and protection
 - Performance metrics must be captured for baseline establishment
 - Diagnostic data must be comprehensive enough for remote troubleshooting
 
-Generate error handling and logging implementations that follow these enterprise patterns while maintaining consistency with the established PowerShell development standards and troubleshooting documentation structure.
+Generate error handling and logging implementations that follow these enterprise patterns while maintaining consistency
+with the established PowerShell development standards and troubleshooting documentation structure.

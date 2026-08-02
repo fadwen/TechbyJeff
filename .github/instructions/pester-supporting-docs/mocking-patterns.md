@@ -54,9 +54,29 @@ You no longer need `Write-Host` debugging to work out why a parameter filter did
 Aliases are matched in `-ParameterFilter`, and mocking falls back gracefully when a command cannot
 produce dynamic parameters.
 
+### Mocking inside a module
+
+A mock declared in a test file replaces the command for callers in that file. To replace a function
+that a _module's_ code calls - typically a private helper - declare the mock inside
+`InModuleScope`, where the module's internal scope is visible:
+
+```powershell
+InModuleScope MyModule {
+    Mock Get-ServiceStatus { throw 'service unreachable' }
+
+    # Get-Data is public; Get-ServiceStatus is private and never exported
+    'Billing', 'Identity' | Get-Data -ErrorAction SilentlyContinue
+}
+```
+
+Worked instance:
+[Module-Structure-Example/Tests](../../../Documentation/Examples/Module-Structure-Example/Tests/)
+mocks a private function this way to exercise a per-item failure path.
+
 ## Advanced Mocking Strategies
 
 ### Context-Aware Mocking
+
 Create sophisticated mocks that respond differently based on parameters:
 
 ```powershell
@@ -123,6 +143,7 @@ BeforeAll {
 ```
 
 ### Database Connection Mocking
+
 Mock database operations with realistic behavior:
 
 ```powershell
@@ -224,6 +245,7 @@ BeforeAll {
 ```
 
 ### File System Mocking
+
 Mock file system operations with realistic behavior:
 
 ```powershell
@@ -330,6 +352,7 @@ BeforeAll {
 ```
 
 ### Network Service Mocking
+
 Mock network operations with failure simulation:
 
 ```powershell
@@ -429,6 +452,7 @@ BeforeAll {
 ```
 
 ### External Command Mocking
+
 Mock external executable commands:
 
 ```powershell
@@ -520,6 +544,7 @@ def456ghi789   redis     "docker-entrypoint.s…"   2 hours ago   Up 2 hours   6
 ## Mock Validation Patterns
 
 ### Parameter Filter Testing
+
 Validate that mocks are called with correct parameters:
 
 ```powershell
@@ -590,6 +615,7 @@ It "Should not write results when validation fails" {
 ```
 
 ### Mock Call Sequence Validation
+
 Ensure mocks are called in the correct order:
 
 ```powershell
@@ -637,6 +663,7 @@ element and names the index that diverged, instead of dumping two flattened stri
 ## Mock Best Practices
 
 ### Isolated Mock Scope
+
 Keep mocks isolated between tests:
 
 ```powershell
@@ -688,6 +715,7 @@ BeforeAll {
 ```
 
 ### Realistic Mock Data
+
 Use realistic data structures in mocks:
 
 ```powershell
@@ -713,6 +741,7 @@ BeforeAll {
 ```
 
 ### Mock Cleanup
+
 Ensure proper mock cleanup:
 
 ```powershell

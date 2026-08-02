@@ -1,19 +1,28 @@
 ---
+mode: 'agent'
 applyTo: "**/*.ps1,**/*.psm1,**/Security/**/*.ps1"
 tools: ['codebase', 'githubRepo']
-description: 'Implements comprehensive security controls and compliance frameworks for PowerShell solutions'
+description: 'Implements security controls and compliance-support patterns for PowerShell solutions'
 ---
 
 # PowerShell Security and Compliance Implementation
 
-Implement robust security controls and compliance frameworks for PowerShell solutions that ensure enterprise-grade security, regulatory compliance, threat mitigation, and comprehensive audit capabilities. Apply security-by-design principles throughout development.
+Implement security controls for PowerShell solutions: input validation, credential handling, audit
+logging, and threat mitigation. Apply security-by-design principles throughout development.
+
+These patterns support regulatory work such as SOX, GDPR, and HIPAA by producing the audit trails,
+access controls, and data-handling evidence those programmes rely on. They do not make a system
+compliant on their own — that depends on controls, evidence, and audit outside this codebase. Do not
+describe generated code as compliant with any regulation.
 
 ## Security Assessment and Implementation
 
 ### Security Requirements Analysis
+
 Evaluate and implement security controls based on:
 
 #### Security Classification
+
 - **Public**: No restrictions, publicly accessible code
 - **Internal**: Internal use only, basic access controls required
 - **Confidential**: Sensitive data, enhanced protection required
@@ -21,7 +30,9 @@ Evaluate and implement security controls based on:
 - **Top Secret**: Maximum security, compartmentalized access
 
 #### Threat Model Assessment
+
 Identify and mitigate threats using STRIDE methodology:
+
 - **Spoofing**: Identity verification and authentication controls
 - **Tampering**: Data integrity and code signing requirements
 - **Repudiation**: Audit logging and non-repudiation controls
@@ -30,6 +41,7 @@ Identify and mitigate threats using STRIDE methodology:
 - **Elevation of Privilege**: Authorization and privilege management
 
 ### Input Validation and Sanitization
+
 Implement comprehensive input validation for all user inputs:
 
 ```powershell
@@ -114,6 +126,7 @@ function Protect-UserInput {
 ```
 
 ### Credential and Secret Management
+
 Implement secure credential handling using SecretManagement:
 
 ```powershell
@@ -219,6 +232,7 @@ function Set-SecureCredential {
 ## Compliance Framework Implementation
 
 ### SOX (Sarbanes-Oxley) Compliance
+
 Implement controls for financial data processing:
 
 ```powershell
@@ -303,6 +317,7 @@ function Invoke-SOXCompliance {
 ```
 
 ### GDPR (General Data Protection Regulation) Compliance
+
 Implement data protection controls for personal data:
 
 ```powershell
@@ -402,6 +417,7 @@ function Invoke-GDPRCompliance {
 ```
 
 ### HIPAA Compliance (Healthcare)
+
 Implement healthcare data protection controls:
 
 ```powershell
@@ -456,6 +472,7 @@ function Invoke-HIPAACompliance {
 ## Code Signing and Certificate Management
 
 ### Automated Code Signing Implementation
+
 ```powershell
 function Invoke-CodeSigning {
     param(
@@ -563,6 +580,7 @@ function Invoke-CodeSigning {
 ```
 
 ### Security Scanning Integration
+
 Implement automated security scanning:
 
 ```powershell
@@ -681,9 +699,11 @@ function Invoke-SecurityScan {
 ## Implementation Requirements
 
 ### Security Integration Checklist
+
 When implementing security and compliance controls:
 
 #### Required Security Components
+
 - [ ] **Input validation** for all user-provided data with type-specific patterns
 - [ ] **Credential management** using SecretManagement with secure vault integration
 - [ ] **Security logging** with correlation IDs and appropriate detail levels
@@ -692,15 +712,20 @@ When implementing security and compliance controls:
 - [ ] **Access controls** implementing principle of least privilege
 - [ ] **Audit trail** maintenance for compliance and forensic requirements
 
-#### Compliance Framework Integration
-- [ ] **SOX compliance** for financial data operations with management approval workflows
-- [ ] **GDPR compliance** for personal data processing with consent management
-- [ ] **HIPAA compliance** for healthcare information with comprehensive safeguards
-- [ ] **PCI DSS compliance** for payment card data (if applicable)
+#### Compliance Framework Support
+
+Controls these programmes depend on. Implementing them supports an audit; it does not by itself
+establish compliance with any of these regulations.
+
+- [ ] **SOX** — approval workflows and tamper-evident audit trails for financial data operations
+- [ ] **GDPR** — consent capture and verification for personal data processing
+- [ ] **GDPR Article 17** — right-to-erasure handling
+- [ ] **HIPAA** — administrative, physical, and technical safeguards for health information
+- [ ] **PCI DSS** — cardholder data handling (if applicable)
 - [ ] **Data retention** policies and automated enforcement
-- [ ] **Right to erasure** implementation for GDPR Article 17 compliance
 
 #### Enterprise Integration Points
+
 - [ ] Integration with enterprise identity management systems
 - [ ] Connection to centralized logging and SIEM platforms
 - [ ] Compliance reporting automation and dashboard integration
@@ -709,6 +734,7 @@ When implementing security and compliance controls:
 - [ ] Security awareness training integration and tracking
 
 ### Troubleshooting Documentation Integration
+
 All security and compliance implementations must include:
 
 - **Security troubleshooting guides** in `./Troubleshooting/Security/` folder
@@ -717,4 +743,6 @@ All security and compliance implementations must include:
 - **Configuration guides** with step-by-step security setup procedures
 - **Error resolution** documentation with correlation ID usage examples
 
-Generate comprehensive security and compliance implementations that provide enterprise-grade protection while maintaining usability and performance. Ensure all controls integrate with established PowerShell development standards and maintain proper documentation in the `./Troubleshooting/` folder structure for consistent organizational reference.
+Generate comprehensive security and compliance implementations that provide enterprise-grade protection while
+maintaining usability and performance. Ensure all controls integrate with established PowerShell development standards
+and maintain proper documentation in the `./Troubleshooting/` folder structure for consistent organizational reference.
