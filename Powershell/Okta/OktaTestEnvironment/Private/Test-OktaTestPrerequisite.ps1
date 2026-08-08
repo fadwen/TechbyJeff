@@ -89,7 +89,7 @@ function Test-OktaTestPrerequisite {
                 $issues += ("The tenant holds $($headroom.InUse) of its $($headroom.Limit) active " +
                     "users$reuse, leaving room for $($headroom.AvailableForSeed). Seeding needs " +
                     "$RequiredUserSlots. Remove users, lower -UserCount, or raise " +
-                    '-ActiveUserLimit if this tenant is not on the Integrator Free Plan.')
+                    '-ActiveUserLimit if this tenant is not a trial org.')
             }
         }
         catch {

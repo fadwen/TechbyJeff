@@ -29,7 +29,7 @@ Describe 'New-OktaTestEnvironment' -Tag 'Unit', 'Public' {
         InModuleScope OktaTestEnvironment {
             Mock Get-OktaTestConnection {
                 @{
-                    OrgUrl              = 'https://dev-123456.okta.com'
+                    OrgUrl              = 'https://trial-123456.okta.com'
                     AuthorizationHeader = 'SSWS test'
                     AuthType            = 'ApiToken'
                     Prefix              = 'OKTALAB'

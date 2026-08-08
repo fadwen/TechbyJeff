@@ -23,7 +23,7 @@ function Connect-OktaTestEnvironment {
         under another.
 
     .PARAMETER OrgUrl
-        The org URL, for example https://dev-123456.okta.com. Both the admin host
+        The org URL, for example https://trial-123456.okta.com. Both the admin host
         (-admin.okta.com) and a trailing slash are tolerated and normalised away, because both
         are what you get from copying the address bar.
 
@@ -49,7 +49,7 @@ function Connect-OktaTestEnvironment {
         it only if you own the domain you change it to.
 
     .PARAMETER ActiveUserLimit
-        The tenant's active user ceiling. Ten matches the Okta Integrator Free Plan; raise it
+        The tenant's active user ceiling. Ten matches an Okta trial org; raise it
         if this tenant is on a paid plan.
 
     .PARAMETER PassThru
@@ -60,15 +60,15 @@ function Connect-OktaTestEnvironment {
 
     .EXAMPLE
         $token = Read-Host 'SSWS token' -AsSecureString
-        Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ApiToken $token
+        Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ApiToken $token
         First run: bootstrap with the API token
 
     .EXAMPLE
-        Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ServiceApp
+        Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ServiceApp
         Every run after that: authenticate as the app
 
     .EXAMPLE
-        Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ApiToken $token `
+        Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ApiToken $token `
             -Prefix CONTOSO -EmailDomain contoso-lab.example.com
         Seed under a different prefix, so two labs can share one tenant
 

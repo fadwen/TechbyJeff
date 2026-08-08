@@ -22,7 +22,7 @@ function Get-OktaTestCredentialPath {
         String path to the credential file
 
     .EXAMPLE
-        Get-OktaTestCredentialPath -OrgUrl 'https://dev-123456.okta.com'
+        Get-OktaTestCredentialPath -OrgUrl 'https://trial-123456.okta.com'
 
     .NOTES
         Author: Jeffrey Stuhr

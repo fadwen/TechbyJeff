@@ -1,10 +1,10 @@
-﻿function New-OktaTestUser {
+function New-OktaTestUser {
     <#
     .SYNOPSIS
         Creates the seeded Okta users from Data\OktaUsers.csv
 
     .DESCRIPTION
-        Creates eight users, which is not an arbitrary number: the Okta Integrator Free Plan
+        Creates eight users, which is not an arbitrary number: an Okta trial org
         licenses ten active users and your own admin account is one of them, so eight is what
         fits with a slot left over for a colleague or a second admin.
 

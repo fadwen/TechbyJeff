@@ -5,7 +5,7 @@
     GUID = 'f3a7c619-2d84-4b51-9e6a-8c0d5f2b7e14'
     Author = 'Jeffrey Stuhr'
     CompanyName = 'EntraVantage LLC'
-    Copyright = '(c) 2026 EntraVantage LLC. All rights reserved.'
+    Copyright = '(c) 2026 EntraVantage LLC. Licensed under GPL-3.0.'
     Description = 'Seeds and tears down an Okta test tenant within a ten active user licence'
 
     # PowerShell Version Requirements
@@ -53,8 +53,8 @@
     PrivateData = @{
         PSData = @{
             Tags = @('Okta', 'TestData', 'Identity', 'Automation', 'OAuth', 'SCIM')
-            LicenseUri = ''
-            ProjectUri = ''
+            LicenseUri = 'https://github.com/fadwen/TechbyJeff/blob/main/LICENSE'
+            ProjectUri = 'https://github.com/fadwen/TechbyJeff/tree/main/Powershell/Okta/OktaTestEnvironment'
             IconUri = ''
             ReleaseNotes = 'Initial release - Okta test environment generation module'
             RequireLicenseAcceptance = $false

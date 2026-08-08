@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 
 # OktaTestEnvironment PowerShell Module
-# Seeds and tears down an Okta test tenant within the Integrator Free Plan's ten user licence
+# Seeds and tears down an Okta test tenant within a trial org's ten user licence
 
 $ModuleRoot = $PSScriptRoot
 Write-Verbose "Initializing OktaTestEnvironment module from: $ModuleRoot"

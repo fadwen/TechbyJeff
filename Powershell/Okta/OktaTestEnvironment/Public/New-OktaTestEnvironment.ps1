@@ -12,7 +12,7 @@ function New-OktaTestEnvironment {
             to it.
          2. Custom profile attributes, on every type's schema. Users cannot carry an attribute
             the schema does not define, and the seed tag teardown relies on is one of them.
-         3. Users. Eight of them, which is what the Okta Integrator Free Plan's ten active user
+         3. Users. Eight of them, which is what an Okta trial org's ten active user
             licence leaves room for once your own admin account is counted.
          4. Groups. Seventeen, because groups are not licence-limited and are where an eight
             user tenant gets its complexity back.
@@ -88,7 +88,7 @@ function New-OktaTestEnvironment {
         PSCustomObject summarising every operation, when -PassThru is used
 
     .EXAMPLE
-        Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ApiToken $token
+        Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ApiToken $token
         New-OktaTestEnvironment
         The normal first run
 

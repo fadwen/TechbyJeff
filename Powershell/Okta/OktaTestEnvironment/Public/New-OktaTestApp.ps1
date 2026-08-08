@@ -10,7 +10,7 @@ function New-OktaTestApp {
         exercise assignment, entitlement reporting, access reviews, or the offboarding question
         "what can this leaver still reach".
 
-        Eight apps, and like the groups they are free: the Integrator Free Plan caps active
+        Eight apps, and like the groups they are free: a trial org caps active
         users at ten but does not cap apps, so this is where an eight-user tenant gets to look
         like a real one.
 

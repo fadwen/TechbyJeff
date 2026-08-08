@@ -1,7 +1,6 @@
 # OktaTestEnvironment
 
-[![PowerShell Gallery](https://img.shields.io/badge/PowerShell%20Gallery-v1.0.0-blue)](https://www.powershellgallery.com/)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![License](https://img.shields.io/badge/license-GPL--3.0-green)](https://github.com/fadwen/TechbyJeff/blob/main/LICENSE)
 [![PowerShell Version](https://img.shields.io/badge/PowerShell-5.1%2B-blue)](https://github.com/PowerShell/PowerShell)
 
 ## 📖 Purpose
@@ -9,7 +8,7 @@
 **OktaTestEnvironment** seeds a realistic Okta identity environment you can point scripts at, and
 tears it down again cleanly.
 
-One number shapes the whole design. An Okta Integrator Free Plan tenant licenses **ten active
+One number shapes the whole design. An Okta trial org licenses **ten active
 users**, and your own admin account is one of them, so this module seeds **eight**. Most test-data
 generators lean on volume; here the eleventh user is a licence error.
 
@@ -50,7 +49,7 @@ Import-Module .\OktaTestEnvironment.psd1
 
 # 2. Connect with an SSWS token from Security > API > Tokens in the admin console
 $token = Read-Host 'SSWS token' -AsSecureString
-Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ApiToken $token
+Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ApiToken $token
 
 # 3. See what it would do before it does it
 New-OktaTestEnvironment -WhatIf
@@ -59,7 +58,7 @@ New-OktaTestEnvironment -WhatIf
 New-OktaTestEnvironment
 
 # 5. From now on, authenticate as the app it created
-Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ServiceApp
+Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ServiceApp
 ```
 
 ### Expected results
@@ -69,7 +68,7 @@ Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ServiceApp
 📊 Created: 2 user types, 10 custom attributes, 8 users, 17 groups, 3 group rules, 8 apps,
             1 linked object pair, 2 network zones, 3 policies, 2 trusted origins,
             2 event hooks, 1 service app
-🔑 Private key: C:\Users\you\.oktatestenvironment\dev-123456.okta.com.serviceapp.json
+🔑 Private key: C:\Users\you\.oktatestenvironment\trial-123456.okta.com.serviceapp.json
 ⏱️  Total time: one to two minutes
 ```
 
@@ -80,7 +79,7 @@ Once step 5 works, **revoke the SSWS token**. It has done its only job.
 | Requirement | Minimum | Notes |
 |---|---|---|
 | **PowerShell** | 5.1 | Desktop and Core; verified on Windows PowerShell 5.1 and pwsh 7.4 on Debian |
-| **Okta org** | Integrator Free Plan | Or any org; raise `-ActiveUserLimit` on a paid plan |
+| **Okta org** | Trial org | Or any org; raise `-ActiveUserLimit` on a paid plan |
 | **SSWS API token** | Super admin | Only for the first run |
 | **Free user slots** | 8 | Checked before anything is created |
 | **Modules** | none | Deliberately zero dependencies |
@@ -108,10 +107,10 @@ This is the part worth understanding, because the order matters.
 
 ```powershell
 # First run only
-Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ApiToken $token
+Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ApiToken $token
 
 # Every run afterwards
-Connect-OktaTestEnvironment -OrgUrl https://dev-123456.okta.com -ServiceApp
+Connect-OktaTestEnvironment -OrgUrl https://trial-123456.okta.com -ServiceApp
 
 # Or mint a token to hand to something else
 $bearer = Get-OktaTestAccessToken -AsPlainText
@@ -280,7 +279,7 @@ only order that works, because each depends on the last.
     than only the default — reading only the default is the exact mistake the second user type
     exists to expose.
   - It asks Okta for each app's group and user assignments separately, so a full report is
-    around forty calls. On the Integrator Free Plan's low per-minute ceiling that can trip a
+    around forty calls. On a trial org's low per-minute ceiling that can trip a
     `429`; the retry handles it, but the report takes noticeably longer when it does.
 
 ## 📊 Test data inventory
@@ -663,6 +662,8 @@ tenant.
 - **PowerShell**: 5.1+ (Desktop/Core compatible)
 - **Dependencies**: none
 - **Module GUID**: f3a7c619-2d84-4b51-9e6a-8c0d5f2b7e14
+- **License**: [GPL-3.0](https://github.com/fadwen/TechbyJeff/blob/main/LICENSE)
+- **Source**: [Powershell/Okta/OktaTestEnvironment](https://github.com/fadwen/TechbyJeff/tree/main/Powershell/Okta/OktaTestEnvironment)
 
 ## 📞 Support & contact
 

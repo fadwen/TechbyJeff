@@ -26,7 +26,7 @@ Describe 'New-OktaTestClientAssertion' -Tag 'Unit', 'Private' {
         InModuleScope OktaTestEnvironment {
             $script:KeyPair = New-OktaTestRsaKeyPair -KeySize 2048
             $script:Assertion = New-OktaTestClientAssertion -PrivateJwk $script:KeyPair.PrivateJwk `
-                -ClientId '0oaTESTCLIENTID' -Audience 'https://dev-123456.okta.com/oauth2/v1/token'
+                -ClientId '0oaTESTCLIENTID' -Audience 'https://trial-123456.okta.com/oauth2/v1/token'
         }
     }
 
@@ -64,7 +64,7 @@ Describe 'New-OktaTestClientAssertion' -Tag 'Unit', 'Private' {
             $payload = [System.Text.Encoding]::UTF8.GetString(
                 (ConvertFrom-OktaTestBase64Url -Text ($script:Assertion -split '\.')[1])) | ConvertFrom-Json
 
-            $payload.aud | Should-Be 'https://dev-123456.okta.com/oauth2/v1/token'
+            $payload.aud | Should-Be 'https://trial-123456.okta.com/oauth2/v1/token'
         }
     }
 
@@ -119,7 +119,7 @@ Describe 'New-OktaTestClientAssertion' -Tag 'Unit', 'Private' {
     It 'produces a different assertion each time' {
         InModuleScope OktaTestEnvironment {
             $second = New-OktaTestClientAssertion -PrivateJwk $script:KeyPair.PrivateJwk `
-                -ClientId '0oaTESTCLIENTID' -Audience 'https://dev-123456.okta.com/oauth2/v1/token'
+                -ClientId '0oaTESTCLIENTID' -Audience 'https://trial-123456.okta.com/oauth2/v1/token'
 
             $second | Should-NotBe $script:Assertion
         }

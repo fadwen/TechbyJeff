@@ -4,7 +4,7 @@ function Get-OktaTestUserHeadroom {
         Reports how many more users the tenant will accept before it hits its licence ceiling
 
     .DESCRIPTION
-        The Okta Integrator Free Plan allows ten active users, and your own admin account is
+        An Okta trial org allows ten active users, and your own admin account is
         one of them. That is the single constraint this whole module is shaped around, and the
         reason it seeds eight users rather than the hundreds a test-data generator would
         normally produce.
@@ -21,7 +21,7 @@ function Get-OktaTestUserHeadroom {
         in after a seed run fails halfway and you want to fix the cause and try again.
 
     .PARAMETER ActiveUserLimit
-        The tenant's active user ceiling. Ten for the Integrator Free Plan.
+        The tenant's active user ceiling. Ten for a trial org.
 
     .OUTPUTS
         PSCustomObject with Limit, InUse, Available, SeededInUse, AvailableForSeed and

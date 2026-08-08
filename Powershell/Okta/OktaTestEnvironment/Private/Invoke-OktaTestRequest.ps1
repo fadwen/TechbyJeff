@@ -13,7 +13,7 @@ function Invoke-OktaTestRequest {
           the raw stream rather than trusting the charset negotiation.
         - Cursor pagination. Okta pages with a Link header, not a page number, so -Paginate
           follows rel="next" until a page comes back empty.
-        - 429 handling. The Integrator Free Plan has a low per-minute ceiling and seeding an
+        - 429 handling. A trial org has a low per-minute ceiling and seeding an
           environment will hit it. Retries honour X-Rate-Limit-Reset when Okta sends it and
           fall back to exponential backoff when it does not.
         - Readable errors. Okta puts the useful part in errorCauses inside the response body,

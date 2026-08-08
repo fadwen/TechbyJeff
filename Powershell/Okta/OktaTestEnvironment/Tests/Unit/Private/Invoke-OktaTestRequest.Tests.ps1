@@ -34,7 +34,7 @@ Describe 'Invoke-OktaTestRequest' -Tag 'Unit', 'Private' {
     BeforeEach {
         InModuleScope OktaTestEnvironment {
             $script:Connection = @{
-                OrgUrl              = 'https://dev-123456.okta.com'
+                OrgUrl              = 'https://trial-123456.okta.com'
                 AuthorizationHeader = 'SSWS test'
             }
         }
@@ -88,7 +88,7 @@ Describe 'Invoke-OktaTestRequest' -Tag 'Unit', 'Private' {
                 }
 
                 $null = Invoke-OktaTestRequest -Method POST -Path '/oauth2/v1/token' `
-                    -Connection @{ OrgUrl = 'https://dev-123456.okta.com'; AuthorizationHeader = $null } `
+                    -Connection @{ OrgUrl = 'https://trial-123456.okta.com'; AuthorizationHeader = $null } `
                     -Body 'grant_type=client_credentials' `
                     -ContentType 'application/x-www-form-urlencoded'
 
@@ -204,7 +204,7 @@ Describe 'Invoke-OktaTestRequest' -Tag 'Unit', 'Private' {
                     if ($script:PageCount -eq 1) {
                         return [PSCustomObject]@{
                             Content = '[{"id":"a"}]'
-                            Headers = @{ Link = '<https://dev-123456.okta.com/api/v1/users?after=a>; rel="next"' }
+                            Headers = @{ Link = '<https://trial-123456.okta.com/api/v1/users?after=a>; rel="next"' }
                             RawContentStream = $null
                         }
                     }
@@ -225,7 +225,7 @@ Describe 'Invoke-OktaTestRequest' -Tag 'Unit', 'Private' {
                 Mock Invoke-WebRequest {
                     [PSCustomObject]@{
                         Content = '[{"id":"a"}]'
-                        Headers = @{ Link = '<https://dev-123456.okta.com/api/v1/users>; rel="next"' }
+                        Headers = @{ Link = '<https://trial-123456.okta.com/api/v1/users>; rel="next"' }
                         RawContentStream = $null
                     }
                 }

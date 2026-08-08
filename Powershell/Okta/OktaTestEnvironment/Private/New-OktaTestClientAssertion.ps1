@@ -34,7 +34,7 @@ function New-OktaTestClientAssertion {
 
     .EXAMPLE
         $assertion = New-OktaTestClientAssertion -PrivateJwk $jwk -ClientId $clientId `
-            -Audience 'https://dev-123456.okta.com/oauth2/v1/token'
+            -Audience 'https://trial-123456.okta.com/oauth2/v1/token'
 
     .NOTES
         Author: Jeffrey Stuhr

@@ -48,7 +48,7 @@ function Get-OktaTestAccessToken {
 
     .EXAMPLE
         $token = Get-OktaTestAccessToken -AsPlainText
-        curl -H "Authorization: Bearer $token" https://dev-123456.okta.com/api/v1/users
+        curl -H "Authorization: Bearer $token" https://trial-123456.okta.com/api/v1/users
 
     .EXAMPLE
         Get-OktaTestAccessToken -Scope okta.users.read
