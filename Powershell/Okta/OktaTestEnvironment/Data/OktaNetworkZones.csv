@@ -1,0 +1,3 @@
+"Name","Type","Usage","Gateways","Proxies","Purpose"
+"Corporate-Egress","IP","POLICY","198.51.100.0/24;203.0.113.0/24","","Trusted office ranges, referenced by the admin sign-on policy"
+"Suspect-Range","IP","BLOCKLIST","192.0.2.0/24","","A blocklisted range, so policy evaluation has something to deny"

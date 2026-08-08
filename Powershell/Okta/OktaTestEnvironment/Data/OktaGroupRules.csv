@@ -1,0 +1,4 @@
+"Name","TargetGroup","Expression","Description","Activate"
+"Contractors","Auto-Contractors","user.labIsContractor == true","Drives membership from a boolean custom attribute","TRUE"
+"High-Clearance","Auto-Clearance-High","user.labClearanceLevel == ""High""","Drives membership from an enumerated custom attribute","TRUE"
+"Engineering","Auto-Engineering","String.stringContains(user.department, ""Engineering"")","Drives membership from a base-schema attribute using an expression function","TRUE"

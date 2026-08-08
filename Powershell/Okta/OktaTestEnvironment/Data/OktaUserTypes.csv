@@ -1,0 +1,2 @@
+"Name","DisplayName","Description"
+"Contractor","Lab Contractor","A second user type. Scripts that read the default schema miss these users entirely, which is the point."

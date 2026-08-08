@@ -1,0 +1,3 @@
+"Name","Origin","Scopes","Purpose"
+"Lab-Portal","https://portal.example.com","CORS;REDIRECT","Both scopes, the common case for a single-page app that also signs users out"
+"Lab-Widget-Host","https://widget.example.com","CORS","CORS only, so a report that assumes every origin redirects is wrong"

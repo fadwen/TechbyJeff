@@ -1,0 +1,10 @@
+# The service app private key, if anyone ever points -CredentialPath at the module folder.
+# The default location is outside the repository precisely so this line is not load-bearing,
+# but a key committed once is a key that has to be rotated, so belt and braces.
+*.serviceapp.json
+*.credential.json
+
+# Generated reports
+OktaLab*.csv
+okta-lab*.html
+okta-lab*.json

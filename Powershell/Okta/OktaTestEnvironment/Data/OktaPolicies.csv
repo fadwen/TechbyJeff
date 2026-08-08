@@ -1,0 +1,4 @@
+"Name","Type","Description","Groups","RuleName","RuleZone","RuleAccess","MinLength","MaxAgeDays","MaxSessionIdleMinutes","MaxSessionLifetimeMinutes"
+"Admin-Session","OKTA_SIGN_ON","Administrators may only sign in from the corporate egress ranges","App-Admins","From-Corporate-Only","Corporate-Egress","ALLOW","","","30","240"
+"Standard-Session","OKTA_SIGN_ON","Everyone else signs in from anywhere, with a longer session","All-Employees","From-Anywhere","","ALLOW","","","120","720"
+"Contractor-Password","PASSWORD","Contractors get a longer minimum and a shorter maximum age","Auto-Contractors","","","","14","30","",""

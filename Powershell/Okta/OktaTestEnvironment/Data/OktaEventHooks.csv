@@ -1,0 +1,3 @@
+"Name","Uri","Events","Purpose"
+"Lifecycle-Watcher","https://example.com/oktalab/lifecycle","user.lifecycle.create;user.lifecycle.delete.initiated;user.lifecycle.suspend","Fires on the user lifecycle transitions this lab deliberately exercises"
+"Group-Watcher","https://example.com/oktalab/groups","group.user_membership.add;group.user_membership.remove","Membership churn, which the group rules generate on their own"
