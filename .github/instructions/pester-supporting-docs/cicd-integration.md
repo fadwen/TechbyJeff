@@ -94,9 +94,16 @@ jobs:
         $config.Run.PassThru = $true
         $config.Output.Verbosity = 'None'
 
-        $untagged = Invoke-Pester -Configuration $config
-        if ($untagged.TotalCount -gt 0) {
-          throw "$($untagged.TotalCount) test(s) have no tag"
+        $result = Invoke-Pester -Configuration $config
+
+        # TotalCount ignores Filter.Tag - it counts everything discovered, so it
+        # would fail every non-empty suite. ShouldRun marks what the filter selected.
+        $untagged = @($result.Tests | Where-Object ShouldRun)
+        if ($untagged.Count -gt 0) {
+          $untagged | ForEach-Object {
+            Write-Host "::error::Untagged test: $($_.ExpandedPath)"
+          }
+          throw "$($untagged.Count) test(s) have no tag"
         }
 
   test:

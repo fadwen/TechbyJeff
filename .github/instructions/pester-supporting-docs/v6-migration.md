@@ -170,8 +170,13 @@ Combine with real tags: `-TagFilter None, Acceptance`. Comparison is case-insens
 This is useful for finding tests that escaped the tagging convention:
 
 ```powershell
-Invoke-Pester -Path ./Tests -TagFilter 'None'   # should return zero tests in a well-tagged suite
+Invoke-Pester -Path ./Tests -TagFilter 'None'   # a well-tagged suite RUNS zero tests
 ```
+
+Read the **Passed** count in the summary. The discovered count stays at the full suite size -
+`TotalCount` ignores the filter - so scripted gates must count
+`$result.Tests | Where-Object ShouldRun` instead. See
+[Test Execution Guide](./test-execution.md).
 
 If you used `None` as a literal tag, rename it - filtering by it now also selects every untagged
 test.
@@ -223,7 +228,7 @@ $config.Run.SkipRun = $true
 $config.Run.PassThru = $true
 Invoke-Pester -Configuration $config
 
-# 5. Find untagged tests
+# 5. Find untagged tests - a well-tagged suite runs zero
 Invoke-Pester -Path ./Tests -TagFilter 'None'
 ```
 

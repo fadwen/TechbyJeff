@@ -472,6 +472,18 @@ contributes nothing to `FailedCount`, so a gate that only inspects `FailedCount`
 while entire test files never ran. This is the most likely way a v6 upgrade passes CI while silently
 losing coverage.
 
+**`TotalCount` ignores `Filter.Tag`, `Filter.FullName` and `Filter.Line`.** It is the number of
+tests _discovered_, not the number the filter selected, so it is the same with or without a filter
+and the same whether or not `Run.SkipRun` is set. Never gate on it when a filter is active - it
+would be non-zero for any non-empty suite. To count what a filter actually matched:
+
+```powershell
+$selected = @($result.Tests | Where-Object ShouldRun)
+```
+
+`ShouldRun` is set during discovery, so this works in a `SkipRun` pass too. On a real run,
+`PassedCount` and `NotRunCount` also reflect the filter - only `TotalCount` does not.
+
 ## Quick Execution Commands
 
 ### Development Testing
@@ -669,9 +681,15 @@ $config.Run.SkipRun = $true
 $config.Run.PassThru = $true
 $config.Output.Verbosity = 'None'
 
-$untagged = Invoke-Pester -Configuration $config
-if ($untagged.TotalCount -gt 0) {
-    throw "$($untagged.TotalCount) test(s) have no tag."
+$result = Invoke-Pester -Configuration $config
+
+# Do NOT gate on TotalCount - it counts every test discovered and ignores
+# Filter.Tag, so it is non-zero for any non-empty suite whatever the filter.
+# ShouldRun marks the tests the filter actually selected.
+$untagged = @($result.Tests | Where-Object ShouldRun)
+if ($untagged.Count -gt 0) {
+    $untagged | ForEach-Object { Write-Host "  untagged: $($_.ExpandedPath)" }
+    throw "$($untagged.Count) test(s) have no tag."
 }
 ```
 

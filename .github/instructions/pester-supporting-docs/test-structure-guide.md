@@ -160,7 +160,7 @@ Describe "Security-Validation" -Tag "Security", "InputValidation" {
 In Pester 6, `None` (case-insensitive) is a reserved **filter** value meaning "tests that have no tag
 on themselves or any parent block". Never use it as a literal tag name.
 
-Use it to audit tagging coverage - a well-tagged suite returns zero tests:
+Use it to audit tagging coverage - a well-tagged suite runs zero tests:
 
 ```powershell
 Invoke-Pester -Path ./Tests -TagFilter 'None'          # find untagged tests
@@ -168,17 +168,27 @@ Invoke-Pester -Path ./Tests -ExcludeTagFilter 'None'   # run only tagged tests
 Invoke-Pester -Path ./Tests -TagFilter None, Acceptance
 ```
 
+Interactively, read the **Passed** count in the summary, not the discovered count.
+
 Add the audit to CI so untagged tests cannot slip in:
 
 ```powershell
 $config = New-PesterConfiguration
 $config.Run.Path = './Tests'
-$config.Filter.Tag = 'None'
+$config.Run.SkipRun = $true      # discovery is enough; nothing needs to execute
 $config.Run.PassThru = $true
+$config.Filter.Tag = 'None'      # reserved value: tests with NO tags
 $config.Output.Verbosity = 'None'
-$untagged = Invoke-Pester -Configuration $config
-if ($untagged.TotalCount -gt 0) {
-    throw "$($untagged.TotalCount) test(s) have no tag. Tag every Describe block."
+
+$result = Invoke-Pester -Configuration $config
+
+# TotalCount is every test DISCOVERED and ignores Filter.Tag entirely, so it is
+# the wrong thing to gate on - it would be non-zero for any non-empty suite.
+# The tests a filter actually selected are the ones marked ShouldRun.
+$untagged = @($result.Tests | Where-Object ShouldRun)
+if ($untagged.Count -gt 0) {
+    $untagged | ForEach-Object { Write-Host "  untagged: $($_.ExpandedPath)" }
+    throw "$($untagged.Count) test(s) have no tag. Tag every Describe block."
 }
 ```
 
