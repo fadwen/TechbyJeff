@@ -202,9 +202,10 @@ Describe 'Invoke-OktaTestRequest' -Tag 'Unit', 'Private' {
                 Mock Invoke-WebRequest {
                     $script:PageCount++
                     if ($script:PageCount -eq 1) {
+                        $next = '<https://trial-123456.okta.com/api/v1/users?after=a>; rel="next"'
                         return [PSCustomObject]@{
                             Content = '[{"id":"a"}]'
-                            Headers = @{ Link = '<https://trial-123456.okta.com/api/v1/users?after=a>; rel="next"' }
+                            Headers = @{ Link = $next }
                             RawContentStream = $null
                         }
                     }
