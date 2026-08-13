@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.0.0' }
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.1.0' }
 
 <#
     The orchestrator's only real job is ordering, and the order is not arbitrary: each step
@@ -206,6 +206,147 @@ Describe 'New-OktaTestEnvironment' -Tag 'Unit', 'Public' {
 
             { New-OktaTestEnvironment -Confirm:$false } | Should-Throw -ExceptionMessage '*Prerequisites not met*'
             Should-NotInvoke New-OktaTestUser
+        }
+    }
+
+    It 'asks for headroom matching the requested user count' {
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -UserCount 4 -Confirm:$false
+
+            Should-Invoke Test-OktaTestPrerequisite -Times 1 -Exactly -ParameterFilter {
+                $RequiredUserSlots -eq 4
+            }
+        }
+    }
+
+    It 'forwards the service app label, -Force and the token to revoke' {
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -ServiceAppLabel 'My App' -Force `
+                -RevokeApiToken bootstrap -Confirm:$false
+
+            Should-Invoke New-OktaTestServiceApp -Times 1 -Exactly -ParameterFilter {
+                $Label -eq 'My App' -and $Force -and $RevokeApiToken -eq 'bootstrap'
+            }
+        }
+    }
+
+    It 'forwards the service app scope and credential path' {
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -ServiceAppScope okta.users.read `
+                -CredentialPath 'TestDrive:/cred.json' -Confirm:$false
+
+            Should-Invoke New-OktaTestServiceApp -Times 1 -Exactly -ParameterFilter {
+                $Scope -contains 'okta.users.read' -and $CredentialPath -eq 'TestDrive:/cred.json'
+            }
+        }
+    }
+
+    It 'forwards the vault name and password only when SecretStore was asked for' {
+        # The vault arguments are built conditionally, so passing -VaultName without
+        # -UseSecretStore must not reach the service app as a half-configured vault request.
+        InModuleScope OktaTestEnvironment {
+            $vaultPassword = [System.Security.SecureString]::new()
+            foreach ($character in 'VaultPassw0rd!'.ToCharArray()) {
+                $vaultPassword.AppendChar($character)
+            }
+            $vaultPassword.MakeReadOnly()
+
+            $null = New-OktaTestEnvironment -UseSecretStore -VaultName MyVault `
+                -VaultPassword $vaultPassword -Confirm:$false
+
+            Should-Invoke New-OktaTestServiceApp -Times 1 -Exactly -ParameterFilter {
+                $UseSecretStore -and $VaultName -eq 'MyVault' -and $null -ne $VaultPassword
+            }
+        }
+    }
+
+    It 'leaves the service app on its own defaults when nothing was supplied' {
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -Confirm:$false
+
+            Should-Invoke New-OktaTestServiceApp -Times 1 -Exactly -ParameterFilter {
+                -not $Label -and -not $UseSecretStore -and -not $RevokeApiToken
+            }
+        }
+    }
+
+    It 'forwards the account password and the lifecycle switch to the user step' {
+        InModuleScope OktaTestEnvironment {
+            # Built a character at a time rather than with ConvertTo-SecureString -AsPlainText.
+            # The result is identical, but the plaintext form is the pattern security scanners
+            # flag, and a test file is a poor place to demonstrate it.
+            $password = [System.Security.SecureString]::new()
+            foreach ($character in 'Lab-Passw0rd!'.ToCharArray()) {
+                $password.AppendChar($character)
+            }
+            $password.MakeReadOnly()
+
+            $null = New-OktaTestEnvironment -AccountPassword $password -SkipLifecycleStates `
+                -Confirm:$false
+
+            Should-Invoke New-OktaTestUser -Times 1 -Exactly -ParameterFilter {
+                $null -ne $AccountPassword -and $SkipLifecycleStates
+            }
+        }
+    }
+
+    It 'summarises what each step did with -ShowProgress' {
+        # Each step carries its own Report scriptblock so the summary can name what that step
+        # actually did. None of them run without -ShowProgress, so this is the only thing that
+        # exercises them - and a report block that throws would fail the step it describes,
+        # turning a reporting bug into a seeding failure.
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -ShowProgress -Confirm:$false -Verbose 4>&1 `
+                -OutVariable stream
+
+            $verbose = @($stream | Where-Object {
+                $_ -is [System.Management.Automation.VerboseRecord] })
+            $text = @($verbose.Message) -join "`n"
+
+            $text | Should-MatchString '17 created, 30 memberships'
+            $text | Should-MatchString '3 created, 3 activated'
+            $text | Should-MatchString 'client_id 0oaTEST'
+        }
+    }
+
+    It 'stays quiet about step detail without -ShowProgress' {
+        InModuleScope OktaTestEnvironment {
+            $null = New-OktaTestEnvironment -Confirm:$false -Verbose 4>&1 -OutVariable stream
+
+            $verbose = @($stream | Where-Object {
+                $_ -is [System.Management.Automation.VerboseRecord] })
+
+            (@($verbose.Message) -join "`n") | Should-NotMatchString '17 created, 30 memberships'
+        }
+    }
+
+    It 'reports the org, a correlation id and a duration' {
+        InModuleScope OktaTestEnvironment {
+            $result = New-OktaTestEnvironment -Confirm:$false -PassThru
+
+            $result.OrgUrl | Should-Be 'https://trial-123456.okta.com'
+            $result.Prefix | Should-Be 'OKTALAB'
+            $result.CorrelationId | Should-HaveType ([guid])
+            $result.Duration | Should-NotBeNull
+            $result.Summary.TotalOperations | Should-Be 12
+            $result.Summary.FailedOperations | Should-Be 0
+        }
+    }
+
+    It 'keeps each step result under its own key' {
+        InModuleScope OktaTestEnvironment {
+            $result = New-OktaTestEnvironment -Confirm:$false -PassThru
+
+            $result.Operations.Groups.Results.CreatedGroups | Should-Be 17
+            $result.Operations.GroupRules.Results.CreatedRules | Should-Be 3
+            $result.Operations.ServiceApp.Results.ClientId | Should-Be '0oaTEST'
+        }
+    }
+
+    It 'returns nothing without -PassThru' {
+        InModuleScope OktaTestEnvironment {
+            $result = New-OktaTestEnvironment -Confirm:$false
+            $result | Should-BeNull
         }
     }
 }

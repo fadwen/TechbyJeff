@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.0.0' }
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.1.0' }
 
 <#
 .SYNOPSIS
@@ -29,7 +29,7 @@
     Blog: https://www.techbyjeff.net
     LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
     Last Updated: 2026-08-01
-    Requires: Pester 6.0 or later
+    Requires: Pester 6.1 or later
 #>
 
 BeforeDiscovery {
@@ -1399,6 +1399,14 @@ Describe 'New-WindowsInstallCommand' -Tag 'Unit' {
 Describe 'New-SshAskPassHelper' -Tag 'Unit' {
 
     BeforeAll {
+        # Declared here because the AfterEach below reads it. Not every test in this block
+        # assigns it, so without this the AfterEach is only safe once some earlier test has
+        # created the variable - which held by luck of declaration order and broke as soon
+        # as the order changed. Deploy-SshKey.ps1 runs under Set-StrictMode -Version Latest,
+        # where reading a never-set variable is terminating, so the AfterEach threw and
+        # failed a test that had already passed its own assertions.
+        $script:helper = $null
+
         $script:secret = 'correct-horse-battery-staple'
 
         # Built a character at a time rather than with ConvertTo-SecureString -AsPlainText.
