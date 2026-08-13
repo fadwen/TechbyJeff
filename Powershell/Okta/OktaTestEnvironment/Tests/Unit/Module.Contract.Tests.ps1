@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.0.0' }
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.1.0' }
 
 <#
     Contract tests for the module itself - manifest, exports and layout.

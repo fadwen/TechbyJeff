@@ -577,7 +577,7 @@ Pester 6 unit tests live in `Tests\Unit\`. Every Okta call is mocked, so the sui
 tenant, burns none of the ten user slots, and is safe to run on a workstation.
 
 ```powershell
-Import-Module Pester -MinimumVersion 6.0.0
+Import-Module Pester -MinimumVersion 6.1.0
 Invoke-Pester -Path .\Tests
 
 # One area at a time

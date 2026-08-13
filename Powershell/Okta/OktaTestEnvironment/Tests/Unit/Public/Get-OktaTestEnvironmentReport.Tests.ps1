@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.0.0' }
+﻿#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.1.0' }
 
 <#
     The report is the module's own account of what it built, so the defect that matters is not
@@ -201,6 +201,81 @@ Describe 'Get-OktaTestEnvironmentReport' -Tag 'Unit', 'Public' {
             @($r.Apps).Count | Should-Be 1
             @($r.Groups).Count | Should-Be 1
             $r.Groups[0].MemberCount | Should-Be 0
+        }
+    }
+
+    It 'writes one CSV per object type, creating the directory if it is missing' {
+        InModuleScope OktaTestEnvironment {
+            $path = Join-Path $script:Scratch 'csv-out'
+
+            $null = Get-OktaTestEnvironmentReport -OutputFormat CSV -OutputPath $path
+
+            @(Get-ChildItem -Path $path -Filter *.csv).Name | Sort-Object |
+                Should-BeCollection @('OktaLabApps.csv', 'OktaLabAttributes.csv',
+                    'OktaLabGroups.csv', 'OktaLabPolicies.csv', 'OktaLabRules.csv',
+                    'OktaLabUsers.csv')
+        }
+    }
+
+    It 'writes CSV as UTF-8, so the accented names survive the export' {
+        # Not incidental. Export-Csv defaults to ASCII on Windows PowerShell, and the seeded
+        # directory is full of names that do not survive it - the export would succeed and
+        # quietly produce mojibake, which is the failure mode the accented users exist to catch.
+        InModuleScope OktaTestEnvironment {
+            Mock Get-OktaTestSeededUser {
+                @([PSCustomObject]@{
+                    id = 'u1'; status = 'ACTIVE'
+                    profile = [PSCustomObject]@{
+                        login = 'zmueller@oktalab.example.com'; displayName = 'Zoé Müller' }
+                })
+            }
+
+            $path = Join-Path $script:Scratch 'csv-utf8'
+            $null = Get-OktaTestEnvironmentReport -OutputFormat CSV -OutputPath $path
+
+            $users = Import-Csv -Path (Join-Path $path 'OktaLabUsers.csv') -Encoding UTF8
+            @($users.Name) | Should-ContainCollection 'Zoé Müller'
+        }
+    }
+
+    It 'flattens multi-valued columns rather than writing a type name' {
+        # A joined list is the whole reason these columns are projected. Left alone they
+        # export as "System.Object[]", which looks like data and is not.
+        InModuleScope OktaTestEnvironment {
+            $path = Join-Path $script:Scratch 'csv-flat'
+            $null = Get-OktaTestEnvironmentReport -OutputFormat CSV -OutputPath $path
+
+            $groups = Import-Csv -Path (Join-Path $path 'OktaLabGroups.csv') -Encoding UTF8
+            @($groups.Members | Where-Object { $_ -like '*System.Object*' }) |
+                Should-BeCollection -Count 0
+        }
+    }
+
+    It 'writes an HTML report with a section for every object type' {
+        InModuleScope OktaTestEnvironment {
+            $path = Join-Path $script:Scratch 'r.html'
+            $null = Get-OktaTestEnvironmentReport -OutputFormat HTML -OutputPath $path
+
+            $html = Get-Content -Path $path -Raw -Encoding UTF8
+            foreach ($heading in @('Users', 'Groups', 'Group rules', 'User types',
+                    'Custom attributes', 'Network zones', 'Policies', 'Trusted origins',
+                    'Event hooks', 'Linked objects', 'Apps')) {
+                $html | Should-MatchString ([regex]::Escape("<h2>$heading</h2>"))
+            }
+        }
+    }
+
+    It 'marks an exhausted user licence in the HTML rather than just printing it' {
+        # The tenant cap is the constraint the whole module is shaped around, so a report that
+        # states it in the same voice as everything else buries the one number that blocks a
+        # re-seed. The mocked headroom here has nothing free.
+        InModuleScope OktaTestEnvironment {
+            $path = Join-Path $script:Scratch 'r-warn.html'
+            $null = Get-OktaTestEnvironmentReport -OutputFormat HTML -OutputPath $path
+
+            $html = Get-Content -Path $path -Raw -Encoding UTF8
+            $html | Should-MatchString "class='warn'"
+            $html | Should-MatchString 'Active users: 10 of 10'
         }
     }
 }
