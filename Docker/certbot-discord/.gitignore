@@ -1,0 +1,7 @@
+# Never commit secrets. These are created at install time on the host.
+discord-webhook
+cloudflare.ini
+*.ini
+*.pem
+*.key
+.secrets/

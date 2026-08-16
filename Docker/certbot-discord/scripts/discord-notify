@@ -1,0 +1,139 @@
+#!/bin/bash
+# Post a notification to a Discord webhook.
+#
+#   discord-notify --setup                  prompt for the webhook URL, store it, send a test
+#   echo "body" | discord-notify "Title"     post; long bodies are attached as a file
+#   discord-notify "Title" --file report.txt attach a file explicitly
+#   discord-notify "Title" --color red|green|yellow|grey
+#
+# The webhook URL lives in /etc/discord-webhook (mode 0600). Discord caps a
+# message at 2000 characters, so anything longer is uploaded as a .txt
+# attachment instead of being silently truncated.
+
+set -uo pipefail
+
+CONF=/etc/discord-webhook
+MAX=1900                     # leave room for the code fence
+
+die() { echo "discord-notify: $*" >&2; exit 1; }
+
+if [ "${1:-}" = "--setup" ]; then
+    if [ -t 0 ]; then
+        echo "Create a webhook in Discord: Server Settings -> Integrations ->"
+        echo "Webhooks -> New Webhook -> pick a channel -> Copy Webhook URL."
+        echo
+        echo "(input is hidden; you can also pipe it in:"
+        echo "   discord-notify --setup < file-containing-the-url )"
+        read -rsp "Paste the webhook URL: " RAW; echo
+    else
+        read -r RAW            # piped in
+    fi
+
+    # Terminals wrap pastes in bracketed-paste escapes (\e[200~ ... \e[201~)
+    # and some add stray control characters or quotes. Strip all of it.
+    URL=$(printf '%s' "$RAW" | python3 -c '
+import re, sys
+s = sys.stdin.read()
+s = re.sub(r"\x1b\[[0-9;]*[~a-zA-Z]", "", s)   # ANSI / bracketed paste
+s = re.sub(r"[\x00-\x1f\x7f]", "", s)          # any other control chars
+print(s.strip().strip("\"").strip("\x27").strip())')
+
+    if ! printf '%s' "$URL" | grep -qE \
+        '^https://(canary\.|ptb\.)?discord(app)?\.com/api/(v[0-9]+/)?webhooks/[0-9]+/[A-Za-z0-9_.-]+$'
+    then
+        echo "discord-notify: that does not look like a Discord webhook URL." >&2
+        echo "  after cleaning, I got ${#URL} chars starting: $(printf '%.34s' "$URL")..." >&2
+        echo "  expected: https://discord.com/api/webhooks/<numeric id>/<token>" >&2
+        echo "  (use 'Copy Webhook URL' in Discord, not the channel or server link)" >&2
+        exit 1
+    fi
+    umask 077
+    printf '%s\n' "$URL" > "$CONF"
+    chmod 600 "$CONF"
+    echo "Saved to $CONF (0600). Sending a test..."
+    if printf 'If you can read this, %s can reach Discord.\nSent %s.\n' \
+        "$(hostname -f)" "$(date)" | "$0" "Webhook configured" --color green
+    then
+        echo "Test posted successfully - check your Discord channel."
+        exit 0
+    else
+        echo "Test failed. The URL was saved; re-run --setup to replace it." >&2
+        exit 1
+    fi
+fi
+
+[ -r "$CONF" ] || die "no webhook configured - run: discord-notify --setup"
+URL=$(head -1 "$CONF")
+[ -n "$URL" ] || die "$CONF is empty"
+
+TITLE=${1:-Notification}; shift || true
+COLOR=3447003                                  # blue
+FILE=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --file)  FILE=$2; shift 2 ;;
+        --color)
+            case $2 in
+                red)    COLOR=15158332 ;;
+                green)  COLOR=3066993  ;;
+                yellow) COLOR=16776960 ;;
+                grey|gray) COLOR=9807270 ;;
+                *)      COLOR=$2 ;;
+            esac; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+BODY=$(cat)
+[ -n "$BODY" ] || BODY="(no output)"
+
+json_escape() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'; }
+
+post_json() {   # $1 = payload
+    curl -sS -m 30 -X POST -H 'Content-Type: application/json' \
+         -d "$1" "$URL" -w '\n%{http_code}' 2>&1
+}
+
+if [ -n "$FILE" ] && [ -f "$FILE" ]; then
+    ATTACH=$FILE
+elif [ "${#BODY}" -gt "$MAX" ]; then
+    ATTACH=$(mktemp /tmp/discord-XXXXXX.txt)
+    printf '%s\n' "$BODY" > "$ATTACH"
+    TMP_ATTACH=$ATTACH
+else
+    ATTACH=""
+fi
+
+if [ -n "$ATTACH" ]; then
+    # summary in the embed, full text as an attachment
+    HEAD=$(printf '%s' "$BODY" | head -12)
+    PAYLOAD=$(printf '{"embeds":[{"title":%s,"description":%s,"color":%s}]}' \
+        "$(printf '%s' "$TITLE" | json_escape)" \
+        "$(printf '```\n%s\n```\nFull output attached.' "$HEAD" | json_escape)" \
+        "$COLOR")
+    # --form-string, NOT -F: curl treats ';' in an -F value as the start of a
+    # modifier (;type=, ;filename=), so any body containing a semicolon gets
+    # truncated into invalid JSON and Discord rejects it with
+    #   {"payload_json": ["Expected \"payload_json\" to be a valid JSON string."]}
+    # --form-string sends the value literally. The file part still uses -F
+    # because it genuinely needs the ;type= modifier.
+    RESP=$(curl -sS -m 60 -X POST \
+        --form-string "payload_json=$PAYLOAD" \
+        -F "files[0]=@${ATTACH};type=text/plain" \
+        "$URL" -w '\n%{http_code}' 2>&1)
+    [ -n "${TMP_ATTACH:-}" ] && rm -f "$TMP_ATTACH"
+else
+    PAYLOAD=$(printf '{"embeds":[{"title":%s,"description":%s,"color":%s}]}' \
+        "$(printf '%s' "$TITLE" | json_escape)" \
+        "$(printf '```\n%s\n```' "$BODY" | json_escape)" \
+        "$COLOR")
+    RESP=$(post_json "$PAYLOAD")
+fi
+
+CODE=$(printf '%s' "$RESP" | tail -1)
+case "$CODE" in
+    20*) exit 0 ;;
+    *)   echo "discord-notify: HTTP $CODE" >&2
+         printf '%s\n' "$RESP" | head -5 >&2
+         exit 1 ;;
+esac
