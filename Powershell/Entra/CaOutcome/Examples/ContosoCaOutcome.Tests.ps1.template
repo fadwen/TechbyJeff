@@ -1,0 +1,339 @@
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
+
+<#
+    A Maester custom test built on CaOutcome.
+
+    Drop this into Maester's Custom folder, drop the .template extension so the name ends in
+    .Tests.ps1, rename Contoso to your organisation, and Invoke-Maester will discover it with
+    the rest. Findings land in the existing Maester HTML report and GitHub Action - no fork,
+    and no separate reporting to maintain.
+
+    The .template extension is why this file is not itself run by this repository's CI, which
+    executes every *.Tests.ps1 it can find with Should.DisableV5 set. These assertions are the
+    Pester 5 form, because that is what Maester runs, and they would fail that gate for a
+    reason that says nothing about whether the tests are correct.
+
+    Two Maester conventions are followed here, both learned by running it rather than from the
+    documentation. Test names are "ID: Title" - Maester warns on every name without one and
+    keys the finding in its report by the id. And findings are reported through
+    Add-MtTestResultDetail rather than Write-Host: the severity given there is what fills the
+    Severity column in the report, and the Result markdown is what an administrator actually
+    reads. A Severity tag alone shows up in the test detail but leaves that column empty.
+
+    What this adds to Maester's own Conditional Access tests: those assert against the policies
+    that are enforced today, which is the right thing to assert and leaves two questions open.
+
+    First, every tenant that pilots policies properly has a set sitting in report-only, and
+    nothing tells you what promoting them would do to real people until you promote them.
+
+    Second, a Conditional Access outcome depends on far more than the policy document - group
+    membership, role assignment, named locations, device compliance, and the contents of any
+    custom authentication strength. Someone joins a group and a policy that already required a
+    compliant device now applies to them. No policy changed. No configuration drifted. A user
+    is locked out on Monday who was not on Friday, and no config-drift tool will ever mention
+    it. The baseline test at the bottom catches that.
+
+    Requires Policy.Read.ConditionalAccess or Policy.Read.All, which Maester's own Conditional
+    Access tests already ask for. Every scenario is one API call, so keep the matrix to the
+    shapes of user you genuinely care about rather than one row per person.
+#>
+
+# Set here as well as in BeforeAll, and that is not an oversight. Pester runs a file twice:
+# once to discover the tests, once to execute them. A -Skip: expression is evaluated during
+# discovery, where anything assigned in BeforeAll does not exist yet - so a baseline path set
+# only there reads as null and Test-Path throws before a single test runs.
+$script:BaselinePath = Join-Path $PSScriptRoot 'ca-baseline.json'
+
+BeforeAll {
+    Import-Module (Join-Path $PSScriptRoot 'CaOutcome' 'CaOutcome.psd1') -Force
+    $script:BaselinePath = Join-Path $PSScriptRoot 'ca-baseline.json'
+
+    # Held beside this file so it can be reviewed and extended without touching the tests.
+    # See ca-matrix.psd1 for a worked example.
+    $script:Matrix = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'ca-matrix.psd1')
+
+    <#
+        Which conditions are meant to let somebody in, and which are meant to stop them.
+
+        This lives here rather than in the matrix because every key on a matrix Condition is
+        sent to Graph as a signInConditions property, so a home-made "Expectation" key would
+        be rejected by the API rather than ignored.
+
+        The distinction is what makes the assertions meaningful. "Nobody is locked out" is the
+        wrong assertion over a matrix that deliberately includes legacy authentication and a
+        blocked country: those rows are lockouts by design, and a test that flags them trains
+        the reader to ignore the result. So access paths that are supposed to work are asserted
+        to work, and paths that are supposed to be shut are asserted to be shut.
+    #>
+    $script:ShouldAllow = @('managed-windows', 'unmanaged-windows', 'unmanaged-ios')
+
+    # Run once. Each It below queries the same result set rather than re-evaluating, which
+    # keeps a ten-assertion file to one pass over the matrix instead of ten.
+    $script:Outcomes = @(
+        Expand-CaScenario -Matrix $script:Matrix |
+            Invoke-CaScenarioMatrix -DelayMillisecond 100 -ErrorAction Continue
+    )
+
+    # Scenario names are persona/resource/condition, so both ends are addressable by name
+    function Get-Scenario {
+        param([string[]]$Condition, [string]$PersonaLike = '*')
+        @($script:Outcomes | Where-Object {
+            if ($_.Failed) { return $false }
+            $parts = $_.Scenario -split '/'
+            ($parts[0] -like $PersonaLike) -and ($Condition -contains $parts[-1])
+        })
+    }
+
+    # One place that turns a set of findings into the report entry. Passing the severity here
+    # is what fills the Severity column; a tag alone does not.
+    function Write-Finding {
+        param(
+            [string]$Severity,
+            [string]$Description,
+            [object[]]$Finding,
+            [string]$Column = 'Scenario',
+            [scriptblock]$Detail = { param($f) $f.Scenario },
+            [string]$AllClear = 'No findings.'
+        )
+
+        $result = "**$AllClear**"
+        if (@($Finding).Count -gt 0) {
+            # One separator cell per column, or the table does not render as a table
+            $separator = (@('-') * @($Column -split '\|').Count) -join ' | '
+            $rows = @($Finding) | ForEach-Object { "| $(& $Detail $_) |" }
+            $result = "| $Column |`n| $separator |`n" + ($rows -join "`n")
+        }
+
+        Add-MtTestResultDetail -Severity $Severity -Description $Description -Result $result
+    }
+}
+
+Describe 'Contoso Conditional Access outcomes' -Tag 'CA', 'Custom' {
+
+    Context 'The run itself' {
+
+        It 'CAO.0001: Every scenario in the matrix was evaluated' -Tag 'Severity:High' {
+            # An assertion over a partial run is worse than no assertion: the scenarios that
+            # failed are exactly the ones nothing then checks, and the file still reports green
+            $failed = @($script:Outcomes | Where-Object Failed)
+
+            Write-Finding -Severity 'High' -Finding $failed -Column 'Scenario | Error' `
+                -Detail { param($f) "$($f.Scenario) | $($f.Error)" } `
+                -AllClear "All $($script:Outcomes.Count) scenarios evaluated." `
+                -Description ('Every scenario in the matrix must return a result. An ' +
+                    'assertion over a partial run is worse than none: the scenarios that ' +
+                    'failed are exactly the ones nothing then checks.')
+
+            $failed.Count | Should -Be 0
+        }
+
+        It 'CAO.0002: A report-only policy applies to somebody' -Tag 'Severity:Medium' {
+            # Without this the promotion assertions below pass vacuously the moment the last
+            # piloted policy is promoted or deleted
+            $applying = @($script:Outcomes | Where-Object { $_.ReportOnlyApplying -gt 0 })
+
+            Add-MtTestResultDetail -Severity 'Medium' -Description (
+                'The promotion tests compare the enforced policy set against the same set ' +
+                'plus the report-only policies. If no report-only policy applies to any ' +
+                'persona, those tests pass because the two worlds are identical by ' +
+                'construction - not because promoting anything would be safe.'
+            ) -Result ("**$($applying.Count) of $($script:Outcomes.Count)** scenarios have " +
+                'at least one report-only policy applying.')
+
+            $applying.Count | Should -BeGreaterThan 0 -Because 'nothing is in report-only'
+        }
+    }
+
+    Context 'Access paths that are supposed to work' {
+
+        It 'CAO.0010: A standard user can sign in from a managed device' -Tag 'Severity:High' {
+            $blocked = @(Get-Scenario -Condition 'managed-windows' -PersonaLike 'standard' |
+                Where-Object { $_.Current.IsEffectivelyBlocked })
+
+            Write-Finding -Severity 'High' -Finding $blocked `
+                -AllClear 'A standard user gets in from a managed device.' `
+                -Description 'The baseline access path. If this fails, the tenant is broken now.'
+
+            $blocked.Count | Should -Be 0
+        }
+
+        It 'CAO.0011: A standard user is asked for something beyond a password' -Tag 'Severity:High' {
+            $unchallenged = @(Get-Scenario -Condition $script:ShouldAllow -PersonaLike 'standard' |
+                Where-Object { $_.Current.Access -eq 'Granted' })
+
+            Write-Finding -Severity 'High' -Finding $unchallenged `
+                -AllClear 'Every supported path carries at least one grant control.' `
+                -Description ('A sign-in that reaches Granted with no grant controls at all ' +
+                    'is a password-only sign-in.')
+
+            $unchallenged.Count | Should -Be 0
+        }
+
+        It 'CAO.0012: The break glass account can sign in on every supported path' -Tag 'Severity:Critical' {
+            # The failure this catches is the classic one: a policy tightened without its
+            # emergency access exclusion, discovered during the incident it was meant to
+            # survive. Deliberately scoped to supported paths - a break glass account blocked
+            # on legacy authentication is correct, not a finding.
+            $blocked = @(Get-Scenario -Condition $script:ShouldAllow -PersonaLike 'breakglass' |
+                Where-Object { $_.Current.IsEffectivelyBlocked })
+
+            Write-Finding -Severity 'Critical' -Finding $blocked -Column 'Scenario | Access' `
+                -Detail { param($f) "$($f.Scenario) | $($f.Current.Access)" } `
+                -AllClear 'The break glass account can sign in on every supported path.' `
+                -Description ('An emergency access account excluded from one policy but not ' +
+                    'another is discovered during the incident it exists for. Scoped to ' +
+                    'supported paths - blocked on legacy authentication is correct, not a finding.')
+
+            $blocked.Count | Should -Be 0
+        }
+    }
+
+    Context 'Access paths that are supposed to be shut' {
+
+        It 'CAO.0020: Legacy authentication is blocked for everyone' -Tag 'Severity:High' {
+            $allowed = @(Get-Scenario -Condition 'legacy-auth' |
+                Where-Object { -not $_.Current.IsEffectivelyBlocked })
+
+            Write-Finding -Severity 'High' -Finding $allowed `
+                -AllClear 'Legacy authentication is shut for every persona.' `
+                -Description ('Legacy authentication clients support neither MFA nor device ' +
+                    'state, so anything they can reach is reachable with a password alone.')
+
+            $allowed.Count | Should -Be 0
+        }
+
+        It 'CAO.0021: A high risk sign-in from an excluded country is blocked' -Tag 'Severity:Medium' {
+            $allowed = @(Get-Scenario -Condition 'high-risk-foreign' |
+                Where-Object { -not $_.Current.IsEffectivelyBlocked })
+
+            Write-Finding -Severity 'Medium' -Finding $allowed `
+                -AllClear 'High risk foreign sign-ins are blocked for every persona.' `
+                -Description ('A high risk sign-in from a country outside the allowed set ' +
+                    'should not succeed. A persona listed here is excluded from the geo ' +
+                    'policy - check whether that exclusion is deliberate.')
+
+            $allowed.Count | Should -Be 0
+        }
+    }
+
+    Context 'What promoting the report-only policies would do' {
+
+        It 'CAO.0030: No supported access path is lost' -Tag 'Severity:High' {
+            # The headline assertion, and the reason satisfiability exists. Access can read
+            # GrantedWithControls in both worlds while the user is locked out in one of them,
+            # so this checks whether the requirement can be met - not the access verdict.
+            $lockedOut = @(Get-Scenario -Condition $script:ShouldAllow |
+                Where-Object { $_.Delta.BecomesEffectivelyBlocked })
+
+            Write-Finding -Severity 'High' -Finding $lockedOut -Column 'Scenario | Why' `
+                -Detail { param($f) "$($f.Scenario) | $($f.Delta.Summary)" } `
+                -AllClear 'Promoting the report-only policies costs nobody their access.' `
+                -Description ('Each persona below gets in today and would not once the ' +
+                    'report-only policies are enforced. Access can read GrantedWithControls ' +
+                    'in both worlds while the user is locked out in one of them, so this ' +
+                    'asks whether the requirement can be satisfied, not what the verdict says.')
+
+            $lockedOut.Count | Should -Be 0
+        }
+
+        It 'CAO.0031: The break glass account keeps working' -Tag 'Severity:Critical' {
+            $blocked = @(Get-Scenario -Condition $script:ShouldAllow -PersonaLike 'breakglass' |
+                Where-Object { $_.Projected.IsEffectivelyBlocked })
+
+            Write-Finding -Severity 'Critical' -Finding $blocked `
+                -AllClear 'The break glass account survives the promotion.' `
+                -Description 'Promoting the report-only policies must not shut the emergency door.'
+
+            $blocked.Count | Should -Be 0
+        }
+    }
+
+    Context 'Policy hygiene visible in the outcome' {
+
+        It 'CAO.0040: No session control conflict is left unresolved' -Tag 'Severity:Medium' {
+            <#
+                Two policies setting the same session control to different values, where
+                Microsoft documents no precedence between them. The outcome then rests on
+                precedence rather than on anyone's intent.
+
+                BOTH worlds are checked, and that is the correction rather than an
+                embellishment. An earlier version looked only at Current and reported a
+                clean bill of health against a tenant that had a genuine unresolved
+                cloudAppSecurity disagreement - because the two policies causing it were
+                report-only, so the conflict lived only in Projected. Checking the
+                enforced world alone misses every conflict that promoting a pilot would
+                introduce, which is the one thing this module exists to see coming.
+            #>
+            $unresolved = @($script:Outcomes | ForEach-Object {
+                $scenario = $_.Scenario
+                foreach ($world in @(@{ N = 'enforced now'; C = $_.Current },
+                                     @{ N = 'after promotion'; C = $_.Projected })) {
+                    $world.C.SessionConflicts | Where-Object { $_ -and -not $_.Resolved } |
+                        ForEach-Object {
+                            [PSCustomObject]@{
+                                World    = $world.N
+                                Control  = $_.Control
+                                Values   = ($_.Values -join ' vs ')
+                                Scenario = $scenario
+                            }
+                        }
+                }
+            })
+
+            # One row per distinct disagreement, not one per scenario that meets it
+            $distinct = @($unresolved | Sort-Object World, Control, Values |
+                Group-Object World, Control, Values | ForEach-Object { $_.Group[0] })
+
+            Write-Finding -Severity 'Medium' -Finding $distinct -Column 'When | Control | Values' `
+                -Detail { param($f) "$($f.World) | $($f.Control) | $($f.Values)" } `
+                -AllClear 'Every session control disagreement resolves to a defined winner.' `
+                -Description ('Two policies setting the same session control to different ' +
+                    'values, where Microsoft documents no precedence. Both the enforced ' +
+                    'policy set and the set including report-only policies are checked, ' +
+                    'so a conflict that promotion would introduce is caught before it is.')
+
+            $distinct.Count | Should -Be 0
+        }
+    }
+
+    Context 'Drift from the approved baseline' {
+
+        $hasBaseline = Test-Path $script:BaselinePath
+
+        It 'CAO.0050: The tenant still matches the approved baseline' `
+            -Tag 'Severity:Medium' -Skip:(-not $hasBaseline) {
+            <#
+                The assertion a policy-comparison tool cannot make. A group membership change,
+                a role assignment or an edit to a named location each moves what a persona
+                experiences while every policy document stays byte for byte identical - those
+                show up here and nowhere else.
+
+                A widened custom authentication strength is a near miss rather than invisible:
+                Graph inlines the strength inside each referencing policy, so an export does
+                change. It changes as N policies with a moved blob, though, not as one strength
+                weakened and the personas it reaches.
+
+                Re-approve deliberately, after reading the diff:
+                    $outcomes | Export-CaBaseline -Path .\ca-baseline.json
+            #>
+            $drift = @($script:Outcomes | Compare-CaBaseline -Path $script:BaselinePath |
+                Where-Object HasChange)
+
+            # Grouped, because a change to a tenant-level object hits every scenario that
+            # touches it. Editing one authentication strength produced 36 identical findings
+            # in testing, which is accurate and unreadable; the count is the useful part.
+            $grouped = @($drift | Group-Object Summary | Sort-Object Count -Descending)
+
+            Write-Finding -Severity 'Medium' -Finding $grouped -Column 'Scenarios | Change' `
+                -Detail { param($f) "$($f.Count) | $($f.Name)" } `
+                -AllClear "All $($script:Outcomes.Count) scenarios match the approved baseline." `
+                -Description ('Outcomes are compared against a committed baseline. This is ' +
+                    'the check that catches a group membership change, a named location ' +
+                    'edit, or a widened authentication strength - none of which alter a ' +
+                    'single Conditional Access policy document. Re-approve with ' +
+                    '`Export-CaBaseline` once the diff has been read.')
+
+            $drift.Count | Should -Be 0
+        }
+    }
+}
