@@ -1,6 +1,6 @@
 # Pester Test Structure Guide
 
-Targets **Pester 6.0+**.
+Targets **Pester 6.1+**.
 
 **NOTE**: Do not use Unicode emojis in any generated code, documentation, or test output. Use plain
 text descriptions and standard ASCII characters only.
@@ -53,8 +53,9 @@ Pester.BeforeContainer.ps1     <- optional, at REPOSITORY ROOT (not in Tests/)
 ```
 
 `Pester.BeforeContainer.ps1` must sit at the repository root - the directory containing `.git`, which
-Pester exposes as `Run.RepoRoot`. When present and `Run.BeforeContainer` is not set, Pester
-dot-sources it before **every** test file is discovered and run, in both serial and parallel runs.
+Pester exposes as `Run.RepoRoot`. When present, Pester dot-sources it before **every** test file is
+discovered and run, in both serial and parallel runs. As of 6.1 this is the only shared-bootstrap
+mechanism; the `Run.BeforeContainer` option was removed.
 
 ## Test File Isolation (Pester 6)
 
@@ -66,7 +67,7 @@ runspace.
 discovery-time setup. It cannot rely on a file that happened to be discovered earlier.
 
 ```powershell
-#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.0.0' }
+#Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '6.1.0' }
 
 BeforeDiscovery {
     # Only what is needed to BUILD the test tree: -ForEach data, helper commands
@@ -94,10 +95,16 @@ Import-Module "$PSScriptRoot/Source/ModuleName.psd1" -Force
 . "$PSScriptRoot/Tests/TestHelpers/TestHelpers.ps1"
 ```
 
-Or configure it explicitly, which overrides the convention file:
+Anchor every path in it to `$PSScriptRoot`. The file runs before each container in both serial and
+parallel runs, and a relative path would resolve against whatever the working directory happens to
+be - which is precisely why the `Run.BeforeContainer` scriptblock option was removed in 6.1.
+
+If the bootstrap does not appear to run, check `Run.RepoRoot`. It is resolved from the .NET process
+working directory rather than `$PWD`, so a run launched from outside the repository looks for the
+file in the wrong place and simply finds nothing:
 
 ```powershell
-$config.Run.BeforeContainer = { . './Tests/TestHelpers/Bootstrap.ps1' }
+$config.Run.RepoRoot = $PSScriptRoot
 ```
 
 This supplements per-file setup; it does not remove the requirement that a file be independently
@@ -160,7 +167,7 @@ Describe "Security-Validation" -Tag "Security", "InputValidation" {
 In Pester 6, `None` (case-insensitive) is a reserved **filter** value meaning "tests that have no tag
 on themselves or any parent block". Never use it as a literal tag name.
 
-Use it to audit tagging coverage - a well-tagged suite runs zero tests:
+Use it to audit tagging coverage - a well-tagged suite **runs** zero tests:
 
 ```powershell
 Invoke-Pester -Path ./Tests -TagFilter 'None'          # find untagged tests
@@ -168,29 +175,39 @@ Invoke-Pester -Path ./Tests -ExcludeTagFilter 'None'   # run only tagged tests
 Invoke-Pester -Path ./Tests -TagFilter None, Acceptance
 ```
 
-Interactively, read the **Passed** count in the summary, not the discovered count.
+Reading that interactively, look at the **Passed** count in the summary rather than the discovered
+count, which stays at the full suite size.
 
-Add the audit to CI so untagged tests cannot slip in:
+Add the audit to CI so untagged tests cannot slip in. Count `ShouldRun`, the flag the filter
+actually sets:
 
 ```powershell
 $config = New-PesterConfiguration
 $config.Run.Path = './Tests'
-$config.Run.SkipRun = $true      # discovery is enough; nothing needs to execute
+$config.Filter.Tag = 'None'
+$config.Run.SkipRun = $true
 $config.Run.PassThru = $true
-$config.Filter.Tag = 'None'      # reserved value: tests with NO tags
 $config.Output.Verbosity = 'None'
 
 $result = Invoke-Pester -Configuration $config
 
-# TotalCount is every test DISCOVERED and ignores Filter.Tag entirely, so it is
-# the wrong thing to gate on - it would be non-zero for any non-empty suite.
-# The tests a filter actually selected are the ones marked ShouldRun.
 $untagged = @($result.Tests | Where-Object ShouldRun)
 if ($untagged.Count -gt 0) {
-    $untagged | ForEach-Object { Write-Host "  untagged: $($_.ExpandedPath)" }
+    $untagged | ForEach-Object { Write-Host "::error::Untagged test: $($_.ExpandedPath)" }
     throw "$($untagged.Count) test(s) have no tag. Tag every Describe block."
 }
 ```
+
+**Do not gate on `TotalCount` or `PassedCount`.** Both are wrong here, in opposite directions:
+
+| Signal | Behaviour under `Filter.Tag = 'None'` |
+| --- | --- |
+| `TotalCount` | Ignores the filter and counts everything **discovered**, so it is non-zero for any non-empty suite. A gate on it can never pass |
+| `PassedCount` | Counts only untagged tests that ran **and passed**, so an untagged test that fails is missed. With `Run.SkipRun` nothing runs, so it is always `0` |
+| `ShouldRun` | Set by the filter on exactly the matching tests. Correct with or without `SkipRun`, and it names them |
+
+Verified against Pester 6.1.0: on one tagged plus one untagged test, `TotalCount` is `2` and
+`ShouldRun` is `1`; on a fully tagged suite, `TotalCount` is `2` and `ShouldRun` is `0`.
 
 ### Opting Files Out of Parallel Execution
 
