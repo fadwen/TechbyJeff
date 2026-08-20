@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sequence version="3.00">
+  <group name="Initialization" description="" disable="false" continueOnError="false">
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Capture serial" runIn="WinPE">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">cmd /c wmic bios get serialnumber</variable>
+      </defaultVarList>
+    </step>
+  </group>
+  <group name="Post Install" disable="false">
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Record installed products">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">wmic product get name,version</variable>
+      </defaultVarList>
+    </step>
+  </group>
+</sequence>

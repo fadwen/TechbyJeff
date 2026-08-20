@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Trimmed export of a Configuration Manager task sequence. Real exports are
+    thousands of lines; this keeps the two steps that matter.
+
+    The first runs in WinPE, where PowerShell may not exist. The second runs in
+    the full OS, where it certainly does. Same command style, different answer,
+    which is why the scanner reads the phase rather than the file.
+-->
+<sequence version="3.00" name="Deploy Windows 11 24H2">
+
+  <group name="Preinstall" description="Runs from the boot image" disable="false" continueOnError="false">
+
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Capture serial for naming"
+          description="Reads the chassis serial so the machine can be named from it"
+          runIn="WinPE" successCodeList="0" continueOnError="false">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">cmd /c wmic csproduct get identifyingnumber</variable>
+        <variable name="_SMSTSDisableWow64Redirection" property="DisableWow64Redirection">false</variable>
+      </defaultVarList>
+    </step>
+
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Check available disk"
+          runIn="WinPE" successCodeList="0" continueOnError="false">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">wmic diskdrive get size,model</variable>
+      </defaultVarList>
+    </step>
+
+  </group>
+
+  <group name="Post Install" description="Runs in the full OS" disable="false" continueOnError="false">
+
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Record installed products"
+          description="Feeds the post-build audit"
+          runIn="FullOS" successCodeList="0" continueOnError="true">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">wmic product get name,version</variable>
+      </defaultVarList>
+    </step>
+
+    <step type="SMS_TaskSequence_RunCommandLineAction" name="Stamp build date"
+          runIn="FullOS" successCodeList="0" continueOnError="true">
+      <defaultVarList>
+        <variable name="CommandLine" property="CommandLine">wmic os get installdate /value</variable>
+      </defaultVarList>
+    </step>
+
+  </group>
+
+</sequence>
