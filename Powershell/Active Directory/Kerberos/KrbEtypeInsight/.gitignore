@@ -1,0 +1,18 @@
+# Pester / coverage output
+coverage.xml
+testResults.xml
+*.trx
+
+# Local assessment output - these contain real account names, SIDs and client
+# addresses from whatever domain the module was run against, and must never be
+# committed. See the Fixtures section of the README.
+*.evtx
+KrbEtypeReport*.html
+KrbEtypeReport*.csv
+KrbEtypeReport*.json
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Default views for the module's output types.
+
+    These exist because the objects are wide - a Risk object carries over thirty properties -
+    and PowerShell's automatic formatting picks the first four it encounters, which for
+    KrbEtypeInsight.Risk are the principal name and three fields nobody wants first. Without
+    a format file the module's headline output renders as an unreadable list.
+
+    Every view is a table, and every table leads with the field that decides what the reader
+    does next: risk level for an assessment, encryption type for an event.
+-->
+<Configuration>
+  <ViewDefinitions>
+
+    <View>
+      <Name>KrbEtypeInsight.Risk</Name>
+      <ViewSelectedBy>
+        <TypeName>KrbEtypeInsight.Risk</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Level</Label><Width>9</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Score</Label><Width>6</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Principal</Label><Width>34</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Reqs</Label><Width>7</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Clients</Label><Width>8</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <!-- Labelled NoAES rather than 'Breaks' because it counts clients that cannot do
+               AES, which is not the same as whether the principal itself breaks - that is
+               WillBreakOnHardening. A column ambiguous between the two invites the reader to
+               conclude a service is safe because none of its clients happen to be legacy. -->
+          <TableColumnHeader><Label>NoAES</Label><Width>7</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Codes</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>RiskLevel</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>RiskScore</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>PrincipalName</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>RequestCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ClientCount</PropertyName></TableColumnItem>
+              <!-- The count of clients that cannot do AES: the number this module exists to produce. -->
+              <TableColumnItem>
+                <ScriptBlock>@($_.ClientsWithoutAesSupport).Count</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>@($_.FindingCodes) -join ' '</ScriptBlock>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>KrbEtypeInsight.Event</Name>
+      <ViewSelectedBy>
+        <TypeName>KrbEtypeInsight.Event</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>TimeCreated</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Id</Label><Width>5</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Client</Label><Width>24</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Service</Label><Width>30</Width></TableColumnHeader>
+          <TableColumnHeader><Label>TicketEtype</Label><Width>26</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>TimeCreated</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>EventId</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ClientAccount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ServiceName</PropertyName></TableColumnItem>
+              <!-- Decoded rather than raw. A column of bare integers in two different
+                   numbering systems is exactly the confusion this module removes. -->
+              <TableColumnItem>
+                <ScriptBlock>
+                  if ($null -ne $_.TicketEtype) { (ConvertFrom-KrbEtype -TicketEtype $_.TicketEtype).DisplayName }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><PropertyName>StatusName</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>KrbEtypeInsight.Principal</Name>
+      <ViewSelectedBy>
+        <TypeName>KrbEtypeInsight.Principal</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>SamAccountName</Label><Width>28</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Class</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Enabled</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Etypes</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>AES</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>RC4</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>PwdAge</Label><Width>8</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>SPNs</Label><Alignment>Right</Alignment></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>SamAccountName</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ObjectClass</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Enabled</PropertyName></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>$_.EncryptionTypes.EffectiveHex</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>$_.EncryptionTypes.SupportsAes</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>$_.EncryptionTypes.SupportsRc4</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><PropertyName>PasswordAgeDays</PropertyName></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>@($_.ServicePrincipalNames).Count</ScriptBlock>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>KrbEtypeInsight.Finding</Name>
+      <ViewSelectedBy>
+        <TypeName>KrbEtypeInsight.Finding</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Code</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Severity</Label><Width>9</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Title</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Code</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Severity</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Title</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+  </ViewDefinitions>
+</Configuration>
