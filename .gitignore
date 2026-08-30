@@ -18,3 +18,10 @@ Desktop.ini
 
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
+
+# Backstop: this is the PowerShell/Docker/AWS scripts repo, not the blog.
+# A copy of the Hugo site (TechbyJeffBlog) once landed here untracked; these
+# entries stop its build output from ever being staged by a blind `git add .`.
+/public/
+/resources/
+.hugo_build.lock
