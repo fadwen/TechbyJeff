@@ -1,6 +1,6 @@
 # authentik - derived from https://goauthentik.io/docker-compose.yml (2026.8.0)
 #
-# Companion to "Standing Up authentik on a Thin Client, and the Port Binding I Got Wrong"
+# Companion to "Standing Up authentik on a Thin Client"
 # https://www.techbyjeff.net/standing-up-authentik-on-a-thin-client/
 #
 # Before you run this, change two things:
