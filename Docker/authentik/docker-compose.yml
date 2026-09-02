@@ -1,0 +1,126 @@
+# authentik - derived from https://goauthentik.io/docker-compose.yml (2026.8.0)
+#
+# Companion to "Standing Up authentik on a Thin Client, and the Port Binding I Got Wrong"
+# https://www.techbyjeff.net/standing-up-authentik-on-a-thin-client/
+#
+# Before you run this, change two things:
+#
+#   1. The bind address on the server ports. 192.168.66.6 is the LAN address of my
+#      host. Docker's short port syntax ("9000:9000") publishes on every interface
+#      and is NOT filtered by ufw, so the address prefix is doing real work here.
+#      Put your own host's address there, or 127.0.0.1 if nothing off-box needs to
+#      reach the embedded outpost.
+#   2. ACME_EMAIL, which has no default on purpose.
+#
+# Values come from .env in this directory, which is not in this repo and should
+# never be in yours. Secrets use ${VAR:?message} so a missing one stops the
+# deployment; settings with a sensible default use ${VAR:-default}.
+#
+# The caddy service builds from ./caddy, which is not included here - that build
+# and its Caddyfile are the subject of part two of the series.
+#
+# Deliberately absent: no redis service (authentik dropped the dependency in
+# 2025.10), and no /var/run/docker.sock mount or "user: root" on the worker. The
+# upstream file has both so authentik can manage outpost containers for you; with
+# only the embedded outpost they buy nothing and cost you host root.
+
+services:
+  postgresql:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      POSTGRES_DB: ${PG_DB:-authentik}
+      POSTGRES_USER: ${PG_USER:-authentik}
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    env_file:
+      - .env
+
+  server:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.0}
+    restart: unless-stopped
+    command: server
+    shm_size: 512mb
+    environment:
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    volumes:
+      - ./data:/data
+      - ./custom-templates:/templates
+    ports:
+      - "192.168.66.6:${COMPOSE_PORT_HTTP:-9000}:9000"
+      - "192.168.66.6:${COMPOSE_PORT_HTTPS:-9443}:9443"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  worker:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.0}
+    restart: unless-stopped
+    command: worker
+    shm_size: 512mb
+    environment:
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    volumes:
+      - ./data:/data
+      - ./certs:/certs
+      - ./custom-templates:/templates
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.8.3
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:?cloudflare tunnel token required}
+    depends_on:
+      server:
+        condition: service_healthy
+
+  caddy:
+    build:
+      context: ./caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CF_API_TOKEN: ${CF_API_TOKEN:?cloudflare DNS token required for cert issuance}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME account email required}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # ACME certs live here - must persist
+      - caddy_config:/config
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  database:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
