@@ -1,0 +1,67 @@
+# Caddy reverse proxy for the authentik stack.
+#
+# Companion to "Letting Caddy Own the Certificates I Used to Renew Myself"
+# https://www.techbyjeff.net/letting-caddy-own-the-certificates/
+#
+# This is my working file with the domain changed to homelabdomain.xyz. Before
+# it will do anything useful for you, change:
+#
+#   1. Every site address. These are my internal hostnames, resolved by Pi-hole
+#      to private addresses. The DNS *zone* has to be real and hosted at
+#      Cloudflare for DNS-01 to work; the records inside it do not have to
+#      exist, and can point anywhere.
+#   2. The upstream address (192.168.66.7) and the LAN range
+#      in the remote_ip matchers. 100.64.0.0/10 is Tailscale's CGNAT range and
+#      172.16.0.0/12 covers Docker bridges; keep those only if you use them.
+#
+# ACME_EMAIL and CF_API_TOKEN come from .env via the compose file, expanded by
+# Caddy at load time rather than by Compose. That .env is not in this repo and
+# should never be in yours.
+#
+{
+	email {$ACME_EMAIL}
+	# DNS-01 via Cloudflare: these names resolve only on the LAN (Pi-hole),
+	# so there is no public path for an HTTP-01 challenge.
+	acme_dns cloudflare {$CF_API_TOKEN}
+}
+
+# Forward auth to authentik, reached by compose service name.
+# Takes the upstream as an argument: `import authentik http://host:port`
+(authentik) {
+	@denied not remote_ip 127.0.0.1 192.168.66.0/24 100.64.0.0/10 172.16.0.0/12
+	respond @denied "Not available from this network" 403
+
+	route {
+		reverse_proxy /outpost.goauthentik.io/* http://server:9000
+		forward_auth http://server:9000 {
+			uri /outpost.goauthentik.io/auth/caddy
+			copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+			trusted_proxies private_ranges
+		}
+		reverse_proxy {args[0]}
+	}
+}
+
+omv.homelabdomain.xyz {
+	import authentik http://192.168.66.7
+}
+
+# Internal TLS endpoint for cross-host forward auth.
+# nginx on the application host makes its auth subrequests here instead of to
+# plain http://…:9000 — those requests carry authentik session cookies, and the
+# hop crosses a physical network. Caddy holds a real publicly-chained cert, so
+# the caller can verify the peer rather than merely encrypt to it.
+# Only the outpost path is served; nothing else is reachable through this name.
+sso.homelabdomain.xyz {
+	# route{} preserves written order; Caddy's default directive order would
+	# evaluate the catch-all respond before reverse_proxy and 404 everything.
+	route {
+		@denied not remote_ip 127.0.0.1 192.168.66.0/24 100.64.0.0/10 172.16.0.0/12
+		respond @denied "Not available from this network" 403
+
+		@outpost path /outpost.goauthentik.io/*
+		reverse_proxy @outpost http://server:9000
+
+		respond 404
+	}
+}

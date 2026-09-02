@@ -16,8 +16,14 @@
 # never be in yours. Secrets use ${VAR:?message} so a missing one stops the
 # deployment; settings with a sensible default use ${VAR:-default}.
 #
-# The caddy service builds from ./caddy, which is not included here - that build
-# and its Caddyfile are the subject of part two of the series.
+# The caddy service builds from ./caddy in this directory. That Dockerfile and
+# Caddyfile are the subject of part two of the series:
+# https://www.techbyjeff.net/letting-caddy-own-the-certificates/
+#
+# Every service runs with no-new-privileges. cloudflared and caddy additionally
+# drop all Linux capabilities; caddy gets exactly one back, NET_BIND_SERVICE,
+# because 80 and 443 are in the reserved range and that is the only privileged
+# thing it needs.
 #
 # Deliberately absent: no redis service (authentik dropped the dependency in
 # 2025.10), and no /var/run/docker.sock mount or "user: root" on the worker. The
@@ -28,6 +34,8 @@ services:
   postgresql:
     image: docker.io/library/postgres:16-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     shm_size: 256mb
     environment:
       POSTGRES_DB: ${PG_DB:-authentik}
@@ -47,6 +55,8 @@ services:
   server:
     image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.0}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: server
     shm_size: 512mb
     environment:
@@ -70,6 +80,8 @@ services:
   worker:
     image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.0}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: worker
     shm_size: 512mb
     environment:
@@ -91,6 +103,10 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:2026.8.3
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:?cloudflare tunnel token required}
@@ -102,6 +118,15 @@ services:
     build:
       context: ./caddy
     restart: unless-stopped
+    # Caddy needs exactly one piece of root's power: binding 80/443, which are
+    # in the reserved range. Drop every capability, add that one back, and stop
+    # anything inside from acquiring more via setuid.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
