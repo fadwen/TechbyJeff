@@ -254,12 +254,33 @@ Measure-PlatyPSMarkdown -Path ./docs/ModuleName/*.md |
 `Test-MarkdownCommandHelp` returns `True` for a file whose `## RELATED LINKS` entries are relative
 paths, but `Get-Help` throws `The specified URI ... is not valid` at read time and returns nothing.
 A `.LINK` value must be a bare topic name or an absolute `http`/`https` URL — never a relative path
-to a file in the repository. Check before building:
+to a file in the repository. PlatyPS writes a bare topic as `[Get-Thing]()`, so the check
+below has to allow empty parentheses while still rejecting a path. Check before building:
 
 ```powershell
-Select-String -Path ./docs/ModuleName/*.md -Pattern '^\s*-?\s*\[.+\]\((?!https?://)' |
+# The |\) in the lookahead is what permits a bare topic name. Without it this flags every
+# [Get-Thing]() cross-reference as a relative link - rejecting the exact form the paragraph
+# above calls correct.
+Select-String -Path ./docs/ModuleName/*.md -Pattern '^\s*-?\s*\[.+\]\((?!https?://|\))' |
     ForEach-Object { Write-Error "Relative link in $($_.Filename):$($_.LineNumber)" -ErrorAction Stop }
 ```
+
+Both forms are legal, and they are not interchangeable:
+
+| Target | Form | Renders as |
+|---|---|---|
+| A command in this module, or an `about_` topic | `- [Get-Thing]()` | the plain name |
+| Anything outside the installed module | `- [Title](https://...)` | the URL |
+
+Use the bare form for anything `Get-Help` can resolve on its own — sibling commands above all.
+Reaching for an absolute URL there is the common mistake: it still passes the gate, but
+`Get-Help -Full` then prints a GitHub URL where a command name would read better, and the link stops
+working the moment the repository moves or goes private. Reserve URLs for material that genuinely
+lives outside the module, remembering that a user who installed from the Gallery has no repository
+checkout — which is also why a relative path would be useless even if `Get-Help` accepted it.
+
+[Module-Structure-Example](../../Documentation/Examples/Module-Structure-Example/docs/ModuleExample/Get-ExampleData.md)
+shows both forms in one file.
 
 Also fail the build on leftover placeholders — `Test-MarkdownCommandHelp` checks structure, not
 whether anyone wrote the content:
