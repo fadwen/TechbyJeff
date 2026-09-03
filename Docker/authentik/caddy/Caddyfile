@@ -1,7 +1,9 @@
 # Caddy reverse proxy for the authentik stack.
 #
-# Companion to "Letting Caddy Own the Certificates I Used to Renew Myself"
+# Companion to "Letting Caddy Own the Certificates"
 # https://www.techbyjeff.net/letting-caddy-own-the-certificates/
+# and "Forward Auth in One Snippet, and the Hop I Had Wrong"
+# https://www.techbyjeff.net/forward-auth-in-one-snippet-and-the-hop-i-had-wrong/
 #
 # This is my working file with the domain changed to homelabdomain.xyz. Before
 # it will do anything useful for you, change:
@@ -28,10 +30,14 @@
 # Forward auth to authentik, reached by compose service name.
 # Takes the upstream as an argument: `import authentik http://host:port`
 (authentik) {
-	@denied not remote_ip 127.0.0.1 192.168.66.0/24 100.64.0.0/10 172.16.0.0/12
-	respond @denied "Not available from this network" 403
-
+	# The deny has to be INSIDE route{}. Caddy's default directive order sorts
+	# route ahead of respond, so a deny written outside this block is evaluated
+	# only after the proxy has already answered, and never fires. Confirmed with
+	# `caddy adapt`: outside, the site is subroute THEN static_response.
 	route {
+		@denied not remote_ip 127.0.0.1 192.168.66.0/24 100.64.0.0/10 172.16.0.0/12
+		respond @denied "Not available from this network" 403
+
 		reverse_proxy /outpost.goauthentik.io/* http://server:9000
 		forward_auth http://server:9000 {
 			uri /outpost.goauthentik.io/auth/caddy
@@ -46,13 +52,22 @@ omv.homelabdomain.xyz {
 	import authentik http://192.168.66.7
 }
 
-# Internal TLS endpoint for cross-host forward auth.
-# nginx on the application host makes its auth subrequests here instead of to
-# plain http://…:9000 — those requests carry authentik session cookies, and the
-# hop crosses a physical network. Caddy holds a real publicly-chained cert, so
-# the caller can verify the peer rather than merely encrypt to it.
-# Only the outpost path is served; nothing else is reachable through this name.
-sso.homelabdomain.xyz {
+# TLS endpoint for the application host's forward-auth subrequests.
+# Those requests carry authentik session cookies across a physical network, so
+# the hop must be encrypted AND the peer verified, not self-signed with
+# verification disabled.
+#
+# These names are matched here rather than a single shared name because
+# forward_single providers resolve the application from the Host header
+# (matched against external_host). A neutral Host would 404. Caddy obtains a
+# certificate for each via DNS-01; no A record needs to point here, since nginx
+# connects by IP and uses the name only for SNI and verification.
+#
+# Only the outpost path is served. Browsers reach these names on the
+# application host; nothing else is reachable through this listener.
+sonarr.homelabdomain.xyz, radarr.homelabdomain.xyz, prowlarr.homelabdomain.xyz,
+huntarr.homelabdomain.xyz, cleanuparr.homelabdomain.xyz,
+unpackerr.homelabdomain.xyz, tautulli.homelabdomain.xyz {
 	# route{} preserves written order; Caddy's default directive order would
 	# evaluate the catch-all respond before reverse_proxy and 404 everything.
 	route {
