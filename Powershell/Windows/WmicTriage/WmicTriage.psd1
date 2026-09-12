@@ -4,8 +4,8 @@
     ModuleVersion = '0.1.0'
     GUID = '2f901247-35c5-4a3d-a358-1ddf365e2c14'
     Author = 'Jeffrey Stuhr'
-    CompanyName = 'EntraVantage LLC'
-    Copyright = '(c) 2026 EntraVantage LLC. All rights reserved.'
+    CompanyName = 'Jeffrey Stuhr'
+    Copyright = '(c) 2026 Jeffrey Stuhr. All rights reserved.'
     # Kept to one line for the repository's 115-character limit. The README carries the full
     # explanation of what each tier means and why the tool sorts by them.
     Description = 'Finds deprecated WMIC usage and sorts each hit by how hard it will be to replace'
