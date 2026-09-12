@@ -4,8 +4,8 @@
     ModuleVersion = '0.5.1'
     GUID = '4c1e8a76-9b23-4f5d-8e10-6d7a2f3b95c8'
     Author = 'Jeffrey Stuhr'
-    CompanyName = 'EntraVantage LLC'
-    Copyright = '(c) 2026 EntraVantage LLC. All rights reserved.'
+    CompanyName = 'Jeffrey Stuhr'
+    Copyright = '(c) 2026 Jeffrey Stuhr. All rights reserved.'
     # Kept to one line for the repository's 115-character limit. The README carries the
     # full explanation of what "promotion" means here.
     Description = 'Folds a Conditional Access What If response into an effective outcome and diffs a promotion'
