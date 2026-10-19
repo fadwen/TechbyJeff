@@ -1,0 +1,19 @@
+/* Retired names that appear only as values, inside strings, or inside url() must not be
+   reported. The one legitimate finding here is the transform declaration on line 7: the
+   scale() inside its value is a function, not a property. */
+
+.ext-banner-logo {
+    transform: scale(1.2) rotate(3deg) translate(1px, 2px);
+    transition: transform 0.2s, opacity 0.2s, visibility 0s;
+    content: "display: none; position: absolute";
+    background: url("data:image/svg+xml;charset=utf8,%3Csvg display='none' position='x'%3E");
+    background-image: url(data:image/png;base64,ZGlzcGxheTogbm9uZTsgcG9zaXRpb246IGFic29sdXRlOw==);
+    font-family: "display", 'opacity', sans-serif;
+    quotes: '"' '"';
+    animation-name: slide-margin-top;
+}
+
+.ext-footer::after {
+    content: 'z-index: 99; } .ext-sign-in-box { display: none';
+    color: #333;
+}

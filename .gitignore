@@ -25,3 +25,6 @@ $RECYCLE.BIN/
 /public/
 /resources/
 .hugo_build.lock
+
+# Pester writes its coverage report next to the suite it ran; it is build output, not source.
+coverage.xml

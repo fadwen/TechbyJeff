@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Default views for the two object types the module emits. A result is one source (a file, a
+    branding localization, or a theme localization); a finding is one declaration inside it.
+    Every property is still on the object; these only decide what a bare Format-Table shows.
+-->
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>EntraBrandingCss.Result</Name>
+      <ViewSelectedBy>
+        <TypeName>EntraBrandingCss.Result</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Name</Label><Width>28</Width></TableColumnHeader>
+          <TableColumnHeader><Label>SourceType</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Retired</Label><Width>7</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Review</Label><Width>6</Width><Alignment>Right</Alignment></TableColumnHeader>
+          <TableColumnHeader><Label>Declarations</Label><Width>12</Width><Alignment>Right</Alignment></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Name</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>SourceType</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Status</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>RetiredCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ReviewCount</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>DeclarationCount</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>EntraBrandingCss.Finding</Name>
+      <ViewSelectedBy>
+        <TypeName>EntraBrandingCss.Finding</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Level</Label><Width>7</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Property</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Value</Label><Width>24</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Selector</Label><Width>40</Width></TableColumnHeader>
+          <TableColumnHeader><Label>AtRule</Label><Width>22</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Line</Label><Width>4</Width><Alignment>Right</Alignment></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Level</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Property</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Value</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Selector</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>AtRule</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Line</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>
