@@ -237,9 +237,19 @@ uploaded to the default locale by hand and a second locale (`en-GB`) was created
 - **No branding at all looks like this:** `GET .../branding` 404; `GET .../branding/localizations`
   200 with an empty collection; `GET /beta/.../branding/themes` 200 with an empty collection.
   The module reports one `NoCustomCss` result of `SourceType` `Tenant` for it.
-- **Graph accepted new custom CSS on a tenant that had never used it.** The Learn page says that
-  after July 21, 2026 such tenants "can't configure custom CSS". On October 19, 2026 the `PUT` to
-  the stream endpoint succeeded on this tenant, created December 2022, with no prior custom CSS.
+- **Graph accepted new custom CSS on a tenant that had never used it, and the sign-in page
+  ignored it.** The Learn page says that after July 21, 2026 such tenants "can't configure custom
+  CSS". On October 19, 2026 the `PUT` to the stream endpoint succeeded on this tenant, created
+  December 2022, with no prior custom CSS; Graph and both CDN hosts then served the file. The
+  sign-in page never used it. Loaded with Playwright through the tenant-specific authorize
+  endpoint, the page's `$Config.staticTenantBranding` carried the locale's background color and
+  boilerplate text within about twelve minutes of their creation, but no CSS reference, and the
+  page had no `customcss` stylesheet and still showed "Can't access your account?" and the footer
+  links 45 minutes after the CSS was uploaded to that same locale. The page also set three
+  feature flags on every load: `fDisallowCssPositioning: true`, `fLogDisallowedCssProperties:
+  true` and `fRemoveCustomCss: true`. The reading that fits all of that is that the July 21 gate
+  is enforced when the page renders, not when the API stores. It was not possible to compare
+  against a tenant that used custom CSS before the gate, so that reading rests on one tenant.
   Whether the admin center still offers the upload was not checked.
 - Authentication was app-only with a certificate. The reads succeeded before
   `OrganizationalBranding.Read.All` or `Organization.Read.All` were on the token, consistent with
