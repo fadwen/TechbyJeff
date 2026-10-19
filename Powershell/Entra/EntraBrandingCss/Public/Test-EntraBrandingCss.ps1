@@ -98,10 +98,6 @@ function Test-EntraBrandingCss {
                 return
             }
 
-            if ($sources.Count -eq 0) {
-                Write-Warning 'The tenant has no branding localizations, so there is nothing to scan.'
-            }
-
             foreach ($source in $sources) {
                 if ($source.Error) {
                     Write-Error "Could not read $($source.Path): $($source.Error) - CorrelationId: $correlationId"

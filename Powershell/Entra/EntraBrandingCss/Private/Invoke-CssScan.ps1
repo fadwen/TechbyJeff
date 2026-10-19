@@ -27,7 +27,8 @@ function Invoke-CssScan {
         localization or theme.
 
     .PARAMETER SourceType
-        File, Localization or Theme.
+        File, Localization, Theme, or Tenant for a tenant that has no branding localizations
+        at all and therefore nothing to scan.
 
     .PARAMETER Name
         A short display name: the file name, the locale id, or the theme and locale.
@@ -62,7 +63,7 @@ function Invoke-CssScan {
         [string]$Source,
 
         [Parameter(Mandatory)]
-        [ValidateSet('File', 'Localization', 'Theme')]
+        [ValidateSet('File', 'Localization', 'Theme', 'Tenant')]
         [string]$SourceType,
 
         [Parameter()]

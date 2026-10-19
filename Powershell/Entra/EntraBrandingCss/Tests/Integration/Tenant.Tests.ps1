@@ -7,8 +7,12 @@
 
     Skipped unless the session is already connected with Connect-MgGraph. The skip is decided
     at discovery and has to survive a host with no Graph SDK at all, which is why the check is
-    wrapped. Nothing tenant-specific is asserted: a tenant with no custom CSS anywhere is a
-    valid answer, and the assertions are about the round trip and the result shape.
+    wrapped. Nothing tenant-specific is asserted: a tenant with no custom CSS anywhere, or no
+    branding at all, is a valid answer, and the assertions are about the round trip and the
+    result shape.
+
+    An app-only (certificate) session has ContextScope Process, so Connect-MgGraph and
+    Invoke-Pester must run in the same PowerShell process for this file to run.
 
     Read-only: every request is a GET.
 #>
@@ -54,10 +58,22 @@ Describe 'Test-EntraBrandingCss against the connected tenant' `
             Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } | ForEach-Object Message)
     }
 
-    It 'returns at least the default localization' {
+    It 'always returns at least one result' {
         $script:Results.Count | Should-BeGreaterThanOrEqual 1
-        @($script:Results | Where-Object SourceType -eq 'Localization' | ForEach-Object Name) |
-            Should-ContainCollection '0'
+    }
+
+    It 'returns the default localization, or one Tenant result when the tenant has no branding' {
+        # A tenant with company branding always has the default locale, id 0. One that has
+        # never configured branding has no localizations at all (observed: an empty list), and
+        # must still say so with an object rather than silence.
+        $localizations = @($script:Results | Where-Object SourceType -eq 'Localization')
+        if ($localizations.Count -gt 0) {
+            @($localizations | ForEach-Object Name) | Should-ContainCollection '0'
+        } else {
+            $script:Results.Count | Should-Be 1
+            $script:Results[0].SourceType | Should-Be 'Tenant'
+            $script:Results[0].Status | Should-Be 'NoCustomCss'
+        }
     }
 
     It 'gives every result a known status and no error' {
@@ -67,7 +83,7 @@ Describe 'Test-EntraBrandingCss against the connected tenant' `
 
     It 'names every source by its Graph path under the tenant id' {
         $script:Results | Should-All {
-            $_.Source -match '^[0-9a-f-]{36}/branding/(localizations/[^/]+|themes/[^/]+/localizations/[^/]+)$'
+            $_.Source -match '^[0-9a-f-]{36}/branding(/localizations/[^/]+|/themes/[^/]+/localizations/[^/]+)?$'
         }
     }
 
@@ -75,6 +91,9 @@ Describe 'Test-EntraBrandingCss against the connected tenant' `
         # customCSSRelativeUrl on the list and a non-empty stream should say the same thing.
         # If this fails, the README's description of the two signals needs updating.
         $localizations = @($script:Results | Where-Object SourceType -eq 'Localization')
+        if ($localizations.Count -eq 0) {
+            Set-ItResult -Skipped -Because 'the tenant has no branding localizations to compare'
+        }
         $localizations | Should-All {
             [bool]$_.CustomCssRelativeUrl -eq [bool]$_.HasCustomCss
         }

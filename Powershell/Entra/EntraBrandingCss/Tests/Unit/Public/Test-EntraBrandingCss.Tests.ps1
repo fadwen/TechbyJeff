@@ -331,7 +331,7 @@ Describe 'Test-EntraBrandingCss tenant mode' -Tag 'Unit', 'Public', 'TenantMode'
 
         It 'reads the organization, the list, and one stream per locale, all under v1.0' {
             $script:Calls.Count | Should-Be 6
-            $script:Calls[0] | Should-MatchString '/v1\.0/organization\?\$select=id$'
+            $script:Calls[0] | Should-MatchString '/v1\.0/organization\?\$select=id,displayName$'
             $script:Calls[1] | Should-Be "$script:V1/localizations"
             $script:Calls | Should-All { $_ -like 'https://graph.microsoft.com/v1.0/*' }
         }
@@ -403,19 +403,35 @@ Describe 'Test-EntraBrandingCss tenant mode' -Tag 'Unit', 'Public', 'TenantMode'
                 Should-Throw -ExceptionMessage '*Pass -OrganizationId*'
         }
 
-        It 'warns and returns nothing when the tenant has no localizations' {
+        It 'reports the tenant itself as NoCustomCss when the localizations list is <Shape>' -ForEach @(
+            @{ Shape = 'empty'; ListThrows = $false }
+            @{ Shape = '404';   ListThrows = $true }
+        ) {
+            # A tenant that never configured branding has no localizations. The observed shape
+            # is an empty collection; 404 is handled the same way.
             $tenantId = $script:TenantId
+            $listThrows = $ListThrows
             $handler = {
                 param($Uri)
                 if ($Uri -match '/organization\?') {
-                    return [PSCustomObject]@{ value = @([PSCustomObject]@{ id = $tenantId }) }
+                    return [PSCustomObject]@{
+                        value = @([PSCustomObject]@{ id = $tenantId; displayName = 'Contoso Dev' })
+                    }
+                }
+                if ($Uri -like '*/branding/localizations' -and -not $listThrows) {
+                    return [PSCustomObject]@{ value = @() }
                 }
                 throw 'Response status code does not indicate success: NotFound (Not Found).'
             }.GetNewClosure()
-            $results = @(Test-EntraBrandingCss -Tenant -RequestHandler $handler `
-                -WarningVariable warn -WarningAction SilentlyContinue)
-            $results.Count | Should-Be 0
-            "$warn" | Should-MatchString 'no branding localizations'
+            $results = @(Test-EntraBrandingCss -Tenant -IncludeTheme -RequestHandler $handler)
+
+            $results.Count | Should-Be 1
+            $results[0].SourceType | Should-Be 'Tenant'
+            $results[0].Status | Should-Be 'NoCustomCss'
+            $results[0].HasCustomCss | Should-BeFalse
+            $results[0].Source | Should-Be "$tenantId/branding"
+            $results[0].Name | Should-Be 'Contoso Dev'
+            $results[0].DeclarationCount | Should-Be 0
         }
 
         It 'explains what to install when no handler is given and the Graph SDK is absent' {

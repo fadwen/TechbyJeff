@@ -97,7 +97,7 @@ to collapse:
 
 | Status | Meaning |
 | --- | --- |
-| `NoCustomCss` | There was nothing to scan: an empty file, or a tenant locale with no custom CSS |
+| `NoCustomCss` | There was nothing to scan: an empty file, a tenant locale with no custom CSS, or a tenant with no branding at all |
 | `Clean` | There was custom CSS and nothing in it is retired or worth a look |
 | `Review` | Nothing retired, but at least one near miss a person should read |
 | `Retired` | At least one declaration uses a retired property |
@@ -107,7 +107,8 @@ to collapse:
 nothing to look at; the other says somebody looked and it is fine.
 
 Result properties: `Source` (file path, or the Graph path under the tenant id), `SourceType`
-(`File`, `Localization`, `Theme`), `Name`, `Status`, `HasCustomCss`, `RetiredCount`,
+(`File`, `Localization`, `Theme`, or `Tenant` for a tenant that has no branding localizations
+at all), `Name`, `Status`, `HasCustomCss`, `RetiredCount`,
 `ReviewCount`, `DeclarationCount`, `Length`, `CustomCssRelativeUrl` (tenant mode), `Findings`,
 `Error`.
 
@@ -167,10 +168,14 @@ module never writes to a tenant and never uploads anything.
 Company branding, all on v1.0:
 
 ```text
-GET /v1.0/organization?$select=id                                       tenant id, unless -OrganizationId is given
+GET /v1.0/organization?$select=id,displayName                           tenant id, unless -OrganizationId is given
 GET /v1.0/organization/{id}/branding/localizations                       every locale, including the default (id 0)
 GET /v1.0/organization/{id}/branding/localizations/{localeId}/customCSS  the CSS, one request per locale
 ```
+
+A tenant that has never configured company branding has no localizations; the list comes back
+empty. The module reports that as one `NoCustomCss` result of `SourceType` `Tenant`, named after
+the tenant, so a pipeline always gets an object.
 
 `customCSS` is a Stream property. Graph does not return stream properties in a list; the list
 carries `customCSSRelativeUrl` (and `cdnList`) instead, and the CSS itself comes from the
@@ -210,9 +215,36 @@ Connect-MgGraph -Scopes OrganizationalBranding.Read.All
 
 ### Verified against a tenant
 
-This section records what was observed on a real tenant rather than what the documentation says.
-It is filled in from the first tenant run; until then, the statements above about the list
-response and the stream endpoint are from the Graph reference.
+What was observed on a real tenant, as distinct from what the documentation says. Tested on
+October 19, 2026 against a development tenant created in December 2022 that has never
+configured company branding, using Microsoft.Graph.Authentication 2.40.0.
+
+- Authentication was app-only, with a certificate. The token's application roles did not include
+  `OrganizationalBranding.Read.All` or `Organization.Read.All`; every call below still succeeded,
+  which is consistent with `Directory.ReadWrite.All` being among the roles it did hold. A
+  least-privilege app holding only `OrganizationalBranding.Read.All`, and delegated access, were
+  not tested.
+- `GET /v1.0/organization/{id}/branding` returned 404, as documented for a tenant with no default
+  branding. `GET /v1.0/organization/{id}/branding/localizations` returned 200 with an empty
+  collection, not 404. `GET /beta/organization/{id}/branding/themes` returned 200 with an empty
+  collection. The module therefore reported one `NoCustomCss` result of `SourceType` `Tenant`.
+- Because the tenant has no localizations, the stream endpoint was not exercised against real
+  CSS, and whether the list response carries `customCSS` content could not be observed. The
+  statements above about both come from the Graph reference, where `customCSS` is a Stream
+  property, and from the inspector's behavior of reading `customCSSRelativeUrl` instead.
+- An app-only session has `ContextScope` `Process`: it is not persisted across PowerShell
+  sessions the way a delegated sign-in is. Run `Connect-MgGraph` and the scan, or the
+  integration test, in the same session.
+
+Output from that run:
+
+```text
+PS> Test-EntraBrandingCss -Tenant -IncludeTheme
+
+Name                         SourceType   Status       Retired Review Declarations
+----                         ----------   ------       ------- ------ ------------
+Homelab Tenant               Tenant       NoCustomCss        0      0            0
+```
 
 ## Compatibility
 

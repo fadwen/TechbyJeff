@@ -180,9 +180,10 @@ required. Every call is a GET. The command never writes to the tenant.
 One result comes out per source, with a Status that keeps "no custom CSS present" (NoCustomCss)
 separate from "custom CSS present and nothing found" (Clean), because those are different
 statements. Retired means at least one declaration uses a retired property; Review means none did
-but a near miss is worth reading; Error means a tenant source could not be read. The Findings
-property holds one object per flagged declaration with its selector, at-rule context, line and
-column.
+but a near miss is worth reading; Error means a tenant source could not be read. A tenant that
+has never configured company branding has no localizations, and gets one NoCustomCss result of
+SourceType Tenant rather than no output. The Findings property holds one object per flagged
+declaration with its selector, at-rule context, line and column.
 
 Matching is on the property name after comments are stripped, strings and url(...) are skipped,
 and CSS escapes are decoded. A value is never matched, so transform: scale(1.2) reports transform
@@ -315,8 +316,9 @@ Get-ChildItem, bind by property name.</maml:para>
           <maml:name>EntraBrandingCss.Result</maml:name>
         </dev:type>
         <maml:description>
-          <maml:para>One per source scanned. Source, SourceType (File, Localization or Theme), Name, Status
-(NoCustomCss, Clean, Review, Retired or Error), HasCustomCss, RetiredCount, ReviewCount,
+          <maml:para>One per source scanned. Source, SourceType (File, Localization, Theme, or Tenant for a tenant
+with no branding at all), Name, Status (NoCustomCss, Clean, Review, Retired or Error),
+HasCustomCss, RetiredCount, ReviewCount,
 DeclarationCount, Length, CustomCssRelativeUrl (tenant mode), Findings and Error. Each entry in
 Findings is an EntraBrandingCss.Finding with Source, Level, Property, Value, Important, Selector,
 AtRule, Line, Column, FirstListedIn and Note.</maml:para>

@@ -14,6 +14,11 @@ function Get-EntraBrandingSource {
         is 0. A localization whose stream request fails for any reason other than 404 is still
         emitted, with Error set, so one bad locale does not hide the rest.
 
+        A tenant that has never configured company branding has no localizations at all: the
+        list comes back empty (observed) or 404. That is still an answer, so one source of
+        Kind Tenant with no CSS is emitted for it, and the caller reports it as NoCustomCss
+        rather than returning nothing.
+
         Everything here is a GET.
 
     .PARAMETER OrganizationId
@@ -47,17 +52,20 @@ function Get-EntraBrandingSource {
     )
 
     $base = 'https://graph.microsoft.com/v1.0'
+    $tenantName = $OrganizationId
 
     if (-not $OrganizationId) {
-        $organization = Invoke-EntraBrandingRequest -Uri "$base/organization?`$select=id" `
+        $organization = Invoke-EntraBrandingRequest -Uri "$base/organization?`$select=id,displayName" `
             -RequestHandler $RequestHandler
-        $ids = @((Get-EntraBrandingValue -InputObject $organization -Name 'value').Value |
-            ForEach-Object { (Get-EntraBrandingValue -InputObject $_ -Name 'id').Value })
-        if ($ids.Count -ne 1) {
-            throw "Expected one organization from GET /organization and got $($ids.Count). Pass -OrganizationId."
+        $organizations = @((Get-EntraBrandingValue -InputObject $organization -Name 'value').Value)
+        if ($organizations.Count -ne 1) {
+            throw ("Expected one organization from GET /organization and got $($organizations.Count). " +
+                'Pass -OrganizationId.')
         }
-        $OrganizationId = [string]$ids[0]
-        Write-Verbose "Organization id: $OrganizationId"
+        $OrganizationId = [string](Get-EntraBrandingValue -InputObject $organizations[0] -Name 'id').Value
+        $tenantName = [string](Get-EntraBrandingValue -InputObject $organizations[0] -Name 'displayName').Value
+        if (-not $tenantName) { $tenantName = $OrganizationId }
+        Write-Verbose "Organization id: $OrganizationId ($tenantName)"
     }
 
     $localizations = @()
@@ -66,11 +74,23 @@ function Get-EntraBrandingSource {
             -RequestHandler $RequestHandler
         $localizations = @((Get-EntraBrandingValue -InputObject $list -Name 'value').Value)
     } catch {
-        if (Test-EntraBrandingNotFound -ErrorRecord $_) {
-            Write-Verbose "Tenant $OrganizationId has no branding localizations."
-            return
+        if (-not (Test-EntraBrandingNotFound -ErrorRecord $_)) { throw }
+    }
+
+    if ($localizations.Count -eq 0) {
+        Write-Verbose "Tenant $OrganizationId has no branding localizations."
+        [PSCustomObject]@{
+            PSTypeName           = 'EntraBrandingCss.Source'
+            OrganizationId       = $OrganizationId
+            Kind                 = 'Tenant'
+            Path                 = "$OrganizationId/branding"
+            Name                 = $tenantName
+            Css                  = $null
+            CustomCssRelativeUrl = $null
+            ListCarriedCss       = $false
+            Error                = $null
         }
-        throw
+        return
     }
 
     foreach ($localization in $localizations) {
