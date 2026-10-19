@@ -177,11 +177,13 @@ A tenant that has never configured company branding has no localizations; the li
 empty. The module reports that as one `NoCustomCss` result of `SourceType` `Tenant`, named after
 the tenant, so a pipeline always gets an object.
 
-`customCSS` is a Stream property. Graph does not return stream properties in a list; the list
-carries `customCSSRelativeUrl` (and `cdnList`) instead, and the CSS itself comes from the
-stream endpoint on the third line. Each result keeps the `customCSSRelativeUrl` the list reported
-so the two signals can be compared, and the integration test asserts they agree. A 404 from the
-stream endpoint, or an empty body, means no custom CSS and comes out as `NoCustomCss`.
+`customCSS` is a Stream property. The list does not carry it at all (observed: no `customCSS`
+key in the response); it carries `customCSSRelativeUrl` and `cdnList` instead, and the CSS
+itself comes from the stream endpoint on the third line. Each result keeps the
+`customCSSRelativeUrl` the list reported so the two signals can be compared, and the integration
+test asserts they agree. An empty body from the stream endpoint (observed for a locale with no
+CSS: 200, no content type, zero bytes) or a 404 means no custom CSS and comes out as
+`NoCustomCss`.
 
 The Learn page's own procedure pastes the list response into a browser-based inspector. That
 works because the inspector does not look for CSS in the response either: it builds a URL from
@@ -216,35 +218,58 @@ Connect-MgGraph -Scopes OrganizationalBranding.Read.All
 ### Verified against a tenant
 
 What was observed on a real tenant, as distinct from what the documentation says. Tested on
-October 19, 2026 against a development tenant created in December 2022 that has never
-configured company branding, using Microsoft.Graph.Authentication 2.40.0.
+October 19, 2026 with Microsoft.Graph.Authentication 2.40.0 against a development tenant created
+in December 2022, first with no branding configured at all, then after the demo fixture was
+uploaded to the default locale by hand and a second locale (`en-GB`) was created without CSS.
 
-- Authentication was app-only, with a certificate. The token's application roles did not include
-  `OrganizationalBranding.Read.All` or `Organization.Read.All`; every call below still succeeded,
-  which is consistent with `Directory.ReadWrite.All` being among the roles it did hold. A
-  least-privilege app holding only `OrganizationalBranding.Read.All`, and delegated access, were
-  not tested.
-- `GET /v1.0/organization/{id}/branding` returned 404, as documented for a tenant with no default
-  branding. `GET /v1.0/organization/{id}/branding/localizations` returned 200 with an empty
-  collection, not 404. `GET /beta/organization/{id}/branding/themes` returned 200 with an empty
-  collection. The module therefore reported one `NoCustomCss` result of `SourceType` `Tenant`.
-- Because the tenant has no localizations, the stream endpoint was not exercised against real
-  CSS, and whether the list response carries `customCSS` content could not be observed. The
-  statements above about both come from the Graph reference, where `customCSS` is a Stream
-  property, and from the inspector's behavior of reading `customCSSRelativeUrl` instead.
-- An app-only session has `ContextScope` `Process`: it is not persisted across PowerShell
-  sessions the way a delegated sign-in is. Run `Connect-MgGraph` and the scan, or the
-  integration test, in the same session.
+- **The list response does not carry the CSS.** `GET .../branding/localizations` returned no
+  `customCSS` key at all on either locale, not even a null one. It carried
+  `customCSSRelativeUrl` and `cdnList` on the locale that has CSS, and an empty string and empty
+  list on the one that does not. Pasting that response into a tool only helps if the tool then
+  fetches the CSS from somewhere else.
+- **The stream endpoint returns the CSS byte for byte.** `GET .../localizations/0/customCSS`
+  returned 200 with `Content-Type: text/css` and the 1058-byte fixture, identical to the upload.
+  For the locale with no CSS it returned 200 with an empty body and no content type, not 404.
+  `Invoke-MgGraphRequest` with its default output type throws "Non-Json response ... specify
+  -OutputFilePath" on this endpoint, which is why the module asks for `HttpResponseMessage`.
+- **The CDN path works without a token.** `https://{cdn}/{customCSSRelativeUrl}` returned the
+  same 1058 bytes as `text/css` from both hosts in `cdnList`. That is what the inspector does.
+- **No branding at all looks like this:** `GET .../branding` 404; `GET .../branding/localizations`
+  200 with an empty collection; `GET /beta/.../branding/themes` 200 with an empty collection.
+  The module reports one `NoCustomCss` result of `SourceType` `Tenant` for it.
+- **Graph accepted new custom CSS on a tenant that had never used it.** The Learn page says that
+  after July 21, 2026 such tenants "can't configure custom CSS". On October 19, 2026 the `PUT` to
+  the stream endpoint succeeded on this tenant, created December 2022, with no prior custom CSS.
+  Whether the admin center still offers the upload was not checked.
+- Authentication was app-only with a certificate. The reads succeeded before
+  `OrganizationalBranding.Read.All` or `Organization.Read.All` were on the token, consistent with
+  `Directory.ReadWrite.All` being among the roles it held; the writes used
+  `OrganizationalBranding.ReadWrite.All`, granted for the test. A least-privilege app holding only
+  `OrganizationalBranding.Read.All`, and delegated access, were not tested.
+- An app-only session has `ContextScope` `Process` and is not persisted across PowerShell
+  sessions the way a delegated sign-in is. Run `Connect-MgGraph` and the scan, or the integration
+  test, in the same session.
 
-Output from that run:
+Output from that run, after the upload:
 
 ```text
 PS> Test-EntraBrandingCss -Tenant -IncludeTheme
 
 Name                         SourceType   Status       Retired Review Declarations
 ----                         ----------   ------       ------- ------ ------------
-Homelab Tenant               Tenant       NoCustomCss        0      0            0
+en-GB                        Localization NoCustomCss        0      0            0
+0                            Localization Retired            2      0           15
+
+PS> (Test-EntraBrandingCss -Tenant).Findings
+
+Level   Property   Value   Selector                                             Line
+-----   --------   -----   --------                                             ----
+Retired display    none    #cantAccessAccount, .ext-sign-in-box a[href*="pa...    38
+Retired display    none    .ext-footer-links                                      43
 ```
+
+The integration test passed all six assertions against that state, including the one that the
+list's `customCSSRelativeUrl` and the stream's content agree on which locales have CSS.
 
 ## Compatibility
 

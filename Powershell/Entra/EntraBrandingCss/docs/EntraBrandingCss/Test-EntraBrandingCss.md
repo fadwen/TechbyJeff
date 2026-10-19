@@ -102,14 +102,14 @@ Test-EntraBrandingCss -Tenant -IncludeTheme
 ```Output
 Name                         SourceType   Status       Retired Review Declarations
 ----                         ----------   ------       ------- ------ ------------
-0                            Localization NoCustomCss        0      0            0
-fr-FR                        Localization Retired            1      0            4
-Contoso (en-US)              Theme        Clean              0      0            9
+en-GB                        Localization NoCustomCss        0      0            0
+0                            Localization Retired            2      0           15
 ```
 
 Reads every company branding localization, and with -IncludeTheme every branding theme
 localization, through Microsoft Graph. A locale with no custom CSS is reported as NoCustomCss so
-it is not mistaken for a locale that was checked and found clean. Every request is a GET.
+it is not mistaken for a locale that was checked and found clean; a tenant with no branding at
+all gets one NoCustomCss result of SourceType Tenant. Every request is a GET.
 
 ## PARAMETERS
 
