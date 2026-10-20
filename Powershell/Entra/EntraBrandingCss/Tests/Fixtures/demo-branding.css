@@ -1,0 +1,49 @@
+/* Contoso sign-in branding
+   Based on Microsoft's custom-styles-template. Most of this is color and font, which is
+   fine. Two rules hide things with display: none, and those are the ones that stop working
+   on October 26, 2026. */
+
+body {
+    font-family: "Segoe UI", Segoe, Tahoma, Arial, sans-serif;
+    color: #1b1b1b;
+}
+
+a, a:link {
+    color: #0a5fb4;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.ext-sign-in-box {
+    background-color: #ffffff;
+    border-radius: 6px;
+}
+
+.ext-button.ext-primary {
+    background-color: #0a5fb4;
+    border-color: #0a5fb4;
+    color: #ffffff;
+}
+
+.ext-button.ext-primary:hover {
+    background-color: #084a8c;
+}
+
+/* Hide "Can't access your account?" so users call the help desk instead */
+#cantAccessAccount,
+.ext-sign-in-box a[href*="password"] {
+    display: none;
+}
+
+/* Hide the footer links; legal asked for the privacy link to live on the intranet instead */
+.ext-footer-links {
+    display: none !important;
+}
+
+.ext-boilerplate-text {
+    font-size: 12px;
+    color: #555555;
+}
