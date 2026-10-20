@@ -1,0 +1,37 @@
+/* Nothing in this file is retired. Every property either shares a prefix with a retired
+   name, carries one as a suffix, or is a custom property. Expected Retired findings: zero.
+   The inset-* logical forms are expected as Review findings and nothing else is. */
+
+.ext-boilerplate-text {
+    overflow-wrap: break-word;
+    backdrop-filter: blur(4px);
+    grid-row-gap: 8px;
+    grid-column-gap: 8px;
+    grid-gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    offset-anchor: center;
+    offset-rotate: auto;
+    transform-origin: center;
+    transform-style: preserve-3d;
+    transition: opacity 0.3s ease;
+    will-change: transform, opacity;
+    text-overflow: ellipsis;
+    mask-type: alpha;
+    mask-size: cover;
+    visibility-hint: none;
+    display-mode: standalone;
+    positioning: sticky;
+    margins: 0;
+    order-of-business: first;
+    zoom-level: 2;
+}
+
+.ext-sign-in-box {
+    inset-block: 0;
+    inset-inline: 0;
+    --display: none;
+    --position: absolute;
+    --margin: 0;
+    --z-index: 10;
+    color: var(--display);
+}

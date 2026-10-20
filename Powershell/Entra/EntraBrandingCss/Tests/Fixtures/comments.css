@@ -1,0 +1,23 @@
+/* A commented-out declaration is not a declaration. Expected: exactly two Retired findings,
+   opacity on line 12 and display on line 22. */
+
+.ext-sign-in-box {
+    /* display: none; */
+    color: #222;
+    /*
+       position: absolute;
+       top: 0;
+       z-index: 1000;
+    */
+    opacity: 0.9; /* visibility: hidden; */
+    /* margin: 0 */ padding: 4px;
+}
+
+.ext-footer {
+    color /* comment between name and colon */ : #666;
+    font-size: 12px; /* transform: none */
+    /* ---- */
+    /*
+    */
+    display: /* value comment */ none;
+}

@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="utf-8"?>
+<helpItems xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" schema="maml" xmlns="http://msh">
+  <command:command>
+    <command:details>
+      <command:name>Get-EntraBrandingCssProperty</command:name>
+      <maml:description>
+        <maml:para>Lists the CSS property names the scanner reports, with where each one was announced</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>EntraBrandingCssProperty</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Returns the contents of Data/RetiredProperties.psd1 as objects: the 58 retired names Microsoft
+lists on the CSS template reference page, counting the longhands it folds into the position and
+margin bullets, and the short Review list of near misses the scanner flags for a person to read.
+
+FirstListedIn says where a retired name was first announced, which is the point of the command.
+Message Center post MC1435782 (July 2026) carried 19 names; MC1458474 (August 2026) added 28; 11
+more, including display and visibility, appear only on the Learn page. A tenant checked against
+the first post alone can have a false all-clear.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-EntraBrandingCssProperty</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Level</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Level</maml:name>
+        <maml:description>
+          <maml:para>[String[]] (Optional)</maml:para>
+          <maml:para>Retired, Review, or both. Defaults to both.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>This command takes no pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>EntraBrandingCss.Property</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One per name: Property, Level (Retired or Review), Bullet (the Learn bullet the name came from,
+Retired only), FirstListedIn (MC1435782, MC1458474 or Learn; Retired only), Reason (Review
+only), SourceUrl and SourceDate.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Author: Jeffrey Stuhr
+Blog: https://www.techbyjeff.net
+LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1: Count the retired names ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Get-EntraBrandingCssProperty -Level Retired | Measure-Object | Select-Object Count
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```Output
+Count
+-----
+   58
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Confirms the list a scan is using: 49 bullets on the Learn page, plus the 5 and 4 longhands it
+folds under position and margin.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 2: How many names each announcement introduced ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Get-EntraBrandingCssProperty -Level Retired | Group-Object FirstListedIn | Select-Object Name, Count
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```Output
+Name      Count
+----      -----
+MC1435782    19
+Learn        11
+MC1458474    28
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Shows why a check against the first Message Center post alone misses 39 names. Review entries
+have no FirstListedIn, which is why -Level Retired is passed here.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 3: The near misses and why each is listed ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Get-EntraBrandingCssProperty -Level Review | Format-List Property, Reason
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```Output
+Property : -webkit-filter
+Reason   : Vendor form of filter, which is retired. Microsoft lists only the unprefixed name.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Property : all
+Reason   : Shorthand that resets every property, including display and visibility, which are retired.
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>The Review list is deliberately short and never reported as Retired. Reading the reason is how to
+decide whether a Review finding needs action.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://learn.microsoft.com/entra/fundamentals/reference-company-branding-css-template</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Test-EntraBrandingCss</maml:linkText>
+        <maml:uri />
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>CSS template reference guide</maml:linkText>
+        <maml:uri>https://learn.microsoft.com/entra/fundamentals/reference-company-branding-css-template</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Test-EntraBrandingCss</command:name>
+      <maml:description>
+        <maml:para>Finds retired CSS properties in Entra ID company branding, from files or a tenant</maml:para>
+      </maml:description>
+      <command:verb>Test</command:verb>
+      <command:noun>EntraBrandingCss</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Microsoft Entra ID is retiring the layout and positioning properties in company branding custom
+CSS. From October 26, 2026 they are blocked and stop working, with no supported replacement. This
+command parses custom CSS into declarations and reports every one that uses a retired property,
+so an admin can see what will break before it does.
+
+Two sources feed the same scanner:
+
+File mode (-Path) reads one or more .css files, which is where a download from the Entra admin
+center lands, and takes pipeline input from Get-ChildItem.
+
+Tenant mode (-Tenant) reads every company branding localization in the connected tenant through
+Microsoft Graph, and with -IncludeTheme every branding theme localization as well. It needs
+Microsoft.Graph.Authentication and an existing Connect-MgGraph session; the full Graph SDK is not
+required. Every call is a GET. The command never writes to the tenant.
+
+One result comes out per source, with a Status that keeps "no custom CSS present" (NoCustomCss)
+separate from "custom CSS present and nothing found" (Clean), because those are different
+statements. Retired means at least one declaration uses a retired property; Review means none did
+but a near miss is worth reading; Error means a tenant source could not be read. A tenant that
+has never configured company branding has no localizations, and gets one NoCustomCss result of
+SourceType Tenant rather than no output. The Findings property holds one object per flagged
+declaration with its selector, at-rule context, line and column.
+
+Matching is on the property name after comments are stripped, strings and url(...) are skipped,
+and CSS escapes are decoded. A value is never matched, so transform: scale(1.2) reports transform
+and not scale, and custom properties such as --display are ignored. The retired list lives in
+Data/RetiredProperties.psd1 beside its source URL; Get-EntraBrandingCssProperty shows it.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Test-EntraBrandingCss</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="FullName">
+          <maml:name>Path</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Test-EntraBrandingCss</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Tenant</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>OrganizationId</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>IncludeTheme</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>RequestHandler</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">scriptblock</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Management.Automation.ScriptBlock</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>IncludeTheme</maml:name>
+        <maml:description>
+          <maml:para>[Switch] (Optional, tenant mode)</maml:para>
+          <maml:para>Also read branding theme localizations. Themes exist only in the Graph beta API, so this is
+opt-in.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>OrganizationId</maml:name>
+        <maml:description>
+          <maml:para>[String] (Optional, tenant mode)</maml:para>
+          <maml:para>The tenant id, as a GUID. Discovered from GET /organization when omitted, which is the usual
+case. Required when that call returns more than one organization.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="true" pipelineInput="true (ByValue, ByPropertyName)" position="0" aliases="FullName">
+        <maml:name>Path</maml:name>
+        <maml:description>
+          <maml:para>[String[]] (Mandatory in file mode, Pipeline: ByValue, ByPropertyName as FullName)</maml:para>
+          <maml:para>One or more .css files. Wildcards are allowed. Each file becomes one result; a file that cannot
+be read, or a path that does not exist, is reported with Write-Error and the rest continue.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>RequestHandler</maml:name>
+        <maml:description>
+          <maml:para>[ScriptBlock] (Optional, tenant mode)</maml:para>
+          <maml:para>Replaces the Graph call. Receives the URI and a boolean for whether to return the body as text,
+and returns what Invoke-MgGraphRequest would. Exists so tests can run tenant mode with no tenant;
+production callers leave it unset.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Management.Automation.ScriptBlock</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Management.Automation.ScriptBlock</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Tenant</maml:name>
+        <maml:description>
+          <maml:para>[Switch] (Mandatory in tenant mode)</maml:para>
+          <maml:para>Read the connected tenant's branding over Microsoft Graph instead of files. Requires a
+Connect-MgGraph session with a scope that can read organizational branding;
+OrganizationalBranding.Read.All is the least privileged one Microsoft documents for every call
+this makes.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>File paths, with wildcards allowed. Objects with a FullName property, such as the output of
+Get-ChildItem, bind by property name.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>EntraBrandingCss.Result</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One per source scanned. Source, SourceType (File, Localization, Theme, or Tenant for a tenant
+with no branding at all), Name, Status (NoCustomCss, Clean, Review, Retired or Error),
+HasCustomCss, RetiredCount, ReviewCount,
+DeclarationCount, Length, CustomCssRelativeUrl (tenant mode), Findings and Error. Each entry in
+Findings is an EntraBrandingCss.Finding with Source, Level, Property, Value, Important, Selector,
+AtRule, Line, Column, FirstListedIn and Note.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Author: Jeffrey Stuhr
+Blog: https://www.techbyjeff.net
+LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
+
+SECURITY CONSIDERATIONS:
+- Tenant mode is read-only. The module cannot send anything but GET.
+- OrganizationalBranding.Read.All is the least privileged permission documented for every call
+  made; delegated access also needs Global Reader or Organizational Branding Administrator.
+
+TROUBLESHOOTING:
+- See the README in the module folder.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1: Scan a downloaded file ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Test-EntraBrandingCss -Path .\custom-styles.css
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```Output
+Name                         SourceType   Status       Retired Review Declarations
+----                         ----------   ------       ------- ------ ------------
+custom-styles.css            File         Retired            2      0           15
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Scans the CSS file downloaded from the Entra admin center (Company branding, Edit, Layout, Custom
+CSS, Download). One result comes back with the status, the counts, and a Findings property holding
+each flagged declaration. Use this to check a branding file before the October 26, 2026
+retirement.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 2: Every retired declaration across a folder ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Get-ChildItem .\branding\*.css | Test-EntraBrandingCss |
+    Select-Object -ExpandProperty Findings |
+    Where-Object Level -eq 'Retired' |
+    Format-Table Source, Property, Value, Selector, Line
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Get-ChildItem output binds to -Path through its FullName property, so a folder of branding files
+kept for several tenants is scanned in one pipeline. Expanding Findings gives one row per retired
+declaration with the file it came from.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 3: Scan the connected tenant ---------</maml:title>
+        <maml:introduction>
+          <maml:para>```powershell
+Connect-MgGraph -Scopes OrganizationalBranding.Read.All
+Test-EntraBrandingCss -Tenant -IncludeTheme
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```Output
+Name                         SourceType   Status       Retired Review Declarations
+----                         ----------   ------       ------- ------ ------------
+en-GB                        Localization NoCustomCss        0      0            0
+0                            Localization Retired            2      0           15
+```</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>Reads every company branding localization, and with -IncludeTheme every branding theme
+localization, through Microsoft Graph. A locale with no custom CSS is reported as NoCustomCss so
+it is not mistaken for a locale that was checked and found clean; a tenant with no branding at
+all gets one NoCustomCss result of SourceType Tenant. Every request is a GET.</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://learn.microsoft.com/entra/fundamentals/reference-company-branding-css-template</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-EntraBrandingCssProperty</maml:linkText>
+        <maml:uri />
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>CSS template reference guide</maml:linkText>
+        <maml:uri>https://learn.microsoft.com/entra/fundamentals/reference-company-branding-css-template</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+</helpItems>

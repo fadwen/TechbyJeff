@@ -1,0 +1,32 @@
+/* Declarations inside nested at-rules must be found, with the at-rule chain recorded.
+   Expected Retired: display (line 6, @media), position (line 9, @media > @supports),
+   margin (line 16, @container), opacity (line 22, @layer), visibility (line 28, nesting). */
+
+@media (max-width: 600px) {
+    .ext-footer { display: none; }
+
+    @supports (position: sticky) {
+        .ext-header { position: sticky; }
+    }
+}
+
+@container sidebar (min-width: 400px) {
+    .ext-sign-in-box {
+        color: red;
+        margin: 0 auto;
+    }
+}
+
+@layer branding {
+    .ext-banner-logo {
+        opacity: 0.8;
+    }
+}
+
+.ext-promoted-fed-cred-box {
+    color: blue;
+    & .ext-link { visibility: hidden; }
+}
+
+@import url("https://example.com/base.css");
+@charset "utf-8";

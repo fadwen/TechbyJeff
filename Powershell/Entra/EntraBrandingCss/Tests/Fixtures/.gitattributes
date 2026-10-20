@@ -1,0 +1,4 @@
+# The fixtures test line endings and byte order marks, so git must not touch their bytes.
+# Without this, core.autocrlf rewrites crlf.css on checkout and the test that proves CRLF
+# handling silently proves nothing.
+*.css -text

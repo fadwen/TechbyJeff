@@ -1,0 +1,9 @@
+/* CSS escapes in a property name. The sign-in page sanitizer decodes these before matching,
+   so a scanner that does not would report a clean file that is about to break. */
+
+.ext-sign-in-box {
+    \70 osition: absolute;
+    d\69 splay: none;
+    \6d argin: 0;
+    o\pacity: 0.5;
+}
