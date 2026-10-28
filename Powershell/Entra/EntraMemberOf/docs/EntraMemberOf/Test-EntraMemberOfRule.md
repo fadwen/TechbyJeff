@@ -124,22 +124,26 @@ Test-EntraMemberOfRule -Tenant
 ```Output
 ObjectKind           DisplayName                    Level   RuleKind State  Chain SourceGroups
 ----------           -----------                    -----   -------- -----  ----- ------------
+Group                EntraMemberOf-Rollup           Retired user     On           EntraMemberOf-Source
+Group                EntraMemberOf-Nested           Retired user     On     yes   EntraMemberOf-Rollup, 00000000-0000-4000-8000-00000000000...
 Group                SC300-myDynamicGroup           Clean            On
 
-Outcome                : Clean
+Outcome                : Retired
 Coverage               : Complete
 Mode                   : Tenant
-Groups                 : Complete: 1 scanned, 0 retired, 0 review
+Groups                 : Complete: 3 scanned, 2 retired, 0 review
 AdministrativeUnits    : Complete: 0 scanned, 0 retired, 0 review
 AutoAssignmentPolicies : Complete: 0 scanned, 0 retired, 0 review
 ...
-Message                : No memberOf rules in 1 object(s) scanned.
+Message                : 2 object(s) use memberOf and stop updating after November 3, 2026.
 ```
 
 Reads every dynamic membership group, dynamic administrative unit and auto-assignment policy
-rule through Microsoft Graph, following every page, then resolves source group names. A kind
-that cannot be read is reported with Write-Error and the summary's Coverage says Incomplete, so a
-missing permission never turns into a clean result.
+rule through Microsoft Graph, following every page, then resolves source group names. Chain
+marks a memberOf group whose source is itself a memberOf group; a source id that no longer
+exists is kept and named in the Note. A kind that cannot be read is reported with Write-Error
+and the summary's Coverage says Incomplete, so a missing permission never turns into a clean
+result.
 
 ## PARAMETERS
 
