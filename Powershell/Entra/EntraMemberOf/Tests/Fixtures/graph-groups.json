@@ -1,0 +1,27 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups(id,displayName,groupTypes,membershipRule,membershipRuleProcessingState)",
+  "@odata.count": 3,
+  "value": [
+    {
+      "id": "22222222-0000-4000-8000-000000000001",
+      "displayName": "Engineering Rollup",
+      "groupTypes": ["DynamicMembership"],
+      "membershipRule": "user.memberof -any (group.objectId -in ['22222222-0000-4000-8000-000000000010'])",
+      "membershipRuleProcessingState": "On"
+    },
+    {
+      "id": "22222222-0000-4000-8000-000000000002",
+      "displayName": "All Engineers",
+      "groupTypes": ["DynamicMembership"],
+      "membershipRule": "(user.department -eq \"Engineering\") -and (user.accountEnabled -eq true)",
+      "membershipRuleProcessingState": "On"
+    },
+    {
+      "id": "22222222-0000-4000-8000-000000000003",
+      "displayName": "Combined",
+      "groupTypes": ["DynamicMembership"],
+      "membershipRule": "(user.country -eq \"US\") -and (user.memberOf -any (group.objectId -in ['22222222-0000-4000-8000-000000000002']))",
+      "membershipRuleProcessingState": "On"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+kind,id,name,rule,accessPackageName
+Group,33333333-0000-4000-8000-000000000001,Rollup Group,"user.memberOf -any (group.objectId -in ['33333333-0000-4000-8000-000000000009'])",
+AdministrativeUnit,33333333-0000-4000-8000-000000000002,Regional Admins,"user.memberOf -any (group.objectId -in ['33333333-0000-4000-8000-000000000001'])",
+AutoAssignmentPolicy,33333333-0000-4000-8000-000000000003,Contractors policy,"user.memberof -any (group.objectId -in ['33333333-0000-4000-8000-000000000009'])",Contractor Tools
+Rule,,,"user.department -eq ""Finance""",
+Widget,33333333-0000-4000-8000-000000000004,Unknown kind,"user.department -eq ""HR""",

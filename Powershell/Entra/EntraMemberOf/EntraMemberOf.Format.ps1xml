@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Default views for the two object types the module emits. A result is one rule-bearing
+    object (a group, an administrative unit, a policy rule, or a line of rule text); a summary
+    is one scan. Every property is still on the object; these only decide what a bare
+    Format-Table or Format-List shows.
+-->
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>EntraMemberOf.Result</Name>
+      <ViewSelectedBy>
+        <TypeName>EntraMemberOf.Result</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>ObjectKind</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>DisplayName</Label><Width>30</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Level</Label><Width>7</Width></TableColumnHeader>
+          <TableColumnHeader><Label>RuleKind</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>State</Label><Width>6</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Chain</Label><Width>5</Width></TableColumnHeader>
+          <TableColumnHeader><Label>SourceGroups</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>ObjectKind</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>DisplayName</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Level</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>RuleKind</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ProcessingState</PropertyName></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>if ($_.DependsOnMemberOfGroup) { 'yes' } else { '' }</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  if (@($_.SourceGroupNames).Count -gt 0 -and ($_.SourceGroupNames | Where-Object { $_ })) {
+                    @(for ($i = 0; $i -lt $_.SourceGroupIds.Count; $i++) {
+                      if ($_.SourceGroupNames[$i]) { $_.SourceGroupNames[$i] } else { "$($_.SourceGroupIds[$i]) (not found)" }
+                    }) -join ', '
+                  } else {
+                    $_.SourceGroupIds -join ', '
+                  }
+                </ScriptBlock>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>EntraMemberOf.Summary</Name>
+      <ViewSelectedBy>
+        <TypeName>EntraMemberOf.Summary</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              <ListItem><Label>Outcome</Label><PropertyName>Outcome</PropertyName></ListItem>
+              <ListItem><Label>Coverage</Label><PropertyName>Coverage</PropertyName></ListItem>
+              <ListItem><Label>Mode</Label><PropertyName>Mode</PropertyName></ListItem>
+              <ListItem>
+                <Label>Groups</Label>
+                <ScriptBlock>$_.Groups.Coverage + ': ' + $_.Groups.Scanned + ' scanned, ' + $_.Groups.Retired + ' retired, ' + $_.Groups.Review + ' review'</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>AdministrativeUnits</Label>
+                <ScriptBlock>$_.AdministrativeUnits.Coverage + ': ' + $_.AdministrativeUnits.Scanned + ' scanned, ' + $_.AdministrativeUnits.Retired + ' retired, ' + $_.AdministrativeUnits.Review + ' review'</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>AutoAssignmentPolicies</Label>
+                <ScriptBlock>$_.AutoAssignmentPolicies.Coverage + ': ' + $_.AutoAssignmentPolicies.Scanned + ' scanned, ' + $_.AutoAssignmentPolicies.Retired + ' retired, ' + $_.AutoAssignmentPolicies.Review + ' review'</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>RuleText</Label>
+                <ScriptBlock>$_.Rules.Scanned.ToString() + ' scanned, ' + $_.Rules.Retired + ' retired, ' + $_.Rules.Review + ' review'</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>MemberOfGroups</Label>
+                <ScriptBlock>"$($_.MemberOfGroupCount) of $($_.MemberOfGroupLimit) allowed per tenant"</ScriptBlock>
+              </ListItem>
+              <ListItem><Label>DependencyChains</Label><PropertyName>DependencyChainCount</PropertyName></ListItem>
+              <ListItem><Label>RetirementDate</Label><PropertyName>RetirementDate</PropertyName></ListItem>
+              <ListItem><Label>Message</Label><PropertyName>Message</PropertyName></ListItem>
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>

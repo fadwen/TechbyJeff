@@ -1,0 +1,9 @@
+objectId,displayName,membershipRule,membershipRuleProcessingState
+11111111-0000-4000-8000-000000000001,All Sales,"user.department -eq ""Sales""",On
+11111111-0000-4000-8000-000000000002,All Marketing,"user.department -eq ""Marketing""",On
+11111111-0000-4000-8000-000000000003,Sales and Marketing,"user.memberOf -any (group.objectId -in ['11111111-0000-4000-8000-000000000001', '11111111-0000-4000-8000-000000000002'])",On
+11111111-0000-4000-8000-000000000004,Field Devices,"device.memberof -any (group.objectId -in ['11111111-0000-4000-8000-000000000005'])",On
+11111111-0000-4000-8000-000000000006,Rollup of Rollups,"user.memberOf -any (group.objectId -in ['11111111-0000-4000-8000-000000000003'])",Paused
+11111111-0000-4000-8000-000000000007,Says memberOf,"user.jobTitle -eq ""memberOf coordinator""",On
+11111111-0000-4000-8000-000000000008,Broken rule,"user.department -eq ""Sales",On
+11111111-0000-4000-8000-000000000009,Assigned group,,
