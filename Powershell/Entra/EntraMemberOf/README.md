@@ -193,9 +193,12 @@ Connect-MgGraph -Scopes Group.Read.All, AdministrativeUnit.Read.All, Entitlement
 
 Tested on October 27 and 28, 2026 (UTC) with Microsoft.Graph.Authentication 2.40.0 against a
 development tenant, app-only with a certificate. The tenant had one dynamic group and no
-`memberOf` rules, so three groups were created by hand for the test: a plain security group, a
-`memberOf` dynamic group whose source is that group, and a second `memberOf` group whose sources
-are the first `memberOf` group and an id that does not exist.
+`memberOf` rules, so four objects were created by hand for the test: a plain security group, a
+`memberOf` dynamic group whose source is that group, a second `memberOf` group whose sources are
+the first `memberOf` group and an id that does not exist, and a dynamic administrative unit
+whose rule is `memberOf` over the plain group. Auto-assignment policies were not tested for real:
+the tenant has none, and creating one needs a catalog, an access package and a permission the
+test app does not hold.
 
 ```text
 PS> Test-EntraMemberOfRule -Tenant
@@ -205,22 +208,23 @@ ObjectKind           DisplayName                    Level   RuleKind State  Chai
 Group                EntraMemberOf-Rollup           Retired user     On           EntraMemberOf-Source
 Group                EntraMemberOf-Nested           Retired user     On     yes   EntraMemberOf-Rollup, 00000000-0000-4000-8000-00000000000...
 Group                SC300-myDynamicGroup           Clean            On
+AdministrativeUnit   EntraMemberOf-AU               Retired user     On           EntraMemberOf-Source
 
 Outcome                : Retired
 Coverage               : Complete
 Mode                   : Tenant
 Groups                 : Complete: 3 scanned, 2 retired, 0 review
-AdministrativeUnits    : Complete: 0 scanned, 0 retired, 0 review
+AdministrativeUnits    : Complete: 1 scanned, 1 retired, 0 review
 AutoAssignmentPolicies : Complete: 0 scanned, 0 retired, 0 review
 Rules                  : NotRequested: 0 scanned, 0 retired, 0 review
 MemberOfGroupCount     : 2
 MemberOfGroupLimit     : 500
 DependencyChainCount   : 1
-RetiredCount           : 2
+RetiredCount           : 3
 ReviewCount            : 0
 RetirementDate         : 2026-11-03
 IncompleteKinds        : {}
-Message                : 2 object(s) use memberOf and stop updating after November 3, 2026.
+Message                : 3 object(s) use memberOf and stop updating after November 3, 2026.
 
 PS> ($r | Where-Object DisplayName -eq 'EntraMemberOf-Nested').Note
 Depends on 1 group(s) that use memberOf themselves, which Learn lists as unsupported. 1 source group
@@ -231,21 +235,25 @@ What that run showed, beyond the module working:
 
 - **Graph still accepts new `memberOf` rules a week before the retirement.** `POST /groups` with
   a `memberOf` membership rule succeeded on October 28, 2026, and so did the nested one whose
-  source is another `memberOf` group, which the Learn page says cannot be done. Nothing at the API
-  stops an admin creating, today, an object that freezes on November 3.
-- **A scan run seconds after a change can miss it.** The dynamic-group list is an advanced query
-  (`$filter` on `groupTypes` with `ConsistencyLevel: eventual`), served from an index that lags
-  the directory. The first scan after creation listed one of the two new groups; the second, a
-  minute later, listed both. The same lag made the source-group name lookup return 404 for a
-  group created moments earlier; the module reported that as a warning and kept the ids, and the
-  next run resolved the names. Wait a minute after changing a group before trusting a scan of it.
+  source is another `memberOf` group, which the Learn page says cannot be done. So did
+  `POST /directory/administrativeUnits` with `membershipType` `Dynamic` and a `memberOf` rule.
+  Nothing at the API stops an admin creating, today, an object that freezes on November 3.
+- **A scan run seconds after a change can miss it, for every kind.** The dynamic-group list is
+  an advanced query (`$filter` on `groupTypes` with `ConsistencyLevel: eventual`) and the first
+  scan after creation listed one of the two new groups. The administrative unit list is a plain
+  GET with no filter, and it returned an empty collection for a full minute after the unit was
+  created, by id or by list, with or without `$select`. The same lag made the source-group name
+  lookup return 404 for a group moments old; the module reported that as a warning and kept the
+  ids, and the next run resolved the names. Wait a minute after changing an object before trusting
+  a scan of it.
 - All three list calls succeeded on a token that held `Group.ReadWrite.All` and
   `Directory.ReadWrite.All` and none of the three documented read permissions by name; a
   least-privilege app was not tested.
 - An app-only session has `ContextScope` `Process`; run `Connect-MgGraph` and the scan in the
   same session.
 
-The three test groups are still in that tenant at the time of writing.
+The three test groups and the test administrative unit are still in that tenant at the time of
+writing.
 
 ## Compatibility
 

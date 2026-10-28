@@ -288,16 +288,17 @@ ObjectKind           DisplayName                    Level   RuleKind State  Chai
 ----------           -----------                    -----   -------- -----  ----- ------------
 Group                EntraMemberOf-Rollup           Retired user     On           EntraMemberOf-Source
 Group                EntraMemberOf-Nested           Retired user     On     yes   EntraMemberOf-Rollup, 00000000-0000-4000-8000-00000000000...
-Group                SC300-myDynamicGroup           Clean            On</maml:para>
+Group                SC300-myDynamicGroup           Clean            On
+AdministrativeUnit   EntraMemberOf-AU               Retired user     On           EntraMemberOf-Source</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>Outcome                : Retired
 Coverage               : Complete
 Mode                   : Tenant
 Groups                 : Complete: 3 scanned, 2 retired, 0 review
-AdministrativeUnits    : Complete: 0 scanned, 0 retired, 0 review
+AdministrativeUnits    : Complete: 1 scanned, 1 retired, 0 review
 AutoAssignmentPolicies : Complete: 0 scanned, 0 retired, 0 review
 ...
-Message                : 2 object(s) use memberOf and stop updating after November 3, 2026.
+Message                : 3 object(s) use memberOf and stop updating after November 3, 2026.
 ```</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>Reads every dynamic membership group, dynamic administrative unit and auto-assignment policy
