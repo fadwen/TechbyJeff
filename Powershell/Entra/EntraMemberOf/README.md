@@ -196,9 +196,13 @@ development tenant, app-only with a certificate. The tenant had one dynamic grou
 `memberOf` rules, so four objects were created by hand for the test: a plain security group, a
 `memberOf` dynamic group whose source is that group, a second `memberOf` group whose sources are
 the first `memberOf` group and an id that does not exist, and a dynamic administrative unit
-whose rule is `memberOf` over the plain group. Auto-assignment policies were not tested for real:
-the tenant has none, and creating one needs a catalog, an access package and a permission the
-test app does not hold.
+whose rule is `memberOf` over the plain group. An auto-assignment policy could not be created:
+the tenant's E5 developer license does not include Microsoft Entra ID Governance, and
+`POST .../assignmentPolicies` with `automaticRequestSettings` was refused with `NoGovernanceSku`
+for a plain `user.department` rule and for a `memberOf` rule alike. A manual policy on a test
+access package was created instead, and the scan read it and skipped it, which is the policy
+read working as far as the license allows. The `Retired` result for a policy is verified only
+against the scripted tenant in the unit tests, whose shapes match Microsoft's own finder script.
 
 ```text
 PS> Test-EntraMemberOfRule -Tenant
@@ -253,7 +257,7 @@ What that run showed, beyond the module working:
   same session.
 
 The three test groups and the test administrative unit are still in that tenant at the time of
-writing.
+writing; the test catalog, access package and manual policy were removed.
 
 ## Compatibility
 
