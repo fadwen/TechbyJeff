@@ -52,6 +52,33 @@ expert feedback for accuracy:
   calls where empty strings matter
 - **Output**: Don't use misleading `[OutputType([PSCustomObject])]` declarations
 - **Documentation**: Don't use broken comment-based help (missing `<#` opener)
+- **Block Scoping**: Don't `return` from `begin` to stop a command. `return` ends the `begin` block and nothing
+  else; `process` still runs. A teardown that did this printed "cancelled" and deleted everything. Record the
+  decision in a variable and test it at the top of `process`
+- **Confirmation Gates**: Don't rely on `Read-Host` or `ShouldContinue` to stop an unattended run. `Read-Host`
+  reads end-of-file in a non-interactive session and never matches the confirmation word; `ShouldContinue` hangs
+  a console and is refused in CI. Treat a session that cannot answer as a refusal, and require `-Force` for an
+  unattended destructive run
+- **Parameter Shadowing**: Don't name a local after a parameter in any letter case. Variable names are
+  case-insensitive, so a body-level `$settings = @{}` silently overwrites `-Settings`. Inside a nested function
+  `$PSBoundParameters` is that function's own, so capture what it needs into a plain variable before defining it
+- **WhatIf Reach**: Don't enumerate with `ForEach-Object -MemberName` in a command that supports `-WhatIf`; that
+  parameter set honours `ShouldProcess`, so the enumeration returns nothing under `-WhatIf`. Use a script block.
+  `$WhatIfPreference` is also inherited by every child scope, which is why a release rehearsal has to pin its
+  non-destructive steps; see
+  [module.instructions.md](./instructions/module.instructions.md#the-rehearsal-under--whatif)
+- **Background Scope**: Don't read `$script:` state, or call the module's own functions, inside `Start-Job`, a
+  runspace worker, or a `ForEach-Object -Parallel` block. A job starts without this session's state and
+  functions, and a worker without its state; neither fails loudly. A seed that did this created 688 computers
+  with no prefix and silently created none of its 296 users. Pass values through `-ArgumentList`, `$using:`, or a
+  parameter, and remember that Pester mocks do not reach a worker either
+- **Empty Collections**: Don't rely on a nested helper returning `@()`. PowerShell unrolls an empty array on
+  the way out of a function, so the caller receives `$null` and a splatted `[object[]]` parameter fails to
+  bind. Wrap the call site with `@(...)`, or return with `Write-Output -NoEnumerate`
+- **Response Shapes**: Don't index response data with `['key']` or assume one shape. Graph SDK responses are
+  hashtables by default and PSObjects with `-OutputType PSObject`; `ConvertFrom-Json` is the reverse, and
+  `$psobject['key']` returns `$null` with no error. Read through one accessor that handles both; see
+  [module.instructions.md](./instructions/module.instructions.md#responses-that-arrive-as-hashtables-or-psobjects)
 
 ### Script Development Guidelines
 
@@ -622,6 +649,12 @@ Describe "Get-ExampleData" -Tag "Unit" {
 }
 ```
 
+Before the first publish, read
+[Releasing to the PowerShell Gallery](./instructions/module.instructions.md#releasing-to-the-powershell-gallery).
+A Gallery version can never be deleted, so the publish stages an allowlist rather than the
+repository root, the Gallery's metadata limits are measured locally, no URI key is left empty, and
+the release script is written knowing that `-WhatIf` reaches every child scope it calls.
+
 ## 🎯 Community Standards Integration
 
 ### Automatic Validation
@@ -716,7 +749,7 @@ Prefer matching these over inventing a shape. Each is complete, runs, and passes
 described above:
 
 | Need | Example |
-|---|---|
+| --- | --- |
 | A complete advanced function | [Basic-Function-Example.ps1](../powershell-standards/Examples/Basic-Function-Example.ps1) |
 | Module layout and export boundary | [Module-Structure-Example](../powershell-standards/Examples/Module-Structure-Example/) |
 | Pester 6 tests, including private functions | [Module-Structure-Example/Tests](../powershell-standards/Examples/Module-Structure-Example/Tests/) |

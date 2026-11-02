@@ -22,14 +22,17 @@ BeforeDiscovery {
     # Pester 6 discovers and runs one file at a time, so this file must set up
     # anything it needs at DISCOVERY time - it cannot rely on another file.
     # Only needed when -ForEach data comes from the module itself.
-    $ModulePath = Join-Path $PSScriptRoot '..\..\ModuleName.psd1'
-    Import-Module $ModulePath -Force
+    if (-not (Get-Module -Name ModuleName)) {
+        Import-Module (Join-Path $PSScriptRoot '..\..\ModuleName.psd1')
+    }
 }
 
 BeforeAll {
-    # Import module under test
-    $ModulePath = Join-Path $PSScriptRoot '..\..\ModuleName.psd1'
-    Import-Module $ModulePath -Force
+    # Import the module under test, once per run. -Force belongs in the module
+    # contract test alone; here it would cost every file a re-import.
+    if (-not (Get-Module -Name ModuleName)) {
+        Import-Module (Join-Path $PSScriptRoot '..\..\ModuleName.psd1')
+    }
 
     # Import test helpers
     . $PSScriptRoot\..\TestHelpers\TestHelpers.ps1
@@ -61,6 +64,17 @@ Describe "Function-Name" -Tag "Unit", "Public" {
         It "Should support pipeline input" {
             $results = @('Value1', 'Value2', 'Value3') | Function-Name
             $results | Should-BeCollection -Count 3
+        }
+
+        It "Should fold a piped collection into the same single result as the by-parameter call" {
+            # PowerShell unrolls a piped array, so process runs once per element. A function that
+            # reduces its input to one result has to collect in process and fold in end, and only
+            # a piped test proves it does; the by-parameter test above passes either way. The @()
+            # makes the count read the same whether one object or several come back.
+            $items = @('Value1', 'Value2', 'Value3')
+            $piped = @($items | ConvertTo-Summary)
+            $piped | Should-BeCollection -Count 1
+            $piped[0].ItemCount | Should-Be (ConvertTo-Summary -InputObject $items).ItemCount
         }
 
         It "Should declare ParameterName as a mandatory string" {
@@ -249,7 +263,8 @@ Test all parameter validation scenarios:
 
 - Valid input variations
 - Invalid input rejection
-- Pipeline support
+- Pipeline support: piped and by parameter, since a function that reduces its input to one result runs
+  different code on each path
 - Parameter binding and metadata (`Should-HaveParameter`)
 - Mandatory parameter enforcement
 
