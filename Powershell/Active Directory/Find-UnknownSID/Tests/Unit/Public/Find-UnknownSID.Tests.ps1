@@ -1,3 +1,6 @@
+# Pester 3.4 can only mock a command that exists; define placeholder AD cmdlets when RSAT is absent
+. "$PSScriptRoot\..\..\TestHelpers\ADCmdletStubs.ps1"
+
 # PowerShell 5.1 and Pester 3.4 compatible test file
 # Import Pester 3.4 explicitly for PowerShell 5.1 compatibility
 Import-Module Pester -RequiredVersion 3.4.0 -Force

@@ -2,93 +2,126 @@
 
 ## Overview
 
-When running `Find-UnknownSID.ps1`, you may see warnings like:
-```
-WARNING: Failed to retrieve security descriptor for object: [Object Details]
+While `Find-UnknownSID.ps1` processes objects, the console may show lines such as:
+
+```text
+WARNING: [Warning] [General] All security descriptor retrieval methods failed for CN=Server01,OU=Servers,DC=contoso,DC=com
 ```
 
-**These warnings are NORMAL and EXPECTED** for certain Active Directory objects.
+The log file records the same event as:
+
+```text
+[2025-07-02T10:36:31.123] [Warning] [General] [<CorrelationId>] All security descriptor retrieval methods failed for CN=Server01,OU=Servers,DC=contoso,DC=com
+```
+
+The message is written by `Get-ObjectAccessRule` in `Private\Security\Get-SecurityDescriptor.ps1`
+after every retrieval strategy returned nothing for that object. The object is skipped, nothing is
+counted as an error, and processing continues with the next object. A handful of these per run is
+normal in most domains.
+
+## How Retrieval Works
+
+`Get-ObjectAccessRule` tries three strategies in order and stops at the first one that returns
+access rules:
+
+| Order | Strategy | Message when it fails | Level |
+| --- | --- | --- | --- |
+| 1 | `Get-Acl -Path "AD:\<DN>"` | `Get-Acl failed for <DN>: <message>` | Debug |
+| 2 | Binary or deserialized `nTSecurityDescriptor` conversion | `Failed to process deserialized security descriptor for <DN> : <message>` or `Failed to convert binary security descriptor for <DN> : <message>` | Warning |
+| 3 | Fresh `Get-ADObject -Identity <DN> -Properties nTSecurityDescriptor` | `Fresh AD query returned no security descriptor for <DN>` or `Fresh AD query failed for <DN>: <message>` | Warning |
+
+Only when all three fail does the summary warning above appear. None of these calls is retried;
+`Invoke-ADOperationWithRetry` wraps SID lookups and the ACL steps of `-Remove`, and `-MaxRetries`
+drives the per-object retry loop in the main processing logic, which re-runs the whole object only
+when processing it threw an exception. A retrieval failure is a skip, not an exception, so it is not
+retried.
+
+Two related Debug-level messages are not warnings and need no action:
+
+- `No security descriptor found for <DN>` - the object came back without an `nTSecurityDescriptor`
+  value.
+- `No access rules retrieved for <DN>` - retrieval succeeded but produced no rules. Without
+  `-IncludeInherited` only explicit (non-inherited) entries are kept, so an object whose ACL is
+  entirely inherited is reported this way.
 
 ## Why These Warnings Occur
 
-### System and Service Accounts
-- **S-1-5-18** (Local System): Core Windows system account
-- **S-1-5-19** (Local Service): Windows service account
-- **S-1-5-20** (Network Service): Network service account
-- **Built-in accounts**: May have restricted security descriptor access
+- **Read Permissions missing**: the running account cannot read the object's security descriptor.
+  Common on objects protected by AdminSDHolder, the Deleted Objects container, and system
+  containers under `CN=System` and `CN=Configuration`.
+- **Transient connectivity**: the per-object `Get-Acl` call failed against the domain controller.
+- **Replication state**: the object exists in the search results but its security descriptor is
+  not yet readable on the responding domain controller.
 
-### Protected Objects
-- **Domain Controllers**: Some DC objects have enhanced protection
-- **Schema Objects**: Schema-related objects may be access-restricted
-- **Security Principals**: Certain security objects have limited access
-
-### Environmental Factors
-- **Network Connectivity**: Transient network issues during AD queries
-- **Permissions**: Current user may not have access to all security descriptors
-- **AD Replication**: Objects in replication states may be temporarily inaccessible
+Well-known SIDs such as `S-1-5-18`, `S-1-5-19` and `S-1-5-20` do not cause these warnings. They are
+filtered later, per access rule, by `Test-WellKnownSID` (`Private\SID\Test-SIDFormat.ps1`), and
+that filtering is logged at Debug level only.
 
 ## Expected Script Behavior
 
-### ✅ Correct Responses
-- **Continue Processing**: Script should continue with other objects
-- **Log Warnings**: Warnings are logged for administrator awareness
-- **Complete Successfully**: Overall script execution should succeed
-- **Process Other Objects**: Non-problematic objects are processed normally
+Correct behaviour when the warning appears:
 
-### ❌ Unexpected Behaviors (Actual Issues)
-- **Script Termination**: Script stops/crashes on warnings
-- **Silent Failures**: No warnings when objects can't be accessed
-- **Infinite Loops**: Script hangs on problematic objects
-- **Access Violations**: Unhandled security exceptions
+- Processing continues with the next object.
+- The object still counts in `Total objects processed` in the final summary.
+- `Processing errors` in the summary is not incremented.
+- The run completes and writes the summary normally.
+
+Messages that indicate an actual problem rather than an expected skip:
+
+- `[Error] [General] Unexpected error retrieving access rules for <DN>: <message>` - the catch
+  block in `Get-ObjectAccessRule` fired; the object shape was not one the three strategies handle.
+- `[Error] [General] Error in orchestrated processing for object <DN> : <message>` - the per-object
+  workflow in `Find-OrphanedSIDsInObject` failed after retrieval.
+- `[Error] [MainProcessing] Error processing object <DN>: <message>` followed by
+  `Retry attempt N of M for object <DN>` - the main loop caught an exception and is retrying up to
+  `-MaxRetries` times with a 2, 4, 6... second back-off.
 
 ## Troubleshooting
 
-### If Warnings Are Excessive
-```powershell
-# Check AD connectivity
-Test-Connection -ComputerName $DomainController -Count 1
+### Count affected objects
 
-# Verify user permissions
-whoami /groups
+```powershell
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Select-String -Path $log.FullName -Pattern 'All security descriptor retrieval methods failed for (.+)$' |
+    ForEach-Object { $_.Matches[0].Groups[1].Value }
 ```
 
-### If Script Fails
-```powershell
-# Run with detailed logging
-.\Find-UnknownSID.ps1 -Verbose -WhatIf
+### Check one object by hand
 
-# Check for actual errors vs warnings
-$Error | Where-Object { $_.CategoryInfo.Category -ne 'InvalidOperation' }
+```powershell
+$dn = 'CN=Server01,OU=Servers,DC=contoso,DC=com'
+Get-Acl -Path "AD:\$dn" | Select-Object -ExpandProperty Access | Measure-Object
+Get-ADObject -Identity $dn -Properties nTSecurityDescriptor | Select-Object DistinguishedName, nTSecurityDescriptor
 ```
 
-### Reducing Warning Noise
+If both calls fail with access denied, the running account needs **Read Permissions** on that
+object or its parent. If `Get-Acl` fails but `Get-ADObject` returns a descriptor, the AD: drive is
+the problem; check that the `ActiveDirectory` module loaded in the same session.
+
+### Make the cause visible
+
 ```powershell
-# Filter out known system accounts if desired
-$FilteredResults = $Results | Where-Object {
-    $_.SID -notmatch '^S-1-5-(18|19|20)$'
-}
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Servers,DC=contoso,DC=com' -LogLevel Debug -WhatIf
 ```
 
-## Best Practices
+With `-LogLevel Debug` the file receives the strategy-1 `Get-Acl failed for <DN>: <message>` line,
+which carries the underlying exception text.
 
-### For Administrators
-1. **Monitor Patterns**: Look for consistent failures rather than occasional warnings
-2. **Review Permissions**: Ensure service account has appropriate AD read permissions
-3. **Check AD Health**: Verify domain controller health and replication status
-4. **Log Analysis**: Review warning patterns for potential security issues
+### Reduce console noise
 
-### For Script Users
-1. **Expect Warnings**: These warnings are part of normal operation
-2. **Focus on Results**: Pay attention to successfully processed objects
-3. **Review Logs**: Check detailed logs for actionable security findings
-4. **Validate Coverage**: Ensure important objects are being processed successfully
+`-LogLevel` filters what is written to the **file**; console output is not filtered, so warnings
+still print. `-SuppressConsoleOutput` silences only security-event console lines
+(`Write-SecurityStructuredLogEntry`), not these warnings. To keep the console quiet, redirect the
+warning stream:
+
+```powershell
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Servers,DC=contoso,DC=com' 3> $null
+```
+
+The warnings remain in the log file.
 
 ## Related Documentation
 
-- **Security Analysis**: `.\Documentation\Security-Analysis-Guide.md`
-- **Troubleshooting**: `.\Troubleshooting\Common\AD-Connectivity-Issues.md`
-- **Performance**: `.\Troubleshooting\Performance\Large-Domain-Optimization.md`
-
----
-
-**Key Point**: Security descriptor warnings are **expected behavior** and indicate the script is working correctly with appropriate security controls.
+- Retrieval failures in depth: `.\Troubleshooting\Security\Security-Descriptor-Issues.md`
+- Identity resolution after retrieval: `.\Troubleshooting\Security\Identity-Resolution-Issues.md`
+- Per-object workflow: `.\Troubleshooting\Common\SID-Processing-Orchestration-Issues.md`

@@ -1,166 +1,187 @@
 ﻿# Find-UnknownSID Automation Guide
 
+This guide covers running `Find-UnknownSID.ps1` from a scheduled task, a CI/CD job or any other
+session where nobody can answer a prompt, and how such a job reads the results.
+
 ## Exit Codes
 
-| Code | Name | Description | Action Required |
-|------|------|-------------|-----------------|
-| 0 | Success | Script completed successfully | None |
-| 1 | GeneralFailure | Critical error or general failure | Check logs for details |
-| 2 | ModuleImportFailure | Active Directory module not available | Install AD PowerShell module |
-| 3 | InvalidParameters | Invalid script parameters | Review parameter values |
-| 4 | SecurityValidationBlocked | Security validation prevented operation | Review blocked SIDs |
-| 5 | BackupOperationFailed | ACL backup failed | Check backup directory permissions |
-| 6 | NoObjectsFound | No AD objects found in search scope | Verify SearchBase parameter |
-| 7 | ErrorThresholdExceeded | Too many processing errors | Review error logs |
-| 8 | UserCancelled | User cancelled interactive operation | Re-run with -Force in automation |
-| 9 | InsufficientPermissions | Insufficient privileges | Run with administrator rights |
-| 10 | MemoryManagementFailure | Memory management error | Check system resources |
+| Code | Meaning |
+|------|---------|
+| 0 | The script ran to completion. Individual objects may still have failed; check the log and the CSV. |
+| 1 | A critical error reached the script's `end` block. The message is logged at `Error` level and the script stops. |
 
-## Automation Mode Parameters
+There are no other exit codes. A failed object, a blocked SID or a failed backup does not change
+the exit code; those outcomes are recorded in the log and in the per-object results.
 
-### Required for Automation
-```powershell
-# Basic automation run
-.\Find-UnknownSID.ps1 -AutomationMode -Force
+## Parameters for Unattended Runs
 
-# Removal with automation
-.\Find-UnknownSID.ps1 -AutomationMode -Force -Remove -WhatIf
+| Parameter | Purpose in automation |
+|-----------|----------------------|
+| `-SearchBase <string[]>` | OU or object DNs to scan. Omitted: the current domain root, with a warning. |
+| `-OutputPath <path>` | CSV file for discovery and removal results. The parent folder must exist. Without it, results exist only in the log. |
+| `-LogPath <path>` | Log file. Default `.\Logs\Find-UnknownSID_<yyyyMMdd_HHmmss>.log` relative to the working directory. |
+| `-LogLevel <level>` | Minimum level written to the log file: `Critical`, `Error`, `Warning`, `Information` (default), `Debug`, `Verbose`. Security audit entries are written regardless. |
+| `-SuppressConsoleOutput` | Suppresses console log output. File logging is unaffected. |
+| `-CorrelationId <string>` | Identifier stamped on every log line and every backup. Supply one from the orchestrator to correlate across systems; default is a new GUID. |
+| `-Force` | Required for an unattended `-Remove` or `-Restore`. See [Confirmation](#confirmation-in-non-interactive-sessions). |
+| `-WhatIf` | Previews `-Remove` or `-Restore` without changing anything and never prompts. |
+| `-ConfigPath <path>` | JSON configuration file. See [Configuration File](#configuration-file). |
+| `-MaxMemoryUsageMB <int>` | Memory threshold in MB, 100 to 16384, default 1024. |
+| `-MaxRetries <int>` | Retries per Active Directory operation, 1 to 10, default 3. |
+| `-IncludeInherited` | Also report inherited access control entries. |
+| `-PreserveTempFiles` | Keep the per-run streaming results folder after the run. |
 
-# Production removal
-.\Find-UnknownSID.ps1 -AutomationMode -Force -Remove -BackupPath "C:\Backups"
+The script writes nothing to the pipeline. `$result = .\Find-UnknownSID.ps1 ...` captures nothing
+useful; read `$LASTEXITCODE`, the CSV and the log instead.
+
+## Confirmation in Non-Interactive Sessions
+
+`-Remove` and `-Restore` ask for confirmation once unless `-Force` or `-WhatIf` is given. A session
+that cannot show a prompt (scheduled task, CI agent, no host UI) is treated as a refusal, and the
+script stops with exit code 1 and this message in the log and on the error stream:
+
+```text
+Refusing to remove orphaned SIDs from ACLs without confirmation. Re-run with -Force to proceed unattended, or with -WhatIf to preview the changes.
 ```
 
-### Error Handling Options
+Discovery mode (neither switch) never prompts.
+
 ```powershell
-# Exit on first critical error
-.\Find-UnknownSID.ps1 -AutomationMode -ExitOnFirstError
+# Discovery, unattended
+.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -OutputPath "C:\Reports\orphaned-sids.csv" -SuppressConsoleOutput
 
-# Set error threshold
-.\Find-UnknownSID.ps1 -AutomationMode -MaxErrorThreshold 50
+# Removal preview, unattended
+.\Find-UnknownSID.ps1 -Remove -SearchBase "OU=Users,DC=contoso,DC=com" -WhatIf -SuppressConsoleOutput
 
-# Disable security validation (not recommended)
-.\Find-UnknownSID.ps1 -AutomationMode -SkipSecurityValidation
+# Removal, unattended
+.\Find-UnknownSID.ps1 -Remove -SearchBase "OU=Users,DC=contoso,DC=com" -BackupPath "C:\Backups" -Force -SuppressConsoleOutput
 ```
 
 ## CI/CD Integration
 
+The script does not detect CI environments and has no automation-specific mode; a pipeline step
+is an ordinary unattended run. Pass a correlation ID from the pipeline so the log can be tied back
+to the job.
+
 ### Azure DevOps Pipeline
+
 ```yaml
 - task: PowerShell@2
-  displayName: 'Scan for Orphaned SIDs'
+  displayName: 'Scan for orphaned SIDs'
   inputs:
-    filePath: 'Scripts/Active Directory/Find-UnknownSID.ps1'
-    arguments: '-AutomationMode -Force -VerboseOutput'
-    failOnStderr: true
-  continueOnError: false
+    filePath: 'Powershell/Active Directory/Find-UnknownSID/Find-UnknownSID.ps1'
+    arguments: >-
+      -SearchBase "DC=contoso,DC=com"
+      -OutputPath "$(Build.ArtifactStagingDirectory)/orphaned-sids.csv"
+      -LogPath "$(Build.ArtifactStagingDirectory)/Find-UnknownSID.log"
+      -CorrelationId "$(Build.BuildId)"
+      -SuppressConsoleOutput
+    failOnStderr: false
 ```
 
 ### GitHub Actions
+
 ```yaml
-- name: Scan for Orphaned SIDs
-  run: |
-    powershell -File "Scripts/Active Directory/Find-UnknownSID.ps1" -AutomationMode -Force
+- name: Scan for orphaned SIDs
   shell: pwsh
+  run: |
+    & "./Powershell/Active Directory/Find-UnknownSID/Find-UnknownSID.ps1" `
+        -SearchBase "DC=contoso,DC=com" `
+        -OutputPath "$env:RUNNER_TEMP/orphaned-sids.csv" `
+        -LogPath "$env:RUNNER_TEMP/Find-UnknownSID.log" `
+        -CorrelationId "$env:GITHUB_RUN_ID" `
+        -SuppressConsoleOutput
+    if ($LASTEXITCODE -ne 0) { throw "Find-UnknownSID exited with $LASTEXITCODE" }
 ```
 
-### Jenkins Pipeline
-```groovy
-stage('AD Security Scan') {
-    steps {
-        powershell '''
-            $result = & "Scripts/Active Directory/Find-UnknownSID.ps1" -AutomationMode -Force
-            if ($LASTEXITCODE -ne 0) {
-                throw "AD scan failed with exit code: $LASTEXITCODE"
-            }
-        '''
-    }
-}
+### Scheduled Task
+
+```powershell
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
+    '-NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\Find-UnknownSID\Find-UnknownSID.ps1" ' +
+    '-SearchBase "DC=contoso,DC=com" -OutputPath "C:\Reports\orphaned-sids.csv" ' +
+    '-LogPath "C:\Logs\Find-UnknownSID.log" -SuppressConsoleOutput'
+)
 ```
 
-## Environment Variables
+## Reading the Results
 
-### Automation Detection
-Script automatically detects these environments:
-- `CI=true` (General CI indicator)
-- `TF_BUILD=True` (Azure DevOps)
-- `GITHUB_ACTIONS=true` (GitHub Actions)
-- `JENKINS_URL` (Jenkins)
-- `BUILD_BUILDID` (Azure DevOps legacy)
+### CSV Output
 
-### Logging Control
-- `DETAILED_AUTOMATION_LOGGING=true` - Enable detailed JSON logging
+With `-OutputPath`, discovery and removal results are exported with `Export-Csv -NoTypeInformation`
+(UTF-8). One row per orphaned access control entry, with these columns:
 
-## Output Parsing
+`ObjectDN`, `ObjectClass`, `OrphanedSID`, `LikelySource`, `Confidence`, `AnalysisNotes`,
+`AccessControlType`, `ActiveDirectoryRights`, `InheritanceType`, `ObjectType`,
+`InheritedObjectType`, `IsInherited`, `ProcessingMethod`, `ActionTaken`, `CorrelationId`,
+`Timestamp`.
 
-### Structured Output Example
+No CSV is written when nothing was found, or under `-WhatIf`.
+
+```powershell
+$results = Import-Csv "C:\Reports\orphaned-sids.csv"
+$results | Group-Object ObjectDN | Sort-Object Count -Descending | Select-Object -First 10
+```
+
+### Log File
+
+Each log line has the form:
+
+```text
+[2025-01-27T14:30:22.123] [Information] [Main] [12345678-1234-1234-1234-123456789012] Starting main processing workflow
+```
+
+Entries with structured details append ` | Details: {...}` as compact JSON. Security audit
+entries carry the component `SecurityAudit`. Filter by the correlation ID to isolate one run when
+several share a log file:
+
+```powershell
+Select-String -Path "C:\Logs\Find-UnknownSID.log" -Pattern "\[12345678-1234-1234-1234-123456789012\]" |
+    Where-Object { $_.Line -match '\[(Error|Warning)\]' }
+```
+
+`-LogLevel` filters what reaches the file: `Warning` keeps `Critical`, `Error` and `Warning`
+lines and drops `Information`, `Debug` and `Verbose`. Security audit entries bypass the filter.
+
+### Temporary Files
+
+Discovery results are streamed in batches to `<TEMP>\Find-UnknownSID-<CorrelationId>\` as
+`batch_<n>.json`, `results_<timestamp>.json` and `summary_<timestamp>.json`. The folder is deleted
+when the run ends unless `-PreserveTempFiles` is given, in which case its path is logged.
+
+## Configuration File
+
+`-ConfigPath` points at a JSON file. Only these keys are read; anything else is ignored.
+
+| Key | Type | Default | Notes |
+|-----|------|---------|-------|
+| `WellKnownSIDPatterns` | string[] | Built-in list of regexes for well-known SIDs | Each value must compile as a .NET regex |
+| `ProtectedSIDs` | string[] | `S-1-5-32-544`, `S-1-5-32-545`, `S-1-5-32-546`, `S-1-5-18`, `S-1-5-19`, `S-1-5-20` | Each value must match `^S-1-\d+(-\d+)*$` |
+| `BatchSize` | int | 50 | 1 to 1000; results per streaming batch file |
+| `MemoryCheckInterval` | int | 50 | 1 to 100; objects processed between memory checks |
+| `EnableDetailedLogging` | bool | false | |
+| `LogLevel` | string | `Information` | Same values as `-LogLevel` |
+| `LogFilePath` | string | none | When set, entries written after configuration load go to this file instead of `-LogPath`; its folder must exist. Startup entries are already in `-LogPath` |
+| `EnableLogFileRotation` | bool | true | Rotate an existing log larger than `MaxLogFileSizeMB` at startup |
+| `MaxLogFileSizeMB` | int | 10 | |
+
+`CriticalObjectPatterns` is part of the default configuration but cannot be set from the file.
+
 ```json
 {
-  "Timestamp": "2024-01-15T10:30:00",
-  "CorrelationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "ExitCode": 0,
-  "ObjectsProcessed": 1500,
-  "OrphanedSIDsFound": 25,
-  "SIDsRemoved": 20,
-  "ProcessingErrors": 2,
-  "CriticalErrors": 0,
-  "Duration": "00:05:30",
-  "Success": true
+  "BatchSize": 200,
+  "MemoryCheckInterval": 25,
+  "LogLevel": "Warning",
+  "ProtectedSIDs": ["S-1-5-32-544", "S-1-5-32-548"]
 }
 ```
-
-### Log File Analysis
-```powershell
-# Parse automation logs
-$logData = Get-Content "OrphanedDelegations_*.log" | Where-Object { $_ -match "^\d{4}-\d{2}-\d{2}" }
-$results = $logData | ConvertFrom-Json -ErrorAction SilentlyContinue
-```
-
-## Error Recovery
-
-### Common Automation Failures
-
-1. **Exit Code 2 - Module Import**
-   ```powershell
-   # Pre-check module availability
-   if (-not (Get-Module -Name ActiveDirectory -ListAvailable)) {
-       Install-WindowsFeature -Name RSAT-AD-PowerShell
-   }
-   ```
-
-2. **Exit Code 9 - Permissions**
-   ```powershell
-   # Run with elevated privileges
-   Start-Process PowerShell -Verb RunAs -ArgumentList "-File script.ps1"
-   ```
-
-3. **Exit Code 7 - Error Threshold**
-   ```powershell
-   # Increase threshold or process in smaller batches
-   .\Find-UnknownSID.ps1 -MaxErrorThreshold 200 -BatchSize 50
-   ```
 
 ## Best Practices
 
-### Production Automation
-1. Always use `-WhatIf` first in new environments
-2. Set appropriate error thresholds based on environment size
-3. Monitor memory usage with `-MaxMemoryUsageMB`
-4. Use correlation IDs for log correlation
-5. Implement proper backup validation
-
-### Security Considerations
-1. Never use `-SkipSecurityValidation` in production
-2. Review security validation reports before automated removal
-3. Implement approval workflows for high-risk operations
-4. Monitor for blocked SIDs in automation logs
-
-### Performance Optimization
-```powershell
-# Large environment optimization
-.\Find-UnknownSID.ps1 `
-    -AutomationMode `
-    -BatchSize 50 `
-    -MaxMemoryUsageMB 2048 `
-    -MaxErrorThreshold 500 `
-    -SearchBase "OU=LargeOU,DC=domain,DC=com"
-```
+1. Run with `-WhatIf` in a new environment before the first `-Remove`.
+2. Always pass `-OutputPath` and `-LogPath` to known locations and collect both as job artifacts.
+3. Pass the job identifier as `-CorrelationId`; it is stamped on every log line and every backup
+   file.
+4. Treat exit code 0 as "the run finished", not as "nothing failed"; inspect `[Error]` and
+   `[Warning]` lines before acting on the output.
+5. Keep `-Force` out of discovery runs; it only matters for `-Remove` and `-Restore`.

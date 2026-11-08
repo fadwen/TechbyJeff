@@ -1,247 +1,265 @@
 ﻿# Enterprise Integration Guide - Find-UnknownSID
 
 ## Overview
-This guide provides comprehensive troubleshooting and integration guidance for deploying the Find-UnknownSID script in enterprise environments with monitoring systems, automation platforms, and security frameworks.
+
+This guide covers running `Find-UnknownSID.ps1` from schedulers, pipelines and monitoring systems,
+and the integration problems that follow from how the script actually behaves:
+
+- It writes **nothing to the pipeline**. Results are available only as the CSV named by
+  `-OutputPath` and in the log file.
+- The log file is **plain text**, one line per entry:
+  `[<yyyy-MM-ddTHH:mm:ss.fff>] [<Level>] [<Component>] [<CorrelationId>] <Message>`. Entries with
+  extra data end with a space followed by `| Details: <json>`.
+- The correlation ID is in every line but **never in the file name**
+  (`Find-UnknownSID_<yyyyMMdd_HHmmss>.log` by default).
+- `-OutputPath` always produces **CSV**, whatever extension is given.
+- There is no parallel mode, no throttle parameter and no `-Credential`; the script runs as the
+  invoking account.
+- `-Remove` and `-Restore` require `-Force` to run unattended; without it a non-interactive session
+  stops with `Refusing to <operation> without confirmation. Re-run with -Force to proceed
+  unattended, or with -WhatIf to preview the changes.`
 
 ## Integration Scenarios
 
-### 1. SIEM Integration (Security Information and Event Management)
+### 1. SIEM Integration
 
-#### Splunk Integration
+Point `-LogPath` at a folder the forwarder watches and parse the bracketed fields:
+
 ```powershell
-# Example: Splunk Universal Forwarder integration
-$LogPath = "C:\Program Files\SplunkUniversalForwarder\var\log\splunk\Find-UnknownSID.log"
-.\Find-UnknownSID.ps1 -LogPath $LogPath -LogLevel Information -CorrelationId "SIEM-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$logPath = 'C:\Program Files\SplunkUniversalForwarder\var\log\splunk\Find-UnknownSID.log'
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -LogPath $logPath -LogLevel Information `
+    -CorrelationId ([guid]::NewGuid().ToString())
 ```
 
-**Common Issues:**
-- **Log format compatibility**: Ensure JSON structured logging is enabled
-- **Correlation ID tracking**: Use consistent correlation ID format for SIEM queries
-- **Log rotation**: Configure appropriate log retention policies
+Field extraction (regex for the SIEM):
 
-#### ArcSight Integration
-```powershell
-# Example: ArcSight CEF format logging
-$CorrelationId = "ARCSIGHT-SID-AUDIT-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-.\Find-UnknownSID.ps1 -CorrelationId $CorrelationId -LogLevel Warning
+```text
+^\[(?<timestamp>[^\]]+)\] \[(?<level>[^\]]+)\] \[(?<component>[^\]]+)\] \[(?<correlationId>[^\]]+)\] (?<message>.*?)(?: \| Details: (?<details>\{.*\}))?$
 ```
 
-**Configuration Requirements:**
-- CEF format compliance for security events
-- Proper categorization of security findings
-- Integration with ArcSight connectors
+Security-relevant events carry the component names `Security`, `SecurityAudit`, `SecurityAlert`,
+`ADOperations` and `RemovalSecurityLogging`, and bypass the `-LogLevel` filter, so they are written
+even with `-LogLevel Error`. Fields worth indexing: `level`, `component`, `correlationId`, and the
+`Orphaned SIDs found: N` summary message.
 
-### 2. System Center Operations Manager (SCOM)
+**Common issues:**
 
-#### Monitoring Pack Integration
+- **Expecting JSON lines**: the file is not JSON. Use the regex above, or post-process with
+  `ConvertTo-Json` per line.
+- **Log rotation**: an existing log larger than `MaxLogFileSizeMB` (config, default 10 MB) is
+  renamed to `<name>_<yyyyMMdd_HHmmss>.log` at start-up when `EnableLogFileRotation` is true. Watch
+  the folder, not a single file name.
+- **Correlation ID format**: any string is accepted, but `-Restore` validates GUID format
+  internally. Use GUIDs so the same convention works for every mode.
+
+### 2. Monitoring (SCOM, Event Log)
+
+Read the summary from the log or the CSV; the script returns no object to test.
+
 ```powershell
-# SCOM-friendly execution with performance counters
-$Results = .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -ParallelThrottleLimit 15 -MaxMemoryUsageMB 2048
-if ($Results.Statistics.OrphanedSIDCount -gt 100) {
-    Write-EventLog -LogName "Application" -Source "Find-UnknownSID" -EventID 1001 -EntryType Warning -Message "High orphaned SID count detected: $($Results.Statistics.OrphanedSIDCount)"
+$id = [guid]::NewGuid().ToString()
+$csv = "D:\Reports\sid-audit-$(Get-Date -Format 'yyyyMMdd').csv"
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -OutputPath $csv -CorrelationId $id -MaxMemoryUsageMB 2048
+
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$found = [int](Select-String -Path $log.FullName -Pattern "\[$id\] Orphaned SIDs found: (\d+)" |
+    ForEach-Object { $_.Matches[0].Groups[1].Value } | Select-Object -Last 1)
+
+if ($found -gt 100) {
+    Write-EventLog -LogName Application -Source 'Find-UnknownSID' -EventId 1001 -EntryType Warning `
+        -Message "High orphaned SID count detected: $found (CorrelationId $id)"
 }
 ```
 
-**SCOM Rule Configuration:**
-- Monitor for specific event IDs
-- Set up alerting thresholds
-- Create dashboard views for security metrics
+Register the event source once with `New-EventLog -LogName Application -Source 'Find-UnknownSID'`.
+`Write-EventLog` and `New-EventLog` exist in Windows PowerShell 5.1 only; on PowerShell 7 use
+`New-WinEvent` or load them through the `WindowsCompatibility` module. The CSV exists only when at
+least one orphaned SID was found; `Test-Path $csv` is a valid zero-result check.
 
-### 3. PowerShell Desired State Configuration (DSC)
+### 3. Desired State Configuration
 
-#### DSC Resource Implementation
+The `Script` resource must read the CSV or the log, as above:
+
 ```powershell
 Configuration ADSecurityMaintenance {
     param(
-        [string]$SearchBase,
+        [string]$ScriptPath = 'C:\Scripts\Find-UnknownSID\Find-UnknownSID.ps1',
+        [string]$SearchBase = 'DC=contoso,DC=com',
         [int]$MaxOrphanedSIDs = 50
     )
 
     Script OrphanedSIDCheck {
-        SetScript = {
-            $Results = .\Find-UnknownSID.ps1 -SearchBase $using:SearchBase
-            if ($Results.Statistics.OrphanedSIDCount -gt $using:MaxOrphanedSIDs) {
-                throw "Orphaned SID count exceeds threshold: $($Results.Statistics.OrphanedSIDCount)"
-            }
-        }
         TestScript = {
-            $Results = .\Find-UnknownSID.ps1 -SearchBase $using:SearchBase
-            return ($Results.Statistics.OrphanedSIDCount -le $using:MaxOrphanedSIDs)
+            $csv = Join-Path $env:TEMP 'dsc-sid-audit.csv'
+            Remove-Item -Path $csv -ErrorAction SilentlyContinue
+            & $using:ScriptPath -SearchBase $using:SearchBase -OutputPath $csv -LogLevel Warning
+            $count = if (Test-Path $csv) { @(Import-Csv -Path $csv).Count } else { 0 }
+            return ($count -le $using:MaxOrphanedSIDs)
+        }
+        SetScript = {
+            throw 'Orphaned SID count exceeds threshold; review the audit CSV before running -Remove'
         }
         GetScript = {
-            $Results = .\Find-UnknownSID.ps1 -SearchBase $using:SearchBase
-            return @{
-                OrphanedSIDCount = $Results.Statistics.OrphanedSIDCount
-                LastRun = Get-Date
-            }
+            $csv = Join-Path $env:TEMP 'dsc-sid-audit.csv'
+            @{ Result = if (Test-Path $csv) { @(Import-Csv -Path $csv).Count } else { 0 } }
         }
     }
 }
 ```
 
-### 4. Azure Monitor and Log Analytics
+### 4. Azure Monitor / Log Analytics
 
-#### Log Analytics Integration
+Upload the CSV rows, not a script return value:
+
 ```powershell
-# Azure Monitor integration with custom logs
-$WorkspaceId = "your-workspace-id"
-$SharedKey = "your-shared-key"
-
-# Execute script with JSON output
-$Results = .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -OutputPath ".\results.json"
-
-# Send to Log Analytics (using custom function)
-Send-LogAnalyticsData -WorkspaceId $WorkspaceId -SharedKey $SharedKey -LogType "ADSecurityAudit" -JsonData $Results
+$csv = '.\Reports\sid-audit.csv'
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -OutputPath $csv
+if (Test-Path $csv) {
+    $body = Import-Csv -Path $csv | ConvertTo-Json -Depth 3
+    # Send $body with the Log Analytics HTTP Data Collector API or a Logs Ingestion DCR endpoint
+}
 ```
 
-### 5. Microsoft Defender for Identity Integration
+### 5. Scheduled Tasks
 
-#### Correlation with Defender for Identity
 ```powershell
-# Generate correlation ID matching Defender for Identity format
-$DefenderCorrelationId = "MDI-SID-AUDIT-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-.\Find-UnknownSID.ps1 -CorrelationId $DefenderCorrelationId -LogLevel Information
+$action  = New-ScheduledTaskAction -Execute 'pwsh.exe' -Argument @(
+    '-NoProfile', '-NonInteractive', '-File', '"C:\Scripts\Find-UnknownSID\Find-UnknownSID.ps1"',
+    '-SearchBase', '"DC=contoso,DC=com"', '-OutputPath', '"D:\Reports\sid-audit.csv"', '-LogLevel', 'Warning'
+) -join ' '
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 02:00
+Register-ScheduledTask -TaskName 'Find-UnknownSID Audit' -Action $action -Trigger $trigger -User 'CONTOSO\svc-adsecurity' -RunLevel Highest
 ```
 
-**Integration Benefits:**
-- Correlate orphaned SIDs with security alerts
-- Enhanced threat detection capabilities
-- Integrated security dashboard views
+The task's account needs Read permissions for discovery and Modify permissions for `-Remove`.
+Because the task is non-interactive, a `-Remove` run must include `-Force`; without it the run logs
+the `Refusing to remove orphaned SIDs from ACLs without confirmation` message and stops.
 
 ## Common Integration Issues
 
 ### 1. Authentication and Authorization
 
-#### Issue: Service Account Permissions
-**Symptoms:**
-- Access denied errors when running in automated scenarios
-- Inconsistent results between manual and automated execution
+#### Issue: Access denied under the service account
 
-**Resolution:**
+**Symptoms:** `Failed to retrieve objects from search base '<DN>': ...` warnings, many
+`All security descriptor retrieval methods failed for <DN>` warnings, or `Failed to retrieve ACL for
+<DN>` during removal.
+
+**Resolution:** grant the service account Read permissions on the search base for discovery and
+Modify permissions for `-Remove`/`-Restore`. Verify as that account:
+
 ```powershell
-# Verify service account has required permissions
-$ServiceAccount = "DOMAIN\SVC-ADSecurity"
-$RequiredPermissions = @(
-    "Read All Properties",
-    "Read Permissions",
-    "Modify Permissions" # Only if using -Remove
-)
-
-# Test permissions before execution
-Test-ADPermissions -Account $ServiceAccount -Permissions $RequiredPermissions
+Get-ADObject -SearchBase 'DC=contoso,DC=com' -Filter * -ResultSetSize 1 -ErrorAction Stop
+Get-Acl -Path 'AD:\CN=Users,DC=contoso,DC=com' | Select-Object -ExpandProperty Access | Measure-Object
 ```
 
-#### Issue: Credential Management
-**Symptoms:**
-- Credential prompts in automated environments
-- Authentication failures in scheduled tasks
+#### Issue: Credential prompts
 
-**Resolution:**
-```powershell
-# Use Windows Credential Manager or Azure Key Vault
-$Credential = Get-StoredCredential -Target "ADSecurityService"
-if (-not $Credential) {
-    throw "Service credentials not found in credential store"
-}
-```
+The script never prompts for credentials and has no `-Credential` parameter. A prompt comes from
+the environment (for example a `Get-Credential` in a wrapper). Run the task as the intended account
+instead.
 
 ### 2. Performance and Scalability
 
-#### Issue: Memory Exhaustion in Large Environments
-**Symptoms:**
-- Out of memory errors
-- Script termination during processing
-- Slow performance with large datasets
+#### Issue: Memory pressure on large domains
 
-**Resolution:**
 ```powershell
-# Tune memory management for large environments
-.\Find-UnknownSID.ps1 -MaxMemoryUsageMB 4096 -ParallelThrottleLimit 5 -LogLevel Warning
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -MaxMemoryUsageMB 4096 -LogLevel Warning
 ```
 
-#### Issue: Network Timeout Issues
-**Symptoms:**
-- Intermittent connection failures
-- Slow domain controller responses
-- Timeout errors during processing
+`-MaxMemoryUsageMB` must be at least 256 (lower values fail `Initialize-MemoryManager`
+validation). Splitting the domain by OU across several runs is the only way to shorten a run; see
+`.\Troubleshooting\Performance\Performance-Tuning.md`.
 
-**Resolution:**
+#### Issue: Network timeouts
+
 ```powershell
-# Increase retry attempts and configure timeout settings
-.\Find-UnknownSID.ps1 -MaxRetries 5 -ConfigPath ".\config\high-latency-network.json"
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -MaxRetries 5
 ```
+
+`-MaxRetries` (1-10) controls the per-object retry loop: an object whose processing threw is
+re-run up to that many times. SID lookups and the ACL steps of `-Remove` are wrapped by
+`Invoke-ADOperationWithRetry` with a fixed default of 3 attempts for transient errors. Object
+discovery is not retried. There are no timeout settings in the configuration file. When every lookup
+for a SID fails, that SID is reported as orphaned; do not run `-Remove` from a run whose log contains
+`lookup failed for SID`.
 
 ### 3. Logging and Monitoring
 
-#### Issue: Log File Size Growth
-**Symptoms:**
-- Large log files consuming disk space
-- Performance degradation due to excessive logging
+#### Issue: Log growth
 
-**Resolution:**
 ```powershell
-# Configure appropriate log levels for production
-.\Find-UnknownSID.ps1 -LogLevel Warning -LogPath "\\server\logs\ADSecurity\Find-UnknownSID.log"
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -LogLevel Warning -LogPath '\\fileserver\logs\ADSecurity\Find-UnknownSID.log'
 ```
 
-#### Issue: Correlation ID Tracking
-**Symptoms:**
-- Difficulty correlating events across systems
-- Inconsistent correlation ID formats
+`-LogLevel` filters file output only; console output is unaffected. The folder part of `-LogPath`
+is created if missing (`Cannot create log directory: <dir> - <message>` on failure).
 
-**Resolution:**
+#### Issue: Correlating one run across systems
+
+Generate the ID once and pass it everywhere:
+
 ```powershell
-# Use consistent correlation ID format
-$CorrelationId = "ENTERPRISE-SID-AUDIT-$((Get-Date).ToString('yyyyMMdd-HHmmss'))-$(Get-Random -Maximum 9999)"
-.\Find-UnknownSID.ps1 -CorrelationId $CorrelationId
+$id = [guid]::NewGuid().ToString()
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -CorrelationId $id -OutputPath ".\Reports\$id.csv"
+Select-String -Path .\Logs\Find-UnknownSID_*.log -Pattern "\[$id\]"
 ```
 
-## Best Practices for Enterprise Integration
+Every row of the CSV carries a `CorrelationId` column, but that value is the per-object ID
+generated during processing, not the run ID. Use the file name or the log to tie a CSV to a run.
 
-### 1. Automation Framework Integration
+## Automation Framework Examples
 
-#### Jenkins Pipeline Integration
+### Jenkins
+
 ```groovy
 pipeline {
     agent any
     parameters {
-        string(name: 'SEARCH_BASE', defaultValue: 'DC=contoso,DC=com', description: 'AD Search Base')
-        choice(name: 'OPERATION', choices: ['Discovery', 'Removal'], description: 'Operation Type')
+        string(name: 'SEARCH_BASE', defaultValue: 'DC=contoso,DC=com', description: 'AD search base')
+        choice(name: 'OPERATION', choices: ['Discovery', 'Removal'], description: 'Operation')
     }
     stages {
         stage('AD Security Audit') {
             steps {
                 powershell """
-                    \$CorrelationId = "JENKINS-${env.BUILD_NUMBER}-${params.OPERATION}"
+                    \$id = [guid]::NewGuid().ToString()
+                    \$csv = "\$env:WORKSPACE\\sid-audit-${env.BUILD_NUMBER}.csv"
                     if ('${params.OPERATION}' -eq 'Removal') {
-                        .\Find-UnknownSID.ps1 -Remove -SearchBase '${params.SEARCH_BASE}' -CorrelationId \$CorrelationId -Force
+                        .\\Find-UnknownSID.ps1 -Remove -Force -SearchBase '${params.SEARCH_BASE}' -BackupPath "\$env:WORKSPACE\\ACLBackups" -CorrelationId \$id -OutputPath \$csv
                     } else {
-                        .\Find-UnknownSID.ps1 -SearchBase '${params.SEARCH_BASE}' -CorrelationId \$CorrelationId
+                        .\\Find-UnknownSID.ps1 -SearchBase '${params.SEARCH_BASE}' -CorrelationId \$id -OutputPath \$csv
                     }
                 """
+                archiveArtifacts artifacts: 'sid-audit-*.csv, ACLBackups/**', allowEmptyArchive: true
             }
         }
     }
 }
 ```
 
-#### Azure DevOps Integration
+`-Force` is required for the removal branch because the agent is non-interactive. Archive the
+backup folder with the results; it is the only way to undo a removal.
+
+### Azure DevOps
+
 ```yaml
-trigger:
-  schedules:
-  - cron: "0 2 * * 1"  # Weekly on Monday at 2 AM
-    displayName: Weekly AD Security Audit
-    branches:
-      include:
-      - main
+schedules:
+- cron: "0 2 * * 1"
+  displayName: Weekly AD Security Audit
+  branches:
+    include:
+    - main
 
 pool:
   vmImage: 'windows-latest'
 
 steps:
 - powershell: |
-    $CorrelationId = "AZDO-$(Build.BuildNumber)-SID-AUDIT"
-    .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -CorrelationId $CorrelationId -OutputPath "$(Build.ArtifactStagingDirectory)\sid-audit-results.csv"
+    $id = [guid]::NewGuid().ToString()
+    .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -CorrelationId $id `
+        -OutputPath "$(Build.ArtifactStagingDirectory)\sid-audit-results.csv" `
+        -LogPath "$(Build.ArtifactStagingDirectory)\Find-UnknownSID.log"
   displayName: 'Execute AD Security Audit'
 
 - task: PublishBuildArtifacts@1
@@ -250,30 +268,39 @@ steps:
     ArtifactName: 'SID-Audit-Results'
 ```
 
-### 2. Configuration Management
+## Configuration Management
 
-#### Centralized Configuration
+`-ConfigPath` points at a JSON file. Only these top-level keys are read; nested objects and other
+keys are ignored silently:
+
 ```json
 {
-  "Enterprise": {
-    "DefaultSearchBase": "DC=contoso,DC=com",
-    "MaxMemoryUsageMB": 2048,
-    "ParallelThrottleLimit": 20,
-    "LogLevel": "Information",
-    "CorrelationIdPrefix": "ENTERPRISE-SID-AUDIT",
-    "BackupRetentionDays": 90,
-    "AlertThresholds": {
-      "OrphanedSIDCount": 100,
-      "ProcessingTimeMinutes": 60,
-      "MemoryUsagePercent": 80
-    }
-  }
+  "BatchSize": 50,
+  "MemoryCheckInterval": 50,
+  "EnableDetailedLogging": false,
+  "LogLevel": "Information",
+  "LogFilePath": "\\\\fileserver\\logs\\ADSecurity\\Find-UnknownSID.log",
+  "EnableLogFileRotation": true,
+  "MaxLogFileSizeMB": 10,
+  "ProtectedSIDs": ["S-1-5-32-544", "S-1-5-32-545", "S-1-5-32-546", "S-1-5-18", "S-1-5-19", "S-1-5-20"],
+  "WellKnownSIDPatterns": ["^S-1-1-0$", "^S-1-5-11$", "^S-1-5-32-", "^S-1-3-[0-4]$", "^S-1-5-18$", "^S-1-5-19$", "^S-1-5-20$"]
 }
 ```
 
-### 3. Monitoring and Alerting
+`LogFilePath` in the file overrides `-LogPath`; unlike `-LogPath`, its folder is not created
+automatically, so it must already exist or every entry fails with
+`Failed to write log entry to file: <message>`. Search base, memory limit, retries, and output path
+are parameters only and cannot be set in the file. Validate a file before deploying it:
 
-#### PowerShell-Based Monitoring
+```powershell
+$known = 'WellKnownSIDPatterns', 'ProtectedSIDs', 'BatchSize', 'MemoryCheckInterval',
+    'EnableDetailedLogging', 'LogLevel', 'LogFilePath', 'EnableLogFileRotation', 'MaxLogFileSizeMB'
+(Get-Content -Path .\config.json -Raw | ConvertFrom-Json).PSObject.Properties.Name |
+    Where-Object { $_ -notin $known } | ForEach-Object { "Ignored key: $_" }
+```
+
+## Monitoring and Alerting
+
 ```powershell
 function Send-SecurityAlert {
     param(
@@ -281,112 +308,82 @@ function Send-SecurityAlert {
         [string]$Message,
         [string]$CorrelationId
     )
-
-    $AlertData = @{
-        AlertType = $AlertType
-        Message = $Message
+    $alert = @{
+        AlertType     = $AlertType
+        Message       = $Message
         CorrelationId = $CorrelationId
-        Timestamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
-        Source = 'Find-UnknownSID'
+        Timestamp     = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+        Source        = 'Find-UnknownSID'
     }
-
-    # Send to monitoring system
-    Invoke-RestMethod -Uri "https://monitoring.contoso.com/api/alerts" -Method POST -Body ($AlertData | ConvertTo-Json) -ContentType "application/json"
+    Invoke-RestMethod -Uri 'https://monitoring.contoso.com/api/alerts' -Method Post `
+        -Body ($alert | ConvertTo-Json) -ContentType 'application/json'
 }
 
-# Usage in script execution
-$Results = .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com"
-if ($Results.Statistics.OrphanedSIDCount -gt 100) {
-    Send-SecurityAlert -AlertType "HighOrphanedSIDCount" -Message "Found $($Results.Statistics.OrphanedSIDCount) orphaned SIDs" -CorrelationId $Results.CorrelationId
+$id  = [guid]::NewGuid().ToString()
+$csv = ".\Reports\$id.csv"
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -CorrelationId $id -OutputPath $csv
+$count = if (Test-Path $csv) { @(Import-Csv -Path $csv).Count } else { 0 }
+if ($count -gt 100) {
+    Send-SecurityAlert -AlertType 'HighOrphanedSIDCount' -Message "Found $count orphaned SIDs" -CorrelationId $id
 }
 ```
 
 ## Troubleshooting Integration Issues
 
-### 1. Diagnostic Information Collection
+### Diagnostic information
 
-#### Enterprise Diagnostic Script
 ```powershell
 function Get-IntegrationDiagnostics {
-    param(
-        [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-    )
+    param([string]$CorrelationId = [guid]::NewGuid().ToString())
 
-    $Diagnostics = @{
-        CorrelationId = $CorrelationId
-        SystemInfo = @{
-            PowerShellVersion = $PSVersionTable.PSVersion
-            OperatingSystem = (Get-CimInstance Win32_OperatingSystem).Caption
-            AvailableMemory = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)
-        }
-        ADConnectivity = @{
-            DomainController = (Get-ADDomainController).HostName
-            DomainFunctionalLevel = (Get-ADDomain).DomainMode
-            ForestFunctionalLevel = (Get-ADForest).ForestMode
-        }
-        NetworkDiagnostics = @{
-            DNSResolution = (Resolve-DnsName (Get-ADDomain).PDCEmulator -ErrorAction SilentlyContinue).IPAddress
-            Connectivity = Test-NetConnection (Get-ADDomainController).HostName -Port 389 -InformationLevel Quiet
-        }
+    $dc = Get-ADDomainController
+    @{
+        CorrelationId   = $CorrelationId
+        PowerShell      = $PSVersionTable.PSVersion.ToString()
+        Edition         = $PSVersionTable.PSEdition
+        RunningAs       = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+        Interactive     = [Environment]::UserInteractive
+        ADModule        = [bool](Get-Module -ListAvailable -Name ActiveDirectory)
+        DomainController = $dc.HostName
+        Ldap389         = (Test-NetConnection -ComputerName $dc.HostName -Port 389 -InformationLevel Quiet)
+        DomainMode      = (Get-ADDomain).DomainMode
     }
-
-    return $Diagnostics
 }
 ```
 
-### 2. Common Error Patterns
+`Interactive = False` means a `-Remove` or `-Restore` run needs `-Force`.
 
-#### Error: "Access to the registry key 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa' is denied"
-**Cause:** Insufficient permissions for security operations
-**Resolution:** Run with appropriate service account or elevated privileges
+### Common error patterns
 
-#### Error: "The RPC server is unavailable"
-**Cause:** Network connectivity issues or domain controller unavailability
-**Resolution:** Check network connectivity and domain controller availability
+| Error | Cause | Resolution |
+| --- | --- | --- |
+| `Refusing to remove orphaned SIDs from ACLs without confirmation. ...` | Non-interactive `-Remove` without `-Force` | Add `-Force`, or `-WhatIf` for a preview |
+| `Script initialization failed: Active Directory PowerShell module is not available` | RSAT AD module missing on the agent | Install RSAT-AD-PowerShell |
+| `The RPC server is unavailable` inside AD lookups | DC connectivity | Check port 389/636 and DNS; raise `-MaxRetries` |
+| `Cannot validate argument on parameter 'OutputPath'` | Folder in `-OutputPath` does not exist | Create it first |
+| `Cannot validate argument on parameter 'MaxMemoryMB'` | `-MaxMemoryUsageMB` below 256 | Use 256 or more |
+| CSV missing after a run | No orphaned SIDs found | Treat as a zero result; check `Orphaned SIDs found: 0` in the log |
 
-#### Error: "Not enough storage is available to process this command"
-**Cause:** Memory exhaustion during large-scale operations
-**Resolution:** Reduce parallel processing or increase memory limits
+### Batch processing for large environments
 
-### 3. Performance Optimization
-
-#### Load Balancing Across Domain Controllers
 ```powershell
-$DomainControllers = Get-ADDomainController -Filter *
-$SelectedDC = $DomainControllers | Get-Random
-$env:LOGONSERVER = "\\$($SelectedDC.HostName)"
-```
-
-#### Batch Processing for Large Environments
-```powershell
-$AllOUs = Get-ADOrganizationalUnit -Filter * | Select-Object -ExpandProperty DistinguishedName
-$BatchSize = 10
-
-for ($i = 0; $i -lt $AllOUs.Count; $i += $BatchSize) {
-    $Batch = $AllOUs[$i..($i + $BatchSize - 1)]
-    .\Find-UnknownSID.ps1 -SearchBase $Batch -CorrelationId "BATCH-$($i / $BatchSize + 1)"
+$ous = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel | Select-Object -ExpandProperty DistinguishedName
+$batchSize = 10
+for ($i = 0; $i -lt $ous.Count; $i += $batchSize) {
+    $batch = $ous[$i..([Math]::Min($i + $batchSize - 1, $ous.Count - 1))]
+    $id = [guid]::NewGuid().ToString()
+    .\Find-UnknownSID.ps1 -SearchBase $batch -CorrelationId $id -OutputPath ".\Reports\batch-$($i / $batchSize + 1)-$id.csv"
 }
 ```
 
-## Support and Escalation
+`-SearchBase` accepts an array, and distinguished names can also be piped
+(`$ous | .\Find-UnknownSID.ps1`).
 
-### 1. Support Contacts
-- **Primary Support:** IT Security Team (security@contoso.com)
-- **Secondary Support:** PowerShell Development Team (powershell@contoso.com)
-- **Escalation:** CISO Office (ciso@contoso.com)
+## Related Documentation
 
-### 2. Documentation References
-- **Enterprise Architecture:** .\Documentation\Enterprise-Architecture.md
-- **Security Procedures:** .\Documentation\Security-Procedures.md
-- **Change Management:** .\Documentation\Change-Management.md
-
-### 3. Knowledge Base Articles
-- **KB001:** Troubleshooting Active Directory Connectivity
-- **KB002:** PowerShell Script Performance Optimization
-- **KB003:** Enterprise Security Audit Procedures
-
----
-
-*Last Updated: 2025-07-02*
-*Version: 2.0.0*
-*Author: Jeffrey Stuhr*
+- `.\Documentation\Find-UnknownSID-Automation.md`
+- `.\Documentation\Security-Logging-Compliance.md`
+- `.\Troubleshooting\Common\Find-UnknownSID-Issues.md`
+- `.\Troubleshooting\Common\Backup-Restore-Issues.md`
+- `.\Troubleshooting\Performance\Performance-Tuning.md`
+- `.\Troubleshooting\Security\Security-Logging-Issues.md`

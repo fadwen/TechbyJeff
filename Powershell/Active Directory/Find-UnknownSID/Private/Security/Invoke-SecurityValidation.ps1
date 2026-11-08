@@ -124,6 +124,9 @@ function Invoke-SecurityValidation {
         [string]$ObjectDN,
 
         [Parameter()]
+        [string]$CurrentDomainSID,
+
+        [Parameter()]
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
 
@@ -140,7 +143,7 @@ function Invoke-SecurityValidation {
                 Write-StructuredLog "Validating SID for removal: $sid" -Level Debug -CorrelationId $CorrelationId
 
                 # Use SIDValidation module for comprehensive security testing
-                $sidValidation = Test-SIDSecurity -SIDString $sid -ObjectDN $ObjectDN -ValidationLevel 'Standard'
+                $sidValidation = Test-SIDSecurity -SIDString $sid -ObjectDN $ObjectDN -ValidationLevel 'Standard' -CurrentDomainSID $CurrentDomainSID -CorrelationId $CorrelationId
 
                 if (-not $sidValidation.IsValid) {
                     $blockedSIDs.Add($sid)

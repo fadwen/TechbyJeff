@@ -1,6 +1,9 @@
 #Requires -Version 5.1
 #Requires -Module Pester
 
+# Pester 3.4 can only mock a command that exists; define placeholder AD cmdlets when RSAT is absent
+. "$PSScriptRoot\..\..\TestHelpers\ADCmdletStubs.ps1"
+
 # Import test configuration
 $testConfigPath = Join-Path $PSScriptRoot "..\..\TestData\Configurations\test-config.json"
 if (-not (Test-Path $testConfigPath)) {

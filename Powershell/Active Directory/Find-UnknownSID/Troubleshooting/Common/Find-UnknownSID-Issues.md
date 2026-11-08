@@ -1,481 +1,469 @@
 ﻿# Find-UnknownSID Common Issues Troubleshooting Guide
 
 ## Overview
-This guide provides solutions for the most commonly encountered issues when using the Find-UnknownSID script. Issues are organized by frequency and impact to help you quickly resolve problems.
+
+This guide covers the issues most often reported when running `Find-UnknownSID.ps1`, with the
+exact messages the script emits and fixes that use its real parameters.
+
+The script accepts: `-SearchBase` (string array, also from the pipeline, alias `DistinguishedName`),
+`-OutputPath`, `-IncludeInherited`, `-Remove`, `-Restore`, `-BackupPath`, `-MaxRetries` (1-10,
+default 3), `-ConfigPath`, `-MaxMemoryUsageMB` (100-16384, default 1024), `-PreserveTempFiles`,
+`-LogPath`, `-CorrelationId`, `-LogLevel` (`Critical`, `Error`, `Warning`, `Information`, `Debug`,
+`Verbose`; default `Information`), `-SuppressConsoleOutput`, `-Force`, `-WhatIf` and `-Confirm`.
+There is no `-Credential`; the script runs as the current user.
+
+The script writes nothing to the pipeline. Results reach disk only through `-OutputPath` (always
+CSV) and the log file.
 
 ## Critical Issues (Immediate Resolution Required)
 
 ### 1. Script Fails to Start
 
 #### Issue: "Active Directory PowerShell module is not available"
-**Symptoms:**
-- Script terminates immediately with module import error
-- Error occurs during initialization phase
 
-**Root Cause:**
-- Active Directory PowerShell module not installed
-- Module not properly loaded
-- Windows feature not enabled
+**Symptoms:**
+
+- The script terminates in the `begin` block before any object is processed.
+- Console shows `Script initialization failed: Active Directory PowerShell module is not available`.
+
+**Root Cause:** the `ActiveDirectory` module is not installed, or is not visible to the PowerShell
+edition in use.
 
 **Resolution:**
+
 ```powershell
-# For Windows Server with Desktop Experience or Windows 10/11
+# Windows 10/11 and Server with Desktop Experience
 Enable-WindowsOptionalFeature -Online -FeatureName RSATClient-Roles-AD-Powershell
 
-# For Windows Server Core
+# Windows Server Core
 Add-WindowsFeature RSAT-AD-PowerShell
 
-# Verify installation
+# Verify from the same PowerShell edition that will run the script
 Get-Module -ListAvailable -Name ActiveDirectory
 ```
 
-**Prevention:**
-- Include module availability check in deployment scripts
-- Document prerequisites in deployment guides
-
 #### Issue: "Critical class import failure"
-**Symptoms:**
-- Script fails during class loading phase
-- Security validation errors during startup
 
-**Root Cause:**
-- Missing or corrupted class files
-- File permissions preventing access
-- Path resolution issues
+**Symptoms:**
+
+- `Secure class loading failed: Class validation failed. Failed classes: N` followed by
+  `Script initialization failed: Critical class import failure`.
+- Occurs after `Loading security-validated components...` and before any AD query.
+
+**Root Cause:** a file under `Classes\` is missing, unreadable, or its content no longer matches the
+hash recorded by `Import-SecureClasses`. The nine required classes are `MemoryManager`,
+`OrphanedSIDResult`, `ProcessingStatistics`, `RemovalOperationResult`, `RestoreOperationResult`,
+`ScriptConfiguration`, `SecurityValidationResult`, `SIDAnalysisResult` and `StreamingResultsManager`.
 
 **Resolution:**
+
 ```powershell
-# Check class files exist
-$ClassesPath = Join-Path $PSScriptRoot "Classes"
-Get-ChildItem $ClassesPath -Filter "*.ps1" | ForEach-Object {
-    Write-Host "Checking: $($_.Name)"
-    if (Test-Path $_.FullName) {
-        Write-Host "✓ Found" -ForegroundColor Green
-    } else {
-        Write-Host "✗ Missing" -ForegroundColor Red
-    }
+# Confirm every class file is present and readable
+$scriptRoot = 'C:\Scripts\Find-UnknownSID'   # folder that holds Find-UnknownSID.ps1
+$required = 'MemoryManager', 'OrphanedSIDResult', 'ProcessingStatistics', 'RemovalOperationResult',
+    'RestoreOperationResult', 'ScriptConfiguration', 'SecurityValidationResult', 'SIDAnalysisResult',
+    'StreamingResultsManager'
+foreach ($name in $required) {
+    $path = Join-Path $scriptRoot "Classes\$name.ps1"
+    if (Test-Path $path) { "Found   $name" } else { "Missing $name" }
 }
 
-# Reset file permissions if needed
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-icacls "$ScriptRoot\Classes" /reset /T
+# Re-run with Debug logging to see which class failed validation and why
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -LogLevel Debug -WhatIf
+```
+
+If a class file was edited locally, restore it from source control. Hash validation is described in
+`.\Documentation\Class-Loading-Security-Analysis.md`.
+
+#### Issue: "Missing critical dependency" or "Module file not found"
+
+**Symptoms:**
+
+- `ClassManagement function not found: <path>` then `Missing critical dependency: <file>.ps1`.
+- `Modular logging system not found: <path>\Private\Core\Import-LoggingSystem.ps1`.
+- `WARNING: Module file not found: <path>` for a file under `Private\`.
+
+**Root Cause:** the `Private\` tree was copied incompletely. The script dot-sources one function per
+file from `Private\<Area>\*.ps1`; a missing `ClassManagement` or `Core` file stops the run, a
+missing file elsewhere is warned about and the dependent command later fails with
+"is not recognized".
+
+**Resolution:** redeploy the whole folder. Verify with:
+
+```powershell
+Get-ChildItem -Path .\Private -Recurse -Filter *.ps1 | Measure-Object
 ```
 
 ### 2. Authentication and Authorization Failures
 
-#### Issue: "Access denied" errors during AD operations
-**Symptoms:**
-- Permission errors when reading AD objects
-- Inconsistent results based on user context
-- Failures during ACL modification attempts
+#### Issue: "Access denied" during AD operations
 
-**Root Cause:**
-- Insufficient Active Directory permissions
-- Running under wrong user context
-- Domain controller access restrictions
+**Symptoms:**
+
+- `WARNING: Failed to retrieve objects from search base '<DN>': Insufficient access rights ...`
+  during discovery.
+- Repeated `All security descriptor retrieval methods failed for <DN>` warnings (see
+  `.\Troubleshooting\Common\Security-Descriptor-Warnings.md`).
+- With `-Remove`: `Failed to retrieve ACL for <DN>` or Set-Acl access-denied errors.
+
+**Required permissions:**
+
+| Mode | Permission on target objects |
+| --- | --- |
+| Discovery (default) | Read all properties and Read permissions |
+| `-Remove` | Modify permissions (and the backup folder must be writable) |
+| `-Restore` | Modify permissions |
 
 **Resolution:**
+
 ```powershell
-# Check current user context
-whoami /groups | findstr "Domain Admins"
+# Confirm the account running the script
+whoami
+whoami /groups | findstr /i "Domain Admins Account Operators"
 
-# Test AD connectivity and permissions
-try {
-    $TestOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Users'" -ErrorAction Stop
-    Write-Host "✓ AD Read permissions verified" -ForegroundColor Green
-} catch {
-    Write-Host "✗ AD Read permissions failed: $($_.Exception.Message)" -ForegroundColor Red
-}
+# Read test on the search base
+Get-ADObject -SearchBase 'OU=Test,DC=contoso,DC=com' -Filter * -ResultSetSize 1 -ErrorAction Stop
 
-# For removal operations, test write permissions
-if ($TestRemovePermissions) {
-    try {
-        $TestObject = Get-ADUser -Filter "Name -eq 'testuser'" -Properties nTSecurityDescriptor
-        if ($TestObject) {
-            $ACL = Get-Acl -Path "AD:$($TestObject.DistinguishedName)"
-            Write-Host "✓ ACL read permissions verified" -ForegroundColor Green
-        }
-    } catch {
-        Write-Host "✗ ACL read permissions failed: $($_.Exception.Message)" -ForegroundColor Red
-    }
-}
+# Permission read test on one object
+Get-Acl -Path 'AD:\CN=User1,OU=Test,DC=contoso,DC=com' | Select-Object -ExpandProperty Access | Measure-Object
 ```
-
-**Required Permissions:**
-- **Discovery Mode:** Read access to target OUs and objects
-- **Removal Mode:** Modify Permissions on target objects
-- **Restore Mode:** Modify Permissions on target objects
 
 #### Issue: "The RPC server is unavailable"
-**Symptoms:**
-- Intermittent connection failures
-- Timeouts during large operations
-- Domain controller connectivity issues
+
+**Symptoms:** intermittent failures on `Get-ADObject` or `Get-Acl`, usually in large runs.
 
 **Resolution:**
+
 ```powershell
-# Test domain controller connectivity
-$DomainController = (Get-ADDomainController).HostName
-Test-NetConnection $DomainController -Port 389 -InformationLevel Detailed
+$dc = (Get-ADDomainController).HostName
+Test-NetConnection -ComputerName $dc -Port 389 -InformationLevel Detailed
+Resolve-DnsName -Name $dc -Type A
 
-# Check DNS resolution
-Resolve-DnsName $DomainController -Type A
-
-# Test with specific domain controller
-$env:LOGONSERVER = "\\$DomainController"
-Get-ADDomain -Server $DomainController
+# Raise the retry count for SID lookups and object discovery (default 3, maximum 10)
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -MaxRetries 5
 ```
+
+`-MaxRetries` governs the per-object retry loop in `Invoke-MainProcessingLogic`: when processing an
+object throws, the object is retried up to that many times with a 2, 4, 6... second back-off
+(`Retry attempt N of M for object <DN>`). SID lookups and the ACL steps of `-Remove` go through
+`Invoke-ADOperationWithRetry`, which has its own fixed default of 3 attempts and retries only
+errors matching `timeout|network|connection|busy|unavailable|server not operational|replication|domain controller`.
+Object discovery (`Get-ADObject -SearchBase`) and `Get-Acl` are not retried.
+
+### 3. Destructive Modes Refuse to Run
+
+#### Issue: "Refusing to remove orphaned SIDs from ACLs without confirmation"
+
+**Symptoms:** a `-Remove` or `-Restore` run stops immediately after the search base is resolved with
+one of:
+
+```text
+Refusing to remove orphaned SIDs from ACLs without confirmation. Re-run with -Force to proceed unattended, or with -WhatIf to preview the changes.
+Refusing to restore ACLs from backup without confirmation. Re-run with -Force to proceed unattended, or with -WhatIf to preview the changes.
+```
+
+**Root Cause:** `-Remove` and `-Restore` require an explicit go-ahead. In an interactive console the
+script asks once (`This will remove orphaned SIDs from ACLs for: <search bases>` under the caption
+`Confirm destructive operation`); answering No produces the message above. A session that cannot
+prompt - a scheduled task, CI agent, or remote host - is treated as a refusal.
+
+**Resolution:**
+
+```powershell
+# Preview without any prompt or change
+.\Find-UnknownSID.ps1 -Remove -SearchBase 'OU=Test,DC=contoso,DC=com' -WhatIf
+
+# Unattended run - skips the confirmation
+.\Find-UnknownSID.ps1 -Remove -SearchBase 'OU=Test,DC=contoso,DC=com' -Force
+```
+
+`-WhatIf` never prompts. `-Force` only affects this confirmation; it does not change what is
+removed or restored.
 
 ## High Priority Issues
 
-### 3. Performance and Memory Issues
+### 4. Performance and Memory Issues
 
-#### Issue: "Out of memory" errors during processing
+#### Issue: Memory warnings or "Out of memory" during processing
+
 **Symptoms:**
-- Script terminates with memory allocation errors
-- Extremely slow performance with large datasets
-- System becomes unresponsive
 
-**Root Cause:**
-- Insufficient memory configuration
-- Memory leaks in processing loops
-- Large datasets exceeding memory limits
+- Memory threshold warnings from the memory manager in the log.
+- The host process working set grows beyond `-MaxMemoryUsageMB`.
 
 **Resolution:**
+
 ```powershell
-# Increase memory limits
-.\Find-UnknownSID.ps1 -MaxMemoryUsageMB 4096 -ParallelThrottleLimit 5
+# Raise the ceiling (100-16384 MB; default 1024)
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -MaxMemoryUsageMB 4096
 
-# Monitor memory usage during execution
-Get-Process -Name powershell | Select-Object ProcessName, WorkingSet, VirtualMemorySize
+# Watch the process while it runs (pwsh or powershell depending on host)
+Get-Process -Id $PID | Select-Object ProcessName, @{ n = 'WorkingSetMB'; e = { [math]::Round($_.WorkingSet64 / 1MB) } }
 
-# Use batch processing for large environments
-$AllOUs = Get-ADOrganizationalUnit -Filter * | Select-Object -First 10
-.\Find-UnknownSID.ps1 -SearchBase $AllOUs -MaxMemoryUsageMB 2048
-```
-
-#### Issue: Script hangs or runs indefinitely
-**Symptoms:**
-- No progress updates for extended periods
-- High CPU usage without completion
-- No response to keyboard interrupts
-
-**Root Cause:**
-- Infinite loops in processing logic
-- Deadlocks in parallel processing
-- Unhandled exceptions causing hangs
-
-**Resolution:**
-```powershell
-# Use verbose logging to identify hang point
-.\Find-UnknownSID.ps1 -Verbose -LogLevel Debug
-
-# Reduce parallel processing
-.\Find-UnknownSID.ps1 -ParallelThrottleLimit 1
-
-# Monitor with timeout
-$Job = Start-Job -ScriptBlock { .\Find-UnknownSID.ps1 -SearchBase "OU=Test,DC=contoso,DC=com" }
-Wait-Job $Job -Timeout 300
-if ($Job.State -eq "Running") {
-    Stop-Job $Job
-    Write-Warning "Script timed out after 5 minutes"
+# Split a large domain into several runs
+$ous = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel | Select-Object -ExpandProperty DistinguishedName
+foreach ($ou in $ous) {
+    .\Find-UnknownSID.ps1 -SearchBase $ou -OutputPath ".\Reports\$($ou.Split(',')[0].Substring(3)).csv"
 }
 ```
 
-### 4. Configuration and Parameter Issues
+Objects are processed one at a time; there is no parallel mode and no throttle parameter. Results
+are streamed to batch files under `$env:TEMP\Find-UnknownSID-<CorrelationId>\` so result count does
+not drive memory use. See `.\Troubleshooting\Performance\Memory-Management-Issues.md` and
+`.\Troubleshooting\Performance\Performance-Tuning.md`.
+
+#### Issue: Initialization fails with a MaxMemoryMB validation error
+
+**Symptoms:** `Script initialization failed: Cannot validate argument on parameter 'MaxMemoryMB'`
+when `-MaxMemoryUsageMB` is below 256.
+
+**Root Cause:** `-MaxMemoryUsageMB` accepts 100-16384, but `Initialize-MemoryManager` requires
+`-MaxMemoryMB` in 256-16384. The same applies to a config `MemoryCheckInterval` below 5, which
+`Initialize-MemoryManager -CheckInterval` rejects.
+
+**Resolution:** use 256 or higher for `-MaxMemoryUsageMB`, and 5-100 for `MemoryCheckInterval`.
+
+#### Issue: Script appears to hang
+
+**Symptoms:** no progress line for a long time. Progress is logged every 50 objects as
+`Processing: <n>/<total> objects (<pct>%) - Orphaned SIDs found: <k>`.
+
+**Root Cause:** most often a slow domain controller during SID lookups. Each unknown SID can cost
+up to five AD queries (`Get-ADObject` by `objectSid`, deleted-objects query, `Get-ADUser`,
+`Get-ADGroup`, `Get-ADComputer`), each retried up to 3 times by `Invoke-ADOperationWithRetry`
+when the error looks transient.
+
+**Resolution:**
+
+```powershell
+# See each lookup as it happens
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -LogLevel Debug
+
+# Bound the run from a wrapper
+$job = Start-Job -ScriptBlock { & 'C:\Scripts\Find-UnknownSID\Find-UnknownSID.ps1' -SearchBase 'OU=Test,DC=contoso,DC=com' }
+if (-not (Wait-Job -Job $job -Timeout 1800)) {
+    Stop-Job -Job $job
+    Write-Warning 'Find-UnknownSID did not finish within 30 minutes'
+}
+Receive-Job -Job $job
+```
+
+Lookup results are cached per SID for the run, so repeated SIDs cost one lookup set.
+
+### 5. Configuration and Parameter Issues
 
 #### Issue: "Configuration file not found" or JSON parsing errors
-**Symptoms:**
-- ConfigPath parameter validation fails
-- JSON deserialization errors
-- Unexpected default values used
 
-**Root Cause:**
-- Incorrect file path specification
-- Malformed JSON in configuration file
-- File permissions preventing access
+**Symptoms:**
+
+- `Cannot validate argument on parameter 'ConfigPath'. Configuration file not found: <path>`.
+- `Script initialization failed: Failed to load configuration from <path> : <message>`.
+- Settings in the file appear to be ignored.
+
+**Root Cause:** the path is wrong, the JSON is malformed, or the file uses keys the loader does not
+read. `ScriptConfiguration.LoadFromFile` reads only these top-level keys:
+
+| Key | Type | Default | Accepted |
+| --- | --- | --- | --- |
+| `WellKnownSIDPatterns` | string[] of regex | built-in list | each must compile |
+| `ProtectedSIDs` | string[] | built-in list | `^S-1-\d+(-\d+)*$` |
+| `BatchSize` | int | 50 | 1-1000; results per streaming batch file |
+| `MemoryCheckInterval` | int | 50 | 1-100 (use 5-100; see above) |
+| `EnableDetailedLogging` | bool | false | |
+| `LogLevel` | string | Information | Critical, Error, Warning, Information, Debug, Verbose |
+| `LogFilePath` | string | null | overrides `-LogPath` when set |
+| `EnableLogFileRotation` | bool | true | |
+| `MaxLogFileSizeMB` | int | 10 | |
+
+Any other key, and any nested object, is ignored without a warning.
 
 **Resolution:**
+
 ```powershell
-# Verify configuration file exists and is valid
-$ConfigPath = ".\config.json"
-if (Test-Path $ConfigPath) {
+$configPath = '.\config.json'
+if (Test-Path $configPath) {
     try {
-        $Config = Get-Content $ConfigPath | ConvertFrom-Json
-        Write-Host "✓ Configuration file valid" -ForegroundColor Green
+        $config = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+        'Configuration file parses'
+        $known = 'WellKnownSIDPatterns', 'ProtectedSIDs', 'BatchSize', 'MemoryCheckInterval',
+            'EnableDetailedLogging', 'LogLevel', 'LogFilePath', 'EnableLogFileRotation', 'MaxLogFileSizeMB'
+        $config.PSObject.Properties.Name | Where-Object { $_ -notin $known } |
+            ForEach-Object { "Ignored key: $_" }
     } catch {
-        Write-Host "✗ Configuration file invalid: $($_.Exception.Message)" -ForegroundColor Red
+        "Configuration file invalid: $($_.Exception.Message)"
     }
 } else {
-    Write-Host "✗ Configuration file not found: $ConfigPath" -ForegroundColor Red
+    "Configuration file not found: $configPath"
 }
 
-# Create default configuration if missing
-$DefaultConfig = @{
-    Processing = @{
-        DefaultParallelThrottleLimit = 10
-        DefaultMaxMemoryUsageMB = 1024
-        DefaultMaxRetries = 3
-    }
-    Logging = @{
-        DefaultLogLevel = "Information"
-        EnableVerboseLogging = $false
-    }
-}
-$DefaultConfig | ConvertTo-Json -Depth 3 | Out-File ".\config-default.json"
+# Minimal valid file
+@{
+    BatchSize           = 50
+    MemoryCheckInterval = 50
+    LogLevel            = 'Information'
+    MaxLogFileSizeMB    = 10
+} | ConvertTo-Json | Set-Content -Path .\config.json -Encoding UTF8
 ```
 
 ## Medium Priority Issues
 
-### 5. Output and Reporting Issues
+### 6. Output and Reporting Issues
 
-#### Issue: CSV export fails or produces empty files
+#### Issue: No CSV is produced, or the CSV is empty
+
 **Symptoms:**
-- OutputPath parameter validation fails
-- CSV files created but contain no data
-- Formatting issues in exported data
 
-**Root Cause:**
-- Directory permissions issues
-- File path resolution problems
-- Data formatting or encoding issues
+- `Cannot validate argument on parameter 'OutputPath'` - the folder part of the path does not exist.
+- The summary ends with `No orphaned SIDs found. Active Directory ACLs appear to be clean.` and no
+  file is written.
+- `Failed to export results to CSV: <message>` in the summary section.
+
+**Root Cause:** the export runs only when at least one orphaned SID was found. The file is always
+CSV (`StreamingResultsManager.ExportToCsv`), whatever extension `-OutputPath` carries. The folder
+must already exist.
 
 **Resolution:**
-```powershell
-# Test output directory permissions
-$OutputDir = Split-Path ".\reports\output.csv"
-try {
-    New-Item -Path "$OutputDir\test.txt" -ItemType File -Force
-    Remove-Item "$OutputDir\test.txt" -Force
-    Write-Host "✓ Output directory writable" -ForegroundColor Green
-} catch {
-    Write-Host "✗ Output directory not writable: $($_.Exception.Message)" -ForegroundColor Red
-}
 
-# Verify data export manually
-$Results = .\Find-UnknownSID.ps1 -SearchBase "OU=Test,DC=contoso,DC=com"
-if ($Results.OrphanedSIDs.Count -gt 0) {
-    $Results.OrphanedSIDs | Export-Csv -Path ".\manual-export.csv" -NoTypeInformation
-    Write-Host "Manual export completed with $($Results.OrphanedSIDs.Count) records"
-}
+```powershell
+New-Item -Path .\Reports -ItemType Directory -Force | Out-Null
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -OutputPath '.\Reports\orphaned-sids.csv'
+
+# Confirm from the log
+Select-String -Path (Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime | Select-Object -Last 1).FullName -Pattern 'Orphaned SIDs found:|Results exported to:'
 ```
 
-#### Issue: Inconsistent or missing correlation IDs
-**Symptoms:**
-- Logs show empty or null correlation IDs
-- Difficulty tracking operations across systems
-- Missing correlation context in error messages
+Columns follow the `OrphanedSIDResult` class: `ObjectDN`, `ObjectClass`, `OrphanedSID`,
+`LikelySource`, `Confidence`, `AnalysisNotes`, `AccessControlType`, `ActiveDirectoryRights`,
+`InheritanceType`, `ObjectType`, `InheritedObjectType`, `IsInherited`, `ProcessingMethod`,
+`ActionTaken`, `CorrelationId`, `Timestamp`.
+
+#### Issue: Correlation ID cannot be found in the logs
+
+**Symptoms:** `Select-String` for the ID returns nothing, or returns lines from several runs.
+
+**Root Cause:** the correlation ID is written in every log line as the fourth bracketed field,
+`[<timestamp>] [<Level>] [<Component>] [<CorrelationId>] <Message>`. It is never part of the log
+file name, which is `Find-UnknownSID_<yyyyMMdd_HHmmss>.log` by default. When `-CorrelationId` is
+not given a new GUID is generated per run.
 
 **Resolution:**
-```powershell
-# Always specify correlation ID explicitly
-$CorrelationId = "MANUAL-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$(Get-Random -Maximum 9999)"
-.\Find-UnknownSID.ps1 -CorrelationId $CorrelationId
 
-# Verify correlation ID in logs
-Get-Content ".\Logs\Find-UnknownSID_*.log" | Select-String $CorrelationId
+```powershell
+$correlationId = [guid]::NewGuid().ToString()
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -CorrelationId $correlationId
+Select-String -Path .\Logs\Find-UnknownSID_*.log -Pattern "\[$correlationId\]" | Select-Object -First 20
 ```
 
-### 6. Backup and Restore Issues
+Any string is accepted for `-CorrelationId` on the main script, but `Test-BackupValidation` in the
+restore path requires GUID format, so keep GUIDs for runs that use `-Restore`.
 
-#### Issue: Backup creation fails during removal operations
+### 7. Backup Issues During Removal
+
+#### Issue: Removal aborts with a backup error
+
 **Symptoms:**
-- Removal operations fail with backup errors
-- Backup directory creation issues
-- Insufficient disk space for backups
 
-**Root Cause:**
-- Disk space limitations
-- Directory permission problems
-- Path length limitations on Windows
+- `Failed to create ACL backup for <DN> : <message>` followed by
+  `Failed to create ACL backup - aborting removal operation` for that object.
+- `WARNING: No backup path specified. Using default: <script folder>\Backup`.
+
+**Root Cause:** every removal first writes `<sanitized DN>_<yyyyMMdd_HHmmss>.xml` (Export-Clixml)
+to `-BackupPath\<yyyyMMdd_HHmmss>\`. When `-BackupPath` is omitted the script creates
+`<script folder>\Backup`. A failed backup aborts that object's removal; other objects continue.
 
 **Resolution:**
-```powershell
-# Check available disk space
-$BackupPath = ".\Backup"
-$Drive = (Get-Item $BackupPath).PSDrive
-$FreeSpace = (Get-PSDrive $Drive.Name).Free / 1GB
-Write-Host "Available space: $([math]::Round($FreeSpace, 2)) GB"
 
-# Test backup directory creation
-try {
-    $TestBackupPath = Join-Path $BackupPath "test-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-    New-Item -Path $TestBackupPath -ItemType Directory -Force
-    Remove-Item $TestBackupPath -Force
-    Write-Host "✓ Backup directory creation successful" -ForegroundColor Green
-} catch {
-    Write-Host "✗ Backup directory creation failed: $($_.Exception.Message)" -ForegroundColor Red
-}
+```powershell
+$backupRoot = 'D:\ACLBackups'
+New-Item -Path $backupRoot -ItemType Directory -Force | Out-Null
+$drive = Get-PSDrive -Name $backupRoot.Substring(0, 1)
+"Free space: $([math]::Round($drive.Free / 1GB, 2)) GB"
+
+.\Find-UnknownSID.ps1 -Remove -SearchBase 'OU=Test,DC=contoso,DC=com' -BackupPath $backupRoot -WhatIf
 ```
+
+The parent of `-BackupPath` must exist (`Parent directory does not exist for backup path: <dir>`
+otherwise). Full backup and restore guidance is in
+`.\Troubleshooting\Common\Backup-Restore-Issues.md`.
 
 ## Low Priority Issues
 
-### 7. Logging and Verbose Output Issues
+### 8. Logging Issues
 
-#### Issue: Log files grow too large or fill disk space
-**Symptoms:**
-- Large log files consuming disk space
-- Performance degradation due to excessive logging
-- Disk space warnings or errors
+#### Issue: Log files grow too large
 
 **Resolution:**
-```powershell
-# Use appropriate log level for production
-.\Find-UnknownSID.ps1 -LogLevel Warning
 
-# Implement log rotation
-$LogFiles = Get-ChildItem ".\Logs" -Filter "*.log" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
-$LogFiles | Remove-Item -Force
-Write-Host "Removed $($LogFiles.Count) old log files"
+```powershell
+# Write only Warning and above to the file; console output is unaffected
+.\Find-UnknownSID.ps1 -SearchBase 'DC=contoso,DC=com' -LogLevel Warning
+
+# Remove logs older than 30 days
+Get-ChildItem -Path .\Logs -Filter 'Find-UnknownSID_*.log' |
+    Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) |
+    Remove-Item -Force
 ```
 
-#### Issue: Console output formatting issues or encoding problems
-**Symptoms:**
-- Garbled characters in console output
-- Inconsistent formatting across different hosts
-- Missing color formatting
+At start-up an existing log file larger than `MaxLogFileSizeMB` (config, default 10) is renamed to
+`<name>_<yyyyMMdd_HHmmss>.log` when `EnableLogFileRotation` is true. Security events bypass the
+`-LogLevel` filter and are always written.
 
-**Resolution:**
-```powershell
-# Set console encoding
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
+#### Issue: `-Verbose` or `-Debug` changes the log level unexpectedly
 
-# Test color support
-if ($Host.UI.SupportsVirtualTerminal) {
-    Write-Host "✓ Color output supported" -ForegroundColor Green
-} else {
-    Write-Host "! Color output not supported - using plain text" -ForegroundColor Yellow
-}
-```
+When `-LogLevel` is not given, `-Verbose` sets the file level to `Verbose` and `-Debug` sets it to
+`Debug`. Pass `-LogLevel` explicitly to keep a fixed level while using the common parameters.
 
 ## Diagnostic Commands
 
-### Quick Health Check
+### Quick health check
+
 ```powershell
-function Test-FindUnknownSIDsHealth {
-    Write-Host "=== Find-UnknownSID Health Check ===" -ForegroundColor Cyan
+function Test-FindUnknownSIDHealth {
+    param([string]$ScriptRoot = (Get-Location).Path)
 
-    # Check PowerShell version
-    Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)" -ForegroundColor Green
+    "PowerShell: $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
 
-    # Check Active Directory module
-    if (Get-Module -ListAvailable -Name ActiveDirectory) {
-        Write-Host "✓ Active Directory module available" -ForegroundColor Green
-    } else {
-        Write-Host "✗ Active Directory module missing" -ForegroundColor Red
+    if (Get-Module -ListAvailable -Name ActiveDirectory) { 'ActiveDirectory module: available' }
+    else { 'ActiveDirectory module: MISSING' }
+
+    $files = 'Find-UnknownSID.ps1',
+        'Private\Core\Import-LoggingSystem.ps1',
+        'Private\ClassManagement\Import-SecureClasses.ps1',
+        'Classes\ScriptConfiguration.ps1',
+        'Classes\StreamingResultsManager.ps1'
+    foreach ($file in $files) {
+        if (Test-Path (Join-Path $ScriptRoot $file)) { "Present: $file" } else { "MISSING: $file" }
     }
-
-    # Check script files
-    $ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $RequiredFiles = @(
-        "Find-UnknownSID.ps1",
-        "Private\Logging.ps1",
-        "Classes\ScriptConfiguration.ps1"
-    )
-
-    foreach ($File in $RequiredFiles) {
-        $FullPath = Join-Path $ScriptPath $File
-        if (Test-Path $FullPath) {
-            Write-Host "✓ $File" -ForegroundColor Green
-        } else {
-            Write-Host "✗ $File" -ForegroundColor Red
-        }
-    }
-
-    # Check AD connectivity
-    try {
-        $Domain = Get-ADDomain -ErrorAction Stop
-        Write-Host "✓ AD connectivity: $($Domain.DNSRoot)" -ForegroundColor Green
-    } catch {
-        Write-Host "✗ AD connectivity failed: $($_.Exception.Message)" -ForegroundColor Red
-    }
-
-    # Check permissions
-    try {
-        $TestOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Users'" -ErrorAction Stop
-        Write-Host "✓ AD read permissions" -ForegroundColor Green
-    } catch {
-        Write-Host "✗ AD read permissions failed" -ForegroundColor Red
-    }
-}
-```
-
-### Performance Baseline Test
-```powershell
-function Test-FindUnknownSIDsPerformance {
-    param(
-        [string]$TestOU = "CN=Users,DC=contoso,DC=com"
-    )
-
-    Write-Host "=== Performance Baseline Test ===" -ForegroundColor Cyan
-
-    $StartTime = Get-Date
-    $StartMemory = [System.GC]::GetTotalMemory($false) / 1MB
 
     try {
-        $Results = .\Find-UnknownSID.ps1 -SearchBase $TestOU -LogLevel Warning
-
-        $EndTime = Get-Date
-        $EndMemory = [System.GC]::GetTotalMemory($false) / 1MB
-        $Duration = $EndTime - $StartTime
-        $MemoryUsed = $EndMemory - $StartMemory
-
-        Write-Host "✓ Test completed successfully" -ForegroundColor Green
-        Write-Host "  Duration: $($Duration.TotalSeconds) seconds" -ForegroundColor Yellow
-        Write-Host "  Memory used: $([math]::Round($MemoryUsed, 2)) MB" -ForegroundColor Yellow
-        Write-Host "  Objects processed: $($Results.Statistics.ObjectsProcessed)" -ForegroundColor Yellow
-        Write-Host "  Orphaned SIDs found: $($Results.Statistics.OrphanedSIDCount)" -ForegroundColor Yellow
-
+        $domain = Get-ADDomain -ErrorAction Stop
+        "AD connectivity: $($domain.DNSRoot)"
     } catch {
-        Write-Host "✗ Performance test failed: $($_.Exception.Message)" -ForegroundColor Red
+        "AD connectivity failed: $($_.Exception.Message)"
     }
 }
 ```
 
-## Getting Additional Help
+### Collect diagnostics for a support request
 
-### 1. Enable Debug Logging
 ```powershell
-.\Find-UnknownSID.ps1 -LogLevel Debug -Verbose
+$diag = ".\Diagnostics\$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+New-Item -Path $diag -ItemType Directory -Force | Out-Null
+$PSVersionTable | Out-File "$diag\powershell-version.txt"
+Get-ADDomain | Out-File "$diag\ad-domain.txt"
+if (Test-Path .\config.json) { Copy-Item .\config.json "$diag\config.json" }
+Get-ChildItem .\Logs -Filter 'Find-UnknownSID_*.log' | Sort-Object LastWriteTime -Descending |
+    Select-Object -First 3 | Copy-Item -Destination $diag
+"Diagnostic package: $diag"
 ```
 
-### 2. Collect Diagnostic Information
-```powershell
-# Create diagnostic package
-$DiagnosticPath = ".\Diagnostics\$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-New-Item -Path $DiagnosticPath -ItemType Directory -Force
+Include the correlation ID of the failed run, the exact error text, and the domain size.
 
-# System information
-Get-ComputerInfo | Out-File "$DiagnosticPath\system-info.txt"
-$PSVersionTable | Out-File "$DiagnosticPath\powershell-version.txt"
+## Related Documentation
 
-# Active Directory information
-Get-ADDomain | Out-File "$DiagnosticPath\ad-domain.txt"
-Get-ADForest | Out-File "$DiagnosticPath\ad-forest.txt"
-
-# Script configuration
-if (Test-Path ".\config.json") {
-    Copy-Item ".\config.json" "$DiagnosticPath\config.json"
-}
-
-# Recent logs
-Get-ChildItem ".\Logs" -Filter "*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object {
-    Copy-Item $_.FullName "$DiagnosticPath\$($_.Name)"
-}
-
-Write-Host "Diagnostic package created: $DiagnosticPath" -ForegroundColor Green
-```
-
-### 3. Contact Support
-When contacting support, please provide:
-- **Correlation ID** from the failed operation
-- **Diagnostic package** created above
-- **Exact error messages** and symptoms
-- **Environment information** (domain size, PowerShell version, etc.)
-
----
-
-*Last Updated: 2025-07-02*
-*Version: 2.0.0*
-*Author: Jeffrey Stuhr*
+- `.\Troubleshooting\Common\Backup-Restore-Issues.md`
+- `.\Troubleshooting\Common\Security-Descriptor-Warnings.md`
+- `.\Troubleshooting\Common\SID-Processing-Orchestration-Issues.md`
+- `.\Troubleshooting\Performance\Memory-Management-Issues.md`
+- `.\Troubleshooting\Security\Orphaned-SID-Issues.md`
+- `.\Documentation\Find-UnknownSID-Automation.md`

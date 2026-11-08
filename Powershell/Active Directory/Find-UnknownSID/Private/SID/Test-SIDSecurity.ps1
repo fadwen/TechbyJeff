@@ -142,6 +142,9 @@ function Test-SIDSecurity {
         [string]$ValidationLevel = 'Standard',
 
         [Parameter()]
+        [string]$CurrentDomainSID,
+
+        [Parameter()]
         [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
     )
 
@@ -221,7 +224,11 @@ function Test-SIDSecurity {
             }
 
             # Perform SID analysis early for comprehensive risk assessment
-            $sidAnalysis = Get-SIDAnalysis -SIDString $SIDString -CorrelationId $CorrelationId
+            $analysisParams = @{ SIDString = $SIDString; CorrelationId = $CorrelationId }
+            if ($CurrentDomainSID) {
+                $analysisParams.CurrentDomainSID = $CurrentDomainSID
+            }
+            $sidAnalysis = Get-SIDAnalysis @analysisParams
 
             # Check well-known SIDs using the Test-SIDFormat module
             $isWellKnown = Test-WellKnownSID -SID $SIDString -CorrelationId $CorrelationId

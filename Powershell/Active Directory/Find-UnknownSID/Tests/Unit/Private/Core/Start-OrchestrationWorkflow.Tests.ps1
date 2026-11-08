@@ -1,6 +1,15 @@
 #Requires -Module Pester
 #Requires -Version 5.1
 
+# Stub so this file runs on its own; every Write-StructuredLog call is mocked below.
+if (-not (Get-Command Write-StructuredLog -ErrorAction SilentlyContinue)) {
+    function Write-StructuredLog {
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+            Justification = 'Stub; the parameter names are what Mock -ParameterFilter binds to')]
+        param($Message, $Level, $Component, $CorrelationId, $Data, $LogPath)
+    }
+}
+
 <#
 .SYNOPSIS
     Comprehensive Pester tests for Start-OrchestrationWorkflow function

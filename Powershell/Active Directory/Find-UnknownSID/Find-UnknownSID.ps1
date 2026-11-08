@@ -14,12 +14,12 @@
     - Modular architecture with specialized components and secure class loading
     - Enterprise-grade security validation and risk assessment
     - Comprehensive audit trails with correlation tracking
-    - Optimized parallel processing for large environments (1-50 threads)
+    - Sequential, streaming processing that keeps memory flat on large environments
     - Configurable memory management and performance monitoring (100-16384 MB)
     - JSON configuration support for environment-specific settings
     - Full backup and rollback capabilities with timestamped organization
     - WhatIf support for safe preview operations before changes
-    - Cross-platform compatibility (Windows PowerShell 5.1+, PowerShell 7+)
+    - Runs on Windows PowerShell 5.1 and PowerShell 7 (Windows only, the ActiveDirectory module is RSAT)
     - Automatic resource cleanup and memory management
     - Detailed logging with configurable verbosity levels
 
@@ -318,10 +318,11 @@
 .PARAMETER Force
     [Switch] (Optional)
 
-    Bypasses safety confirmations for automated operations.
-    - For -Remove operations: Skips confirmation prompts before SID removal
-    - For -Restore operations: Skips confirmation prompts before ACL restoration
-    Use with caution in production environments. WhatIf mode is recommended for previewing changes.
+    Proceeds with -Remove or -Restore without the interactive confirmation prompt.
+    In an interactive console the script asks once before changing any ACL. In a session that
+    cannot answer (scheduled task, CI agent, remoting without a host) the prompt is treated as a
+    refusal and the script stops with an error, so unattended destructive runs must pass -Force.
+    -WhatIf never prompts and never needs -Force.
 
 .PARAMETER WhatIf
     [Switch] (Optional, SupportsShouldProcess)
@@ -391,47 +392,45 @@
     for automation scenarios and bulk operations.
 
 .OUTPUTS
-    [PSCustomObject[]] ProcessingResults
-    Comprehensive results object containing:
-    - OrphanedSIDs: Array of found orphaned SIDs with detailed information
-    - Statistics: Processing metrics and performance data
-    - OperationResults: Success/failure details for removal or restore operations
-    - BackupInformation: Backup file paths and verification data
-    - ValidationResults: Security validation outcomes and risk assessments
+    None. The script writes nothing to the pipeline. Results reach the operator through the
+    console summary, the log file (-LogPath), and the CSV export (-OutputPath). Automation that
+    needs the counts should parse the CSV or the "=== PROCESSING SUMMARY ===" block in the log.
 
-    CSV Export (when -OutputPath specified):
-    - Object: Distinguished name of the affected AD object
-    - SID: Orphaned Security Identifier
-    - Risk: Security risk assessment (Low/Medium/High/Critical)
-    - Permissions: Summary of permissions granted
-    - Recommendations: Suggested remediation actions
+    CSV Export (when -OutputPath specified) has one row per orphaned ACE with the columns of the
+    OrphanedSIDResult class:
+    - ObjectDN, ObjectClass: the AD object that carries the ACE
+    - OrphanedSID: the unresolvable Security Identifier
+    - LikelySource, Confidence, AnalysisNotes: where the SID probably came from
+    - AccessControlType, ActiveDirectoryRights, InheritanceType, ObjectType, InheritedObjectType,
+      IsInherited: the ACE as read from the security descriptor
+    - ProcessingMethod, ActionTaken, CorrelationId, Timestamp
+    A -Restore run exports one row per restored object instead (Success, TargetObjectDN,
+    EntriesRestored, ErrorMessage, CorrelationId).
 
 .NOTES
     Author: Jeffrey Stuhr
     Blog: https://www.techbyjeff.net
     LinkedIn: https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
-    Last Updated: 2025-07-01
-    Version: 2.0.0
-    PowerShell Version: 5.1+ (Windows), 7.x+ (Cross-platform with enhanced features)
+    PowerShell Version: Windows PowerShell 5.1 or PowerShell 7 on Windows. The RSAT ActiveDirectory
+    module is Windows-only, so the script does not run on Linux or macOS.
 
     SECURITY CONSIDERATIONS:
-    - Requires Active Directory administrative privileges
-    - Creates automatic backups before any ACL modifications
-    - Implements comprehensive security validation with protected SID checking
+    - Discovery needs read access to the target objects; -Remove and -Restore need write access to
+      their security descriptors (typically Account Operators or Domain Admins)
+    - Creates a timestamped backup of every ACL before modifying it
+    - Blocks removal of the protected SIDs and well-known SID patterns in ScriptConfiguration
     - Provides correlation ID tracking for audit compliance
-    - Uses secure credential handling patterns
     - Supports WhatIf mode for safe preview operations
-    - Validates all user inputs and prevents path traversal attacks
-    - Implements secure class loading with integrity verification capabilities
+    - Loads only the classes named in Get-ApprovedClassList; file hashes are recorded there but
+      are not verified at load time
+    - Runs under the caller's identity; there is no -Credential parameter
 
     PERFORMANCE CHARACTERISTICS:
-    - Processing Rate: 50-200 objects/second (depending on environment and configuration)
-    - Memory Usage: Configurable monitoring (100-16384 MB) with automatic cleanup
-    - Parallel Processing: 1-50 threads with intelligent throttling
-    - Network Impact: Optimized with batch processing and retry logic
-    - Scalability: Tested with environments up to 100,000 objects
-    - Resource Management: Automatic garbage collection and memory optimization
-    - Logging Efficiency: Configurable verbosity levels to control log file size
+    - Objects are processed sequentially; there is no parallel processing
+    - Results stream to batch files in the temp directory (50 per batch) so memory stays flat
+    - Memory is checked every MemoryCheckInterval operations (default 50) against -MaxMemoryUsageMB
+    - Transient AD failures retry up to -MaxRetries times with exponential backoff
+    - Logging Efficiency: -LogLevel controls what reaches the log file
 
     TROUBLESHOOTING:
     - For common issues: .\Troubleshooting\Common\Find-UnknownSID-Issues.md
@@ -448,16 +447,7 @@
     https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
 
 .LINK
-    .\Documentation\Find-UnknownSID-Automation.md
-
-.LINK
-    .\Documentation\Find-UnknownSID-Memory-Security.md
-
-.LINK
-    .\Documentation\Backup-and-Restore-Guide.md
-
-.LINK
-    .\Troubleshooting\Common\Find-UnknownSID-Issues.md
+    https://github.com/fadwen/TechbyJeff/tree/main/Powershell/Active%20Directory/Find-UnknownSID
 #>
 
 [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Discovery')]
@@ -705,7 +695,8 @@ begin {
             )
 
             # Use Import-SecureClasses for secure validation and get paths to load
-            $classLoadingResult = Import-SecureClasses -ClassNames $requiredClasses
+            # Resolve Classes\ against the script folder, not the caller's current directory
+            $classLoadingResult = Import-SecureClasses -ClassNames $requiredClasses -ClassesPath (Join-Path $PSScriptRoot 'Classes')
 
             if (-not $classLoadingResult.Success) {
                 $errorMessage = "Class validation failed. Failed classes: $($classLoadingResult.FailedClasses.Count)"
@@ -851,6 +842,26 @@ process {
             $SearchBase = @((Get-ADDomain).DistinguishedName)
         }
 
+        # Destructive modes need an explicit go-ahead. -WhatIf previews freely; otherwise -Force or an
+        # interactive confirmation is required. A session that cannot answer (scheduled task, CI) is
+        # treated as a refusal rather than left hanging on a prompt.
+        if (($Remove -or $Restore) -and -not $Force -and -not $WhatIfPreference) {
+            $operation = if ($Restore) { 'restore ACLs from backup' } else { 'remove orphaned SIDs from ACLs' }
+            $canPrompt = [Environment]::UserInteractive -and $null -ne $Host.UI.RawUI -and $Host.Name -ne 'ServerRemoteHost'
+            $confirmed = $false
+            if ($canPrompt) {
+                $confirmed = $PSCmdlet.ShouldContinue(
+                    "This will $operation for: $($SearchBase -join ', ')",
+                    'Confirm destructive operation')
+            }
+            if (-not $confirmed) {
+                $message = "Refusing to $operation without confirmation. Re-run with -Force to proceed unattended, " +
+                    'or with -WhatIf to preview the changes.'
+                Write-StructuredLog $message -Level Warning -Component 'Main' -CorrelationId $CorrelationId
+                Write-Error $message -ErrorAction Stop
+            }
+        }
+
         # Execute main processing logic
         Write-StructuredLog "Starting main processing workflow" -Level Information -Component 'Main' -CorrelationId $CorrelationId
 
@@ -958,6 +969,19 @@ end {
             }
             Write-StructuredLog "Backup source: $BackupPath" -Level Information -Component 'Summary' -CorrelationId $CorrelationId
 
+            # Restore results go to CSV the same way discovery results do
+            if ($OutputPath -and $processingResults -and $processingResults.Count -gt 0) {
+                try {
+                    $processingResults |
+                        Select-Object Success, TargetObjectDN, EntriesRestored, ErrorMessage, CorrelationId |
+                        Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
+                    Write-StructuredLog "Restore results exported to: $OutputPath" -Level Information -Component 'Summary' -CorrelationId $CorrelationId
+                }
+                catch {
+                    Write-StructuredLog "Failed to export restore results to CSV: $($_.Exception.Message)" -Level Error -Component 'Summary' -CorrelationId $CorrelationId
+                }
+            }
+
             # Show individual restore results
             if ($processingResults -and $processingResults.Count -gt 0) {
                 Write-StructuredLog "Individual restore results:" -Level Information -Component 'Summary' -CorrelationId $CorrelationId
@@ -1019,7 +1043,8 @@ end {
                 if (-not $PreserveTempFiles) {
                     Write-StructuredLog "Temporary result files will be cleaned up during disposal" -Level Information -Component 'Main' -CorrelationId $CorrelationId
                 } else {
-                    Write-StructuredLog "Temporary result files preserved as requested" -Level Information -Component 'Main' -CorrelationId $CorrelationId
+                    $script:StreamingResults.PreserveFiles = $true
+                    Write-StructuredLog "Temporary result files preserved in: $($script:StreamingResults.TempDirectory)" -Level Information -Component 'Main' -CorrelationId $CorrelationId
                 }
             }
 

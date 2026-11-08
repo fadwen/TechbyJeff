@@ -2,286 +2,265 @@
 
 ## Overview
 
-This guide provides troubleshooting steps for the enterprise security logging system that ensures compliance-grade audit trails regardless of log level configuration.
+`Find-UnknownSID.ps1` writes two kinds of entries to the same log file
+(`.\Logs\Find-UnknownSID_<yyyyMMdd_HHmmss>.log` by default, or `-LogPath`):
+
+| Kind | Written by | File format | Filtered by `-LogLevel`? |
+|---|---|---|---|
+| Regular | `Write-StructuredLog` -> `Write-StructuredLogEntry` | `[timestamp] [Level] [Component] [CorrelationId] Message` | Yes (file only; console is not filtered) |
+| Security audit | `Write-SecurityLog`, `Write-ADOperationSecurityLog`, `Write-RemovalSecurityLog` -> `Write-SecurityStructuredLogEntry` | One compressed JSON object per line, `Component` is `SecurityAudit` | No; always written |
+
+A security entry looks like:
+
+```json
+{"Timestamp":"2025-07-02T14:30:52.118+02:00","Level":"Information","Component":"SecurityAudit","CorrelationId":"<guid>","Message":"[ObjectAccess] [Success] Successfully completed Active Directory operation: AD-ObjectDiscovery","SecurityEventType":"ObjectAccess","Outcome":"Success","UserContext":"user@HOST", ...}
+```
+
+The `Message` is `[<SecurityEventType>] [<Outcome>] <text>`. `Outcome` `Attempt` and `Success`
+are written at `Information`, `Failure` at `Warning`. On the console only `Warning`, `Error` and
+`Critical` security entries appear, prefixed `[SECURITY]`; `Information` security entries go to the
+file only.
+
+The logging modules live in `Private\Logging\` and are loaded by
+`Private\Core\Import-LoggingSystem.ps1`.
+
+## Reading Security Entries
+
+Because security entries are JSON lines, filter them by parsing rather than by bracket matching:
+
+```powershell
+function Get-SecurityLogEntry {
+    param([Parameter(Mandatory)][string]$LogPath)
+    Get-Content -Path $LogPath |
+        Where-Object { $_.StartsWith('{') } |
+        ForEach-Object { try { $_ | ConvertFrom-Json } catch { } } |
+        Where-Object { $_.Component -eq 'SecurityAudit' }
+}
+
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime | Select-Object -Last 1
+$security = Get-SecurityLogEntry -LogPath $log.FullName
+$security | Group-Object SecurityEventType, Outcome | Select-Object Name, Count
+$security | Where-Object Outcome -eq 'Failure' | Select-Object Timestamp, Message
+```
+
+Regular entries are the lines that do not start with `{`:
+
+```powershell
+$regular = Get-Content $log.FullName | Where-Object { -not $_.StartsWith('{') }
+$regular | Where-Object { $_ -match '^\[[^\]]+\] \[Information\]' } | Measure-Object
+```
 
 ## Common Issues
 
-### Issue 1: Security Log Entries Missing from File
+### Issue 1: Security entries missing from the file
 
-**Symptoms:**
-- Security events appear in console but not in log file
-- `[SECURITY]` prefixed messages in console but empty log file
+**Symptoms**
 
-**Diagnosis:**
+- `[SECURITY]` warnings on the console but no JSON lines in the log file.
+- Warnings `Security log written to emergency file: ...` or
+  `Security log written to emergency location: ...`.
+
+**Diagnosis**
+
 ```powershell
-# Check if security structured logging is loaded
+# In a session where the script's modules are loaded
 Get-Command Write-SecurityStructuredLogEntry -ErrorAction SilentlyContinue
 
-# Check logging system state
 $state = Get-LoggingSystemState
-Write-Host "Log Path: $($state.LogPath)"
-Write-Host "Initialized: $($state.LogFileInitialized)"
+"Log path: $($state.LogPath)"
+"Initialized: $($state.LogFileInitialized)"
 ```
 
-**Solutions:**
-1. **Verify Module Loading**:
+`Write-SecurityFileEntry` writes to `$state.LogPath` only when `LogFileInitialized` is true;
+otherwise it falls back to `Write-SecurityFileEntryDirect`.
+
+**Solutions**
+
+1. Load the logging system from its real location when working interactively:
+
    ```powershell
-   # Reload logging system
-   . .\Private\Import-LoggingSystem.ps1
+   . .\Private\Core\Import-LoggingSystem.ps1
+   Initialize-LoggingSystem -CorrelationId ([guid]::NewGuid().ToString()) -LogLevel Information
+   Initialize-LogDirectory -LogPath .\Logs\manual-test.log
    ```
 
-2. **Check Log Directory Permissions**:
+2. Check that the log directory is writable:
+
    ```powershell
-   # Verify write access to log directory
    $logDir = Split-Path $state.LogPath -Parent
-   Test-Path $logDir -IsValid
+   Test-Path $logDir -PathType Container
+   [IO.File]::OpenWrite((Join-Path $logDir 'write-test.tmp')).Dispose(); Remove-Item (Join-Path $logDir 'write-test.tmp')
    ```
 
-3. **Check Emergency Logging**:
-   ```powershell
-   # Check if emergency logs were created
-   Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log"
-   ```
+3. Look for emergency files; see Issue 4.
 
-### Issue 2: Security Logs Being Filtered by Log Level
+### Issue 2: Security entries thought to be filtered by -LogLevel
 
-**Symptoms:**
-- Security Information entries missing when log level is Warning/Error
-- Only Error/Critical security entries in log file
+**Symptoms**
 
-**Diagnosis:**
+- A run with `-LogLevel Warning` or `Error` shows no `Information` security entries.
+
+**Root cause**
+
+Normally this is a reading problem, not a filtering one: `Information` security entries are in the
+file as JSON lines and are invisible to a search for `[Information]`. Use the parsing approach
+above. Only entries routed through `Write-StructuredLogEntry` are filtered, so a component that
+logs security-relevant text with `Write-StructuredLog` instead of a security function will be
+filtered.
+
+**Verification**
+
 ```powershell
-# Check if using correct security logging functions
-$content = Get-Content $logPath
-$securityEntries = $content | Where-Object { $_ -match '\[SecurityAudit\]' }
-$informationSecurityEntries = $securityEntries | Where-Object { $_ -match '\[Information\]' }
+. .\Private\Core\Import-LoggingSystem.ps1
+Initialize-LoggingSystem -CorrelationId ([guid]::NewGuid().ToString()) -LogLevel Error
+Initialize-LogDirectory -LogPath .\Logs\filter-test.log
 
-Write-Host "Total security entries: $($securityEntries.Count)"
-Write-Host "Information-level security entries: $($informationSecurityEntries.Count)"
+Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'Compliance test entry' -Outcome 'Success'
+Write-StructuredLogEntry -Message 'Regular test entry' -Level Information -Component 'Test'
+
+$logPath = (Get-LoggingSystemState).LogPath
+$lines = Get-Content $logPath
+"Security entries (expect 1): " + @($lines | Where-Object { $_.StartsWith('{') -and $_ -match '"Component":"SecurityAudit"' }).Count
+"Regular Information entries (expect 0): " + @($lines | Where-Object { $_ -match '\[Information\] \[Test\]' }).Count
 ```
 
-**Root Cause:** Using regular `Write-StructuredLogEntry` instead of security-specific logging
+### Issue 3: Security logging overhead
 
-**Solution:**
+**Symptoms**
+
+- Slower runs when many objects contain orphaned SIDs.
+
+**Diagnosis**
+
 ```powershell
-# Incorrect - subject to log level filtering
-Write-StructuredLogEntry -Message "Security event" -Level Information -Component 'SecurityAudit'
-
-# Correct - bypasses log level filtering
-Write-SecurityStructuredLogEntry -Message "Security event" -Level Information -Component 'SecurityAudit'
-
-# Or use high-level security functions
-Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'Security event' -Outcome 'Success'
-Write-ADOperationSecurityLog -OperationName 'Get-User' -Outcome 'Success'
-```
-
-### Issue 3: Security Logging Performance Impact
-
-**Symptoms:**
-- Slow performance during security-heavy operations
-- High disk I/O during AD operations
-
-**Diagnosis:**
-```powershell
-# Check security logging metrics
 $metrics = $script:SecurityLoggingMetrics
-Write-Host "Total security entries: $($metrics.TotalSecurityEntries)"
-Write-Host "Last entry time: $($metrics.LastSecurityLogTime)"
+"Total security entries: $($metrics.TotalSecurityEntries)"
+"By level: $($metrics.SecurityEntriesByLevel | ConvertTo-Json -Compress)"
+"Last entry: $($metrics.LastSecurityLogTime)"
 ```
 
-**Solutions:**
-1. **Reduce Security Log Verbosity**:
-   ```powershell
-   # Use appropriate log levels for security events
-   # Critical: Security breaches, data corruption
-   # Error: Failed access attempts, authentication failures
-   # Warning: Suspicious activity, policy violations
-   # Information: Normal security events, successful access
-   ```
+**What is logged**
 
-2. **Batch Security Operations**:
-   ```powershell
-   # Instead of logging each object individually
-   foreach ($object in $objects) {
-       Write-ADOperationSecurityLog -OperationName "Process-$($object.Name)" -Outcome 'Success'
-   }
+`Invoke-MainProcessingLogic` writes an `AD-ObjectDiscovery` attempt/success pair per search base,
+an `OrphanedSID-Detection` entry per object with findings, and an `OrphanedSID-Removal`
+attempt/success (or failure) pair per SID removed. `Test-SIDSecurity` writes a `DataValidation`
+entry per SID validated. These counts are proportional to findings, not to objects scanned; on a
+clean domain the security log is small. The entries cannot be suppressed; they are the audit trail.
 
-   # Batch log summary operations
-   Write-ADOperationSecurityLog -OperationName "Bulk-Process-Objects" -Outcome 'Success' -SecurityContext @{
-       ObjectCount = $objects.Count
-       ProcessingDuration = $duration
-   }
-   ```
+### Issue 4: Emergency security logs in the temp directory
 
-### Issue 4: Emergency Security Logs in Temp Directory
+**Symptoms**
 
-**Symptoms:**
-- Warning messages about emergency security logging
-- Security logs in `$env:TEMP\Find-UnknownSID-Security-*.log`
+- Files matching `$env:TEMP\Find-UnknownSID-Security-*.log`:
+  - `Find-UnknownSID-Security-Emergency.log`: written when formatting or the direct write threw.
+  - `Find-UnknownSID-Security-<yyyyMMdd>.log`: written when the main log path was unavailable.
+  - `Find-UnknownSID-Security-Fallback.log`: written by `Write-SecurityLog` when
+    `Write-SecurityStructuredLogEntry` itself failed.
 
-**Root Cause:** Main log file unavailable or permissions issue
+**Root cause**
 
-**Diagnosis:**
+The main log file could not be written: directory missing, permissions, disk full, or the logging
+system not initialised when the security function ran.
+
+**Diagnosis**
+
 ```powershell
-# Check main log file status
 $state = Get-LoggingSystemState
-Write-Host "Main log path: $($state.LogPath)"
-Write-Host "File exists: $(Test-Path $state.LogPath)"
-Write-Host "Directory writable: $(Test-Path (Split-Path $state.LogPath -Parent) -PathType Container)"
+"Main log path: $($state.LogPath)"
+"File exists: $(Test-Path $state.LogPath)"
+Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log" -ErrorAction SilentlyContinue | Select-Object Name, Length, LastWriteTime
 ```
 
-**Solutions:**
-1. **Fix Main Log Directory**:
-   ```powershell
-   # Recreate log directory with proper permissions
-   $logDir = Split-Path $state.LogPath -Parent
-   if (-not (Test-Path $logDir)) {
-       New-Item -Path $logDir -ItemType Directory -Force
-   }
-   ```
+**Solutions**
 
-2. **Consolidate Emergency Logs**:
-   ```powershell
-   # Merge emergency logs into main log file
-   $emergencyLogs = Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log"
-   foreach ($log in $emergencyLogs) {
-       $content = Get-Content $log.FullName
-       Add-Content -Path $state.LogPath -Value $content
-       Remove-Item $log.FullName
-   }
-   ```
-
-### Issue 5: Security Log Format Issues
-
-**Symptoms:**
-- Malformed security log entries
-- Missing correlation IDs or security context
-
-**Diagnosis:**
 ```powershell
-# Analyze security log format
-$securityEntries = Get-Content $logPath | Where-Object { $_ -match '\[SecurityAudit\]' }
-$malformedEntries = $securityEntries | Where-Object { $_ -notmatch '\[[\w-]+\]' }
-Write-Host "Malformed entries: $($malformedEntries.Count)"
+# Recreate the log directory
+$logDir = Split-Path $state.LogPath -Parent
+if (-not (Test-Path $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
+
+# Merge emergency entries into the main log and remove them
+Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+    Add-Content -Path $state.LogPath -Value (Get-Content $_.FullName) -Encoding UTF8
+    Remove-Item $_.FullName
+}
 ```
 
-**Solutions:**
-1. **Verify Correlation ID Usage**:
-   ```powershell
-   # Always provide correlation ID for security events
-   $correlationId = [System.Guid]::NewGuid().ToString()
-   Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'Test' -Outcome 'Success' -CorrelationId $correlationId
-   ```
+Emergency entries use a plain-text form
+(`<timestamp> [SECURITY-EMERGENCY] [<Level>] <message> (CorrelationId: <id>)`), so after merging
+they will not parse as JSON; keep that in mind when reporting.
 
-2. **Include Security Context**:
-   ```powershell
-   # Provide comprehensive security context
-   $securityContext = @{
-       OperationType = 'BulkRetrieval'
-       ObjectCount = $objects.Count
-       SearchBase = $searchBase
-       IncludeInherited = $includeInherited
-   }
-   Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'AD bulk operation' -Outcome 'Success' -SecurityContext $securityContext
-   ```
+### Issue 5: Entries without a correlation ID or context
+
+**Symptoms**
+
+- Security entries whose `CorrelationId` differs from the run's.
+
+**Root cause**
+
+`Write-SecurityLog` generates a new GUID when none is passed. All call sites in the script pass the
+run's ID, so a mismatch indicates a manual call or a helper invoked outside the script.
+
+**Solution**
+
+Always pass the ID and a context hashtable:
+
+```powershell
+$correlationId = [guid]::NewGuid().ToString()
+Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'Manual check' -Outcome 'Success' -CorrelationId $correlationId -SecurityContext @{
+    OperationType = 'ManualReview'
+    SearchBase    = 'OU=Users,DC=contoso,DC=com'
+}
+```
+
+Context keys are stored in the JSON object prefixed `Security_`.
 
 ## Validation Procedures
 
-### Test Security Logging Bypass
+### Confirm security entries survive a restrictive log level
 
 ```powershell
-# Test script to validate security logging compliance
-cd c:\temp\Find-UnknownSID
+.\Find-UnknownSID.ps1 -SearchBase "OU=Users,DC=contoso,DC=com" -LogLevel Error -WhatIf
 
-# Set restrictive log level
-Set-LogLevel -Level Error
-
-# Test security logging (should appear in file)
-Write-SecurityLog -SecurityEventType 'ObjectAccess' -Message 'Compliance test entry' -Outcome 'Success'
-
-# Test regular logging (should NOT appear in file)
-Write-StructuredLogEntry -Message 'Regular test entry' -Level Information -Component 'Test'
-
-# Verify results
-$logPath = (Get-LoggingSystemState).LogPath
-$content = Get-Content $logPath
-$securityEntries = $content | Where-Object { $_ -match '\[SecurityAudit\]' }
-$regularEntries = $content | Where-Object { $_ -notmatch '\[SecurityAudit\]' }
-
-Write-Host "Security entries (should be > 0): $($securityEntries.Count)" -ForegroundColor Green
-Write-Host "Regular Information entries (should be 0): $($regularEntries | Where-Object { $_ -match '\[Information\]' }).Count" -ForegroundColor Yellow
-```
-
-### Test Main Script Security Logging
-
-```powershell
-# Run main script with restrictive logging
-.\Find-UnknownSID.ps1 -SearchBase "DC=domain,DC=com" -LogLevel Error -WhatIf
-
-# Check that security audit entries appear in log file
-$logFile = Get-ChildItem ".\Logs\Find-UnknownSID_*.log" | Sort-Object LastWriteTime | Select-Object -Last 1
-$securityEntries = Get-Content $logFile.FullName | Where-Object { $_ -match '\[SecurityAudit\]' }
-
-if ($securityEntries.Count -gt 0) {
-    Write-Host "✅ Security logging compliance verified" -ForegroundColor Green
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime | Select-Object -Last 1
+$security = Get-Content $log.FullName | Where-Object { $_.StartsWith('{') -and $_ -match '"Component":"SecurityAudit"' }
+if ($security.Count -gt 0) {
+    "Security logging verified: $($security.Count) entries"
 } else {
-    Write-Host "❌ Security logging compliance failed" -ForegroundColor Red
+    Write-Warning "No security entries found in $($log.FullName)"
 }
 ```
 
-## Monitoring and Alerting
-
-### Security Log Monitoring
+### Monitor for emergency logging
 
 ```powershell
-# Monitor for security logging failures
-function Test-SecurityLoggingHealth {
-    param([string]$LogPath)
-
-    $lastHour = (Get-Date).AddHours(-1)
-    $recentEntries = Get-Content $LogPath | Where-Object {
-        $_ -match '\[SecurityAudit\]' -and
-        [DateTime]::Parse(($_ -split '\]')[0].TrimStart('[')) -gt $lastHour
-    }
-
-    if ($recentEntries.Count -eq 0) {
-        Write-Warning "No security log entries in the last hour - potential compliance issue"
-        return $false
-    }
-
-    return $true
-}
-```
-
-### Emergency Log Alerting
-
-```powershell
-# Alert on emergency security logging
 function Test-EmergencySecurityLogs {
-    $emergencyLogs = Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log" -ErrorAction SilentlyContinue
-
-    if ($emergencyLogs.Count -gt 0) {
-        Write-Warning "Emergency security logs detected - main logging system may have issues"
-        foreach ($log in $emergencyLogs) {
-            Write-Host "Emergency log: $($log.FullName) (Size: $($log.Length) bytes)" -ForegroundColor Yellow
-        }
+    $files = Get-ChildItem "$env:TEMP\Find-UnknownSID-Security-*.log" -ErrorAction SilentlyContinue
+    if ($files) {
+        Write-Warning "Emergency security logs present - the main log was unavailable at some point"
+        $files | Select-Object FullName, Length, LastWriteTime
         return $false
     }
-
     return $true
 }
 ```
 
-## Support Contacts
+### Check recent security activity in a log
 
-- **Technical Issues**: IT Security Team
-- **Compliance Questions**: Audit & Compliance Team
-- **Emergency Logging**: Infrastructure Team
-- **Development Support**: PowerShell Team
+```powershell
+function Test-SecurityLoggingHealth {
+    param([Parameter(Mandatory)][string]$LogPath, [int]$WithinMinutes = 60)
+    $since = (Get-Date).AddMinutes(-$WithinMinutes)
+    $recent = Get-SecurityLogEntry -LogPath $LogPath | Where-Object { [datetime]$_.Timestamp -gt $since }
+    if (-not $recent) {
+        Write-Warning "No security entries in the last $WithinMinutes minutes"
+        return $false
+    }
+    return $true
+}
+```
 
 ## Related Documentation
 
-- [Security Logging Compliance Implementation](./Security-Logging-Compliance.md)
-- [PowerShell Best Practices](./PowerShell-Best-Practices.md)
-- [Logging System Architecture](./Logging-System-Architecture.md)
-- [Compliance Framework Mapping](./Compliance-Framework-Mapping.md)
+- [Security Validation Guide](./Security-Validation-Guide.md)
+- [Find-UnknownSID Issues](../Common/Find-UnknownSID-Issues.md)
+- [Enterprise Integration Guide](../Integration/Enterprise-Integration-Guide.md)

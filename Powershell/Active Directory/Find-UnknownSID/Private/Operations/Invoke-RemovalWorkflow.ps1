@@ -178,7 +178,7 @@ function Invoke-RemovalWorkflow {
 
         # Phase 3: Security Validation
         Write-StructuredLog "Phase 3: Security validation" -Level Debug -CorrelationId $CorrelationId
-        $securityValidation = Invoke-SecurityValidation -OrphanedSIDs $OrphanedSIDs -ObjectDN $ObjectDistinguishedName -CorrelationId $CorrelationId
+        $securityValidation = Invoke-SecurityValidation -OrphanedSIDs $OrphanedSIDs -ObjectDN $ObjectDistinguishedName -CurrentDomainSID $script:CurrentDomainSID -CorrelationId $CorrelationId
 
         $result.SecurityValidation = $securityValidation
         $result.BlockedSIDs = $securityValidation.BlockedSIDs

@@ -3,6 +3,15 @@
 Describe "Get-ADObjectFromSearchBase" -Tag "Unit", "ActiveDirectory" {
     
     BeforeAll {
+        # Pester 3.4 can only mock a command that exists. Stub Get-ADObject when the RSAT
+        # ActiveDirectory module is not installed so the Mock below has something to replace.
+        if (-not (Get-Command Get-ADObject -ErrorAction SilentlyContinue)) {
+            function global:Get-ADObject {
+                param($Identity, $SearchBase, $Filter, $Properties, $SearchScope, $ResultPageSize, $Server)
+                throw 'Get-ADObject stub: the ActiveDirectory module is not installed and this call was not mocked'
+            }
+        }
+
         # Import the function once for all tests
         $FunctionPath = Join-Path $PSScriptRoot "..\..\..\..\Private\ActiveDirectory\Get-ADObjectFromSearchBase.ps1"
         . $FunctionPath
@@ -179,8 +188,9 @@ Describe "Get-ADObjectFromSearchBase" -Tag "Unit", "ActiveDirectory" {
         It "Should call Get-ADObject with correct Filter" {
             Get-ADObjectFromSearchBase -SearchBase 'OU=Users,DC=contoso,DC=com'
             
+            # The function passes -Filter * so every object class under the search base is returned
             Assert-MockCalled Get-ADObject -ParameterFilter {
-                $Filter -eq 'objectClass -like "*"'
+                $Filter -eq '*'
             }
         }
         

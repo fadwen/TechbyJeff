@@ -104,7 +104,7 @@ function Start-OrchestrationWorkflow {
         # Load required modules for restore operations
         if ($OperationType -eq 'Restore') {
             if (-not (Get-Command Invoke-RestoreWorkflow -ErrorAction SilentlyContinue)) {
-                . $PSScriptRoot\Restore\Invoke-RestoreWorkflow.ps1
+                . (Join-Path (Split-Path $PSScriptRoot -Parent) 'Backup\Invoke-RestoreWorkflow.ps1')
             }
         }
 
@@ -152,6 +152,10 @@ function Start-OrchestrationWorkflow {
                     if ($Parameters.ContainsKey('WhatIf') -and $Parameters.WhatIf) {
                         $restoreParams.WhatIf = $true
                     }
+
+                    # Verify the applied ACL against the backup after restoration. Without this the
+                    # restore workflow reports success on the write alone and never compares entries.
+                    $restoreParams.VerifyRestoration = $true
 
                     return Invoke-RestoreWorkflow @restoreParams
                 }

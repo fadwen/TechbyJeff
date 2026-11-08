@@ -3,20 +3,7 @@
 
 <#
 .SYNOPSIS
-    Comprehensive Pester 3.4 tests for Get-SafeFileName f           It "Should handle mixed whitespace and illegal characters" {
-            $result = Ge           It "Should handle string with only illegal characters" {
-            $result = Get-SafeFileName -InputString '<<<>>>|||'
-            $result | Should Match "^Unknown_[a-f0-9]{8}$" # Should generate fallback with hash
-            $result.Length | Should Be 16 # "Unknown_" + 8-char hash
-        } It "Should handle string with only illegal characters" {
-            $result = Get-SafeFileName -InputString '<>:"|?*\'
-            $result | Should Match "^Unknown_[a-f0-9]{8}$" # Should generate fallback with hash
-        }feFileName -InputString 'test file/with	mixed: chars'
-            $result | Should Be "test_file_with_mixed__chars"
-        } It "Should handle mixed whitespace and illegal characters" {
-            $result = Get-SafeFileName -InputString "test   file:with*  mixed_chars?"
-            $result | Should Be "test_file_with__mixed_chars"
-        }ion
+    Comprehensive Pester 3.4 tests for Get-SafeFileName function
 
 .DESCRIPTION
     Enterprise-grade unit tests for the Get-SafeFileName function following PowerShell

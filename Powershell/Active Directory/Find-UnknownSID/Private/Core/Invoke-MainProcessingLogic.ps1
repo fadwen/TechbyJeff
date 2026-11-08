@@ -190,8 +190,24 @@ function Invoke-MainProcessingLogic {
         # Determine WhatIf mode by checking if any ShouldProcess call would be skipped
         $whatIfMode = -not $PSCmdlet.ShouldProcess("StreamingResultsManager", "Initialize temp directory")
 
+        # Batch size comes from the BatchSize configuration key (default 50)
+        $batchSize = 50
+        if ($script:Config -and $script:Config.BatchSize -ge 1) {
+            $batchSize = [int]$script:Config.BatchSize
+        }
+
+        # The domain SID lets Get-SIDAnalysis tell a SID from this domain apart from a foreign or
+        # unknown one. Discovery still works without it; every domain SID is then rated Unknown Domain.
+        $script:CurrentDomainSID = $null
+        try {
+            $script:CurrentDomainSID = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
+        }
+        catch {
+            Write-StructuredLog "Could not determine the current domain SID: $($_.Exception.Message)" -Level Warning -Component 'MainProcessing' -CorrelationId $CorrelationId
+        }
+
         # Create StreamingResultsManager with 2-argument constructor (doesn't create directory yet)
-        $script:StreamingResults = [StreamingResultsManager]::new($tempDir, 50) # Batch size of 50
+        $script:StreamingResults = [StreamingResultsManager]::new($tempDir, $batchSize)
 
         # Configure WhatIf mode and complete initialization (this will handle directory creation properly)
         $script:StreamingResults.ConfigureWhatIfMode($whatIfMode)
@@ -286,7 +302,7 @@ function Invoke-MainProcessingLogic {
                             Write-StructuredLog "Processing: $processedCount/$($objectArray.Count) objects ($percentComplete%) - Orphaned SIDs found: $orphanedFoundCount" -Level Information -Component 'MainProcessing' -CorrelationId $CorrelationId
                         }
 
-                        $orphanedResults = Find-OrphanedSIDsInObject -ADObject $_ -IncludeInherited:$IncludeInherited
+                        $orphanedResults = Find-OrphanedSIDsInObject -ADObject $_ -IncludeInherited:$IncludeInherited -CurrentDomainSID $script:CurrentDomainSID
 
                         # Log security audit for orphaned SID analysis
                         if ($orphanedResults -and $orphanedResults.Count -gt 0) {
@@ -403,7 +419,7 @@ function Invoke-MainProcessingLogic {
 
                             try {
                                 Start-Sleep -Seconds (2 * $retryCount)  # Exponential backoff
-                                $orphanedResults = Find-OrphanedSIDsInObject -ADObject $_ -IncludeInherited:$IncludeInherited
+                                $orphanedResults = Find-OrphanedSIDsInObject -ADObject $_ -IncludeInherited:$IncludeInherited -CurrentDomainSID $script:CurrentDomainSID
                                 $retrySuccessful = $true
 
                                 if ($orphanedResults -and $orphanedResults.Count -gt 0) {

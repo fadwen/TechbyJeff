@@ -187,19 +187,20 @@ for ($i = 0; $i -lt $allSIDs.Count; $i += $batchSize) {
 
 **Problem:** Analysis results show "Unknown Domain" for valid domain SIDs
 
-**Solution:**
+**Cause:** `Invoke-MainProcessingLogic` reads the domain SID once with `Get-ADDomain` at the start
+of a run and passes it as `-CurrentDomainSID` to every analysis. When that call fails the log
+carries `Could not determine the current domain SID: <reason>` and the run continues without it,
+so every domain SID is classified as `Unknown Domain` with `RiskLevel = High`.
+
+**Solution:** fix the domain lookup, then re-run.
+
 ```powershell
-# Ensure CurrentDomainSID is properly obtained
-try {
-    $domain = Get-ADDomain -Current LocalComputer
-    $domainSID = $domain.DomainSID.Value
-    Write-Output "Successfully obtained domain SID: $domainSID"
-} catch {
-    Write-Warning "Failed to get domain SID: $($_.Exception.Message)"
-    # Fallback method using WMI
-    $wmiDomain = Get-WmiObject -Class Win32_ComputerSystem
-    Write-Output "Computer Domain: $($wmiDomain.Domain)"
-}
+# The same call the script makes; the error here is the one in the log
+$domain = Get-ADDomain -ErrorAction Stop
+$domain.DomainSID.Value
+
+# When calling Get-SIDAnalysis directly, pass the domain SID yourself
+Get-SIDAnalysis -SIDString 'S-1-5-21-...-1105' -CurrentDomainSID $domain.DomainSID.Value
 ```
 
 ### 2. Invalid SID Analysis Results

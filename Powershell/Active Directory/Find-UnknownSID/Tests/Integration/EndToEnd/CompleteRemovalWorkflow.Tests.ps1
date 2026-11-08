@@ -3,6 +3,9 @@
 # Integration test for Find-UnknownSID removal workflow - Pester 3.4 compatible
 param()
 
+# Pester 3.4 can only mock a command that exists; define placeholder AD cmdlets when RSAT is absent
+. "$PSScriptRoot\..\..\TestHelpers\ADCmdletStubs.ps1"
+
 # Import test helpers
 $testHelpersPath = Join-Path $PSScriptRoot "..\..\TestHelpers"
 . (Join-Path $testHelpersPath "SecurityTestHelpers.ps1")

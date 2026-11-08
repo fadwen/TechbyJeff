@@ -1,3 +1,6 @@
+# Pester 3.4 can only mock a command that exists; define placeholder AD cmdlets when RSAT is absent
+. "$PSScriptRoot\..\..\..\TestHelpers\ADCmdletStubs.ps1"
+
 # Test-OrphanedSID.Tests.ps1 - Pester 3.4.x Compatible
 # Tests for Test-OrphanedSID private function
 
