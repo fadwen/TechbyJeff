@@ -22,7 +22,7 @@ Describe 'ScriptConfiguration Class Tests' {
             $config.CriticalObjectPatterns | Should Not BeNullOrEmpty
             
             # Verify numeric properties
-            $config.BatchSize | Should Be 100
+            $config.BatchSize | Should Be 50
             $config.MemoryCheckInterval | Should Be 50
             $config.MaxLogFileSizeMB | Should Be 10
             

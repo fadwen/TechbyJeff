@@ -2,453 +2,251 @@
 
 ## Overview
 
-This guide provides troubleshooting information for the `Test-OrphanedSID.ps1` module, which handles orphaned SID detection and cache management for the Find-UnknownSID solution.
+This guide covers `Private\SID\Test-OrphanedSID.ps1`, which decides whether a SID still exists in
+Active Directory and caches the answer for the rest of the run.
+
+`Test-OrphanedSID -SID <sid>` returns `$true` (orphaned) or `$false` (exists). It works through
+these steps and stops at the first that decides:
+
+1. `Test-SIDFormat`; an invalid format is treated as orphaned (Warning
+   `SID format invalid - treating as orphaned: <SID>`).
+2. Cache lookup in `$script:SIDValidationCache` (Debug `SID validation cache hit for <SID>`).
+3. `Get-ADObject -Filter "objectSid -eq '<SID>'"`; found means not orphaned.
+4. The same query with `-IncludeDeletedObjects`; a match in the Deleted Objects container is
+   treated as **orphaned** (the account is gone and the ACE should be cleaned).
+5. `SecurityIdentifier.Translate([NTAccount])`; a resolved name that is not itself a SID means not
+   orphaned.
+6. `Get-ADUser`, `Get-ADGroup`, `Get-ADComputer` with `SID -eq '<SID>'`.
+7. Otherwise orphaned (Debug `SID could not be resolved - marking as orphaned: <SID>`).
+
+Directory calls go through `Invoke-ADOperationWithRetry`, so transient failures are retried before
+a method is considered to have failed. Any unexpected exception marks the SID orphaned for safety
+(Error `Error testing SID for orphaned status <SID> : ...`).
+
+The functions are private; load them as shown in
+[Identity-Resolution-Issues.md](./Identity-Resolution-Issues.md#loading-the-functions-in-a-session).
 
 ## Common Issues
 
-### 1. False Positives - Valid SIDs Marked as Orphaned
+### 1. False positives: valid SIDs marked as orphaned
 
-**Symptoms:**
-- Valid Active Directory accounts showing as orphaned
-- Recently created accounts not being found
-- Service accounts incorrectly marked as orphaned
+**Symptoms**
 
-**Causes:**
-- Active Directory replication delays
-- Permissions issues preventing AD object lookup
-- Network connectivity problems to domain controllers
-- Caching of stale data
+- Existing accounts or groups appear in the results CSV.
+- Recently created accounts are reported.
+- Service accounts or accounts from a trusted domain are reported.
 
-**Solutions:**
+**Causes**
+
+- Replication lag: the object exists on one domain controller but not on the one answering.
+- The running account lacks read permission on the object, so every lookup fails.
+- The SID belongs to a trusted domain; `Get-ADObject` queries the local domain only, and
+  translation may fail across a one-way trust.
+- A cached `$true` from an earlier lookup in the same run.
+
+**Solutions**
 
 ```powershell
-# Clear cache and retry for suspected false positives
+# Clear the cache and retry one SID
 Clear-SIDValidationCache
-$result = Test-OrphanedSID -SID "S-1-5-21-1234567890-1234567890-1234567890-1001"
-
-# Manual verification steps
 $testSID = "S-1-5-21-1234567890-1234567890-1234567890-1001"
+Test-OrphanedSID -SID $testSID -Verbose
 
-# Test 1: Direct AD lookup
+# Test 1: direct AD lookup
 try {
     $adObject = Get-ADObject -Filter "objectSid -eq '$testSID'" -ErrorAction Stop
-    Write-Output "Found AD Object: $($adObject.DistinguishedName)"
+    "Found AD object: $($adObject.DistinguishedName)"
 } catch {
-    Write-Output "AD Object not found: $($_.Exception.Message)"
+    "AD object not found: $($_.Exception.Message)"
 }
 
 # Test 2: SecurityIdentifier translation
 try {
-    $sid = [System.Security.Principal.SecurityIdentifier]::new($testSID)
-    $account = $sid.Translate([System.Security.Principal.NTAccount])
-    Write-Output "Account Name: $($account.Value)"
+    $account = [System.Security.Principal.SecurityIdentifier]::new($testSID).Translate([System.Security.Principal.NTAccount])
+    "Account name: $($account.Value)"
 } catch {
-    Write-Output "Translation failed: $($_.Exception.Message)"
+    "Translation failed: $($_.Exception.Message)"
 }
 
-# Test 3: Specific object type lookups
-$objectTypes = @('Get-ADUser', 'Get-ADGroup', 'Get-ADComputer')
-foreach ($cmdlet in $objectTypes) {
+# Test 3: typed lookups
+foreach ($cmdlet in 'Get-ADUser', 'Get-ADGroup', 'Get-ADComputer') {
     try {
         $result = & $cmdlet -Filter "SID -eq '$testSID'" -ErrorAction Stop
-        if ($result) {
-            Write-Output "$cmdlet found: $($result.DistinguishedName)"
-        }
+        if ($result) { "$cmdlet found: $($result.DistinguishedName)" }
     } catch {
-        Write-Output "$cmdlet failed: $($_.Exception.Message)"
+        "$cmdlet failed: $($_.Exception.Message)"
     }
 }
 ```
 
-**Prevention:**
-- Ensure proper AD permissions for the service account
-- Check AD replication status before large operations
-- Use correlation IDs to track specific SID validation issues
-
-### 2. False Negatives - Orphaned SIDs Marked as Valid
-
-**Symptoms:**
-- Deleted accounts still showing as valid
-- Disabled accounts not being detected as orphaned
-- Foreign domain SIDs incorrectly validated
-
-**Causes:**
-- Cached validation results for deleted accounts
-- Deleted objects still present in AD (not purged)
-- Trust relationships allowing foreign SID validation
-
-**Solutions:**
+For a foreign SID, resolve it against its own domain:
 
 ```powershell
-# Force fresh validation
+Get-ADObject -Server trusted.example.com -Filter "objectSid -eq '$testSID'"
+```
+
+**Prevention**
+
+- Run as an account with read access to every object in scope.
+- Check replication (`repadmin /replsummary`) before a large run.
+- Always run `-WhatIf` and review the CSV before `-Remove`.
+
+### 2. False negatives: orphaned SIDs marked as valid
+
+**Symptoms**
+
+- A SID known to be deleted is not reported.
+
+**Causes**
+
+- A cached `$false` from an earlier lookup in the same run (the cache does not expire).
+- The SID resolves through a trust, so `Translate` succeeds although no local object exists.
+
+Deleted objects are not a cause: an object found in the Deleted Objects container is treated as
+orphaned.
+
+**Solutions**
+
+```powershell
 Clear-SIDValidationCache
 
-# Check for deleted objects specifically
 $testSID = "S-1-5-21-1234567890-1234567890-1234567890-1001"
 try {
-    $deletedObject = Get-ADObject -Filter "objectSid -eq '$testSID'" -IncludeDeletedObjects -ErrorAction Stop
-    if ($deletedObject) {
-        Write-Output "Found in deleted objects: $($deletedObject.DistinguishedName)"
-        Write-Output "Deleted: $($deletedObject.Deleted)"
-        Write-Output "IsDeleted: $($deletedObject.isDeleted)"
-    }
+    $deleted = Get-ADObject -Filter "objectSid -eq '$testSID'" -IncludeDeletedObjects -ErrorAction Stop
+    if ($deleted) { "In deleted objects: $($deleted.DistinguishedName)" }
 } catch {
-    Write-Output "Not found in deleted objects: $($_.Exception.Message)"
+    "Not in deleted objects: $($_.Exception.Message)"
 }
 
-# Check account status if found
+# Which method is accepting the SID?
 try {
-    $user = Get-ADUser -Filter "SID -eq '$testSID'" -Properties Enabled -ErrorAction Stop
-    Write-Output "User found - Enabled: $($user.Enabled)"
+    [System.Security.Principal.SecurityIdentifier]::new($testSID).Translate([System.Security.Principal.NTAccount]).Value
 } catch {
-    Write-Output "User not found or not a user object"
+    "Translate failed: $($_.Exception.Message)"
 }
 ```
 
-**Configuration Check:**
-```powershell
-# Verify deleted object handling
-$deletedObjectsLifetime = (Get-ADObject -SearchBase ((Get-ADRootDSE).configurationNamingContext) -Filter "cn -eq 'Directory Service'" -Properties deletedObjectLifetime).deletedObjectLifetime
-Write-Output "Deleted Objects Lifetime: $deletedObjectsLifetime days"
-```
+Disabled accounts are not orphaned; the script reports only SIDs with no object.
 
-### 3. Performance Issues
+### 3. Performance problems
 
-**Symptoms:**
-- Slow SID validation operations
-- High CPU usage during batch processing
-- Memory growth during large operations
-- Timeouts on AD operations
+**Symptoms**
 
-**Causes:**
-- Large cache size consuming memory
-- Inefficient AD queries
-- Network latency to domain controllers
-- Insufficient batch processing
+- Slow progress once discovery has finished.
+- Many `Retry attempt` warnings.
 
-**Solutions:**
+**Causes**
+
+- Each distinct SID costs up to six directory operations when it is orphaned.
+- Domain controller latency or load.
+- Retries after transient errors (see `-MaxRetries` in
+  [Performance-Tuning.md](../Performance/Performance-Tuning.md)).
+
+**Solutions**
 
 ```powershell
-# Monitor cache performance
+# Cache effectiveness for the current session
 $stats = Get-SIDValidationCacheStat
-Write-Output "Cache Statistics:"
-Write-Output "  Total Entries: $($stats.TotalEntries)"
-Write-Output "  Cache Hit Ratio: $($stats.CacheHitRatio)%"
-Write-Output "  Orphaned SIDs: $($stats.OrphanedSIDs)"
-Write-Output "  Valid SIDs: $($stats.ValidSIDs)"
+"Entries: $($stats.TotalEntries)  Orphaned: $($stats.OrphanedSIDs)  Valid: $($stats.ValidSIDs)  Hit ratio: $($stats.CacheHitRatio)%"
 
-# Performance testing
-$testSIDs = @()
-for ($i = 1000; $i -lt 1100; $i++) {
-    $testSIDs += "S-1-5-21-1234567890-1234567890-1234567890-$i"
-}
-
-# Test with cache
-Measure-Command {
-    $results = $testSIDs | Test-OrphanedSID
-}
-
-# Test without cache
+# Time cached versus uncached lookups
+$testSIDs = 1000..1099 | ForEach-Object { "S-1-5-21-1234567890-1234567890-1234567890-$_" }
 Clear-SIDValidationCache
-Measure-Command {
-    $results = $testSIDs | Test-OrphanedSID
-}
+(Measure-Command { $testSIDs | Test-OrphanedSID }).TotalSeconds   # uncached
+(Measure-Command { $testSIDs | Test-OrphanedSID }).TotalSeconds   # cached
 ```
 
-**Optimization Strategies:**
-```powershell
-# Batch processing for better performance
-$batchSize = 25
-$allSIDs = @('SID1', 'SID2', '...')  # Your SID list
-$allResults = @()
+`CacheHitRatio` is cache hits divided by lookups, as a percentage, since the cache was last
+cleared. During a real run the ratio rises with the number of objects that share principals; a
+ratio near zero on a large OU means almost every ACE names a different SID and the run is bound by
+directory latency.
 
-for ($i = 0; $i -lt $allSIDs.Count; $i += $batchSize) {
-    $batch = $allSIDs[$i..([Math]::Min($i + $batchSize - 1, $allSIDs.Count - 1))]
+### 4. Active Directory connection problems
 
-    Write-Progress -Activity "Processing SIDs" -Status "Batch $([Math]::Floor($i/$batchSize) + 1)" -PercentComplete (($i / $allSIDs.Count) * 100)
+**Symptoms**
 
-    $batchResults = $batch | Test-OrphanedSID
-    $allResults += $batchResults
+- `Unable to contact the server` or authentication errors.
+- Every SID marked orphaned.
 
-    # Optional: Clear cache periodically to manage memory
-    if ($i % 500 -eq 0) {
-        Clear-SIDValidationCache
-    }
-}
-```
-
-### 4. Active Directory Connection Issues
-
-**Symptoms:**
-- "Unable to contact the server" errors
-- Authentication failures
-- Timeout errors during AD operations
-
-**Causes:**
-- Network connectivity issues
-- Domain controller availability
-- Authentication problems
-- Firewall blocking AD traffic
-
-**Solutions:**
+**Solutions**
 
 ```powershell
-# Test AD connectivity
 try {
     $domain = Get-ADDomain -Current LocalComputer
-    Write-Output "Connected to domain: $($domain.DNSRoot)"
-    Write-Output "Domain Controller: $($domain.PDCEmulator)"
+    "Connected to $($domain.DNSRoot); PDC: $($domain.PDCEmulator)"
 } catch {
-    Write-Output "AD connection failed: $($_.Exception.Message)"
+    "AD connection failed: $($_.Exception.Message)"
 }
 
-# Test specific domain controller
-$dcName = (Get-ADDomain).PDCEmulator
-try {
-    $testUser = Get-ADUser -Identity $env:USERNAME -Server $dcName
-    Write-Output "Successfully connected to DC: $dcName"
-} catch {
-    Write-Output "Failed to connect to DC $dcName : $($_.Exception.Message)"
-}
-
-# Network connectivity test
-$dcName = (Get-ADDomain).PDCEmulator
-Test-NetConnection -ComputerName $dcName -Port 389  # LDAP
-Test-NetConnection -ComputerName $dcName -Port 636  # LDAPS
-Test-NetConnection -ComputerName $dcName -Port 3268 # Global Catalog
+$dc = (Get-ADDomain).PDCEmulator
+Test-NetConnection -ComputerName $dc -Port 389    # LDAP
+Test-NetConnection -ComputerName $dc -Port 636    # LDAPS
+Test-NetConnection -ComputerName $dc -Port 3268   # Global Catalog
 ```
 
-## Cache Management Issues
+Do not run `-Remove` while connectivity is uncertain: a run that cannot reach the directory marks
+SIDs orphaned on error.
 
-### 1. Memory Usage Growth
+## Cache Management
 
-**Problem:** SID validation cache consuming excessive memory
+The cache is `$script:SIDValidationCache`, a hashtable of SID to boolean (`$true` = orphaned). It
+lives for the PowerShell session or process, grows by one entry per distinct SID tested, and is
+cleared only by `Clear-SIDValidationCache`, which also resets the hit and lookup counters.
 
-**Solution:**
 ```powershell
-# Monitor memory usage
-$process = Get-Process -Id $PID
-$beforeMemory = $process.WorkingSet64 / 1MB
-
-# Get cache statistics
 $stats = Get-SIDValidationCacheStat
-Write-Output "Cache entries before cleanup: $($stats.TotalEntries)"
-
-# Clear cache if too large
 if ($stats.TotalEntries -gt 10000) {
     Clear-SIDValidationCache
-    Write-Output "Cache cleared due to size: $($stats.TotalEntries) entries"
 }
 
-$afterMemory = (Get-Process -Id $PID).WorkingSet64 / 1MB
-Write-Output "Memory usage: Before $($beforeMemory) MB, After $($afterMemory) MB"
+# Direct inspection
+$script:SIDValidationCache.Count
+($script:SIDValidationCache.Values | Where-Object { $_ }).Count        # orphaned
+($script:SIDValidationCache.Values | Where-Object { -not $_ }).Count   # valid
 ```
 
-### 2. Stale Cache Data
-
-**Problem:** Cache contains outdated validation results
-
-**Solution:**
-```powershell
-# Implement cache aging
-$cacheMaxAge = [TimeSpan]::FromHours(1)
-$currentTime = Get-Date
-
-# Note: This would require cache timestamp tracking in future enhancement
-# For now, use periodic clearing
-Clear-SIDValidationCache
-Write-Output "Cache cleared to ensure fresh data"
-```
-
-### 3. Cache Statistics Accuracy
-
-**Problem:** Cache statistics don't match expected values
-
-**Solution:**
-```powershell
-# Detailed cache analysis
-$stats = Get-SIDValidationCacheStat
-Write-Output "Detailed Cache Analysis:"
-Write-Output "  Total Entries: $($stats.TotalEntries)"
-Write-Output "  Orphaned SIDs: $($stats.OrphanedSIDs)"
-Write-Output "  Valid SIDs: $($stats.ValidSIDs)"
-Write-Output "  Cache Hit Ratio: $($stats.CacheHitRatio)%"
-
-# Verify cache integrity
-if ($script:SIDValidationCache) {
-    $actualTotal = $script:SIDValidationCache.Count
-    $actualOrphaned = ($script:SIDValidationCache.Values | Where-Object { $_ -eq $true }).Count
-    $actualValid = ($script:SIDValidationCache.Values | Where-Object { $_ -eq $false }).Count
-
-    Write-Output "Direct Cache Verification:"
-    Write-Output "  Actual Total: $actualTotal"
-    Write-Output "  Actual Orphaned: $actualOrphaned"
-    Write-Output "  Actual Valid: $actualValid"
-    Write-Output "  Calculated Total: $($actualOrphaned + $actualValid)"
-}
-```
+Entries have no timestamp; clear the cache if the directory changed during a long interactive
+session. The main script creates a fresh cache every time it is invoked as a new process.
 
 ## Error Messages
 
-### "SID format invalid - treating as orphaned"
+| Message | Level | Meaning |
+|---|---|---|
+| `SID format invalid - treating as orphaned: <SID>` | Warning | Failed `Test-SIDFormat`; reported as orphaned |
+| `SID validation cache hit for <SID>` | Debug | Answer returned from cache |
+| `SID found in AD via Get-ADObject: <DN>` | Debug | Not orphaned |
+| `SID found in deleted objects: <DN> - treating as orphaned` | Debug | Tombstoned object; orphaned |
+| `SID could not be translated - likely orphaned: <SID>` | Debug | Translation step failed; later steps still run |
+| `SID could not be resolved - marking as orphaned: <SID>` | Debug | Every method failed |
+| `Error testing SID for orphaned status <SID> : <error>` | Error | Unexpected exception; marked orphaned |
+| `Cleared SID validation cache (N entries)` | Information | `Clear-SIDValidationCache` ran |
 
-**Meaning:** The SID string failed format validation
+Debug lines appear in the log file only with `-LogLevel Debug`.
 
-**Resolution:**
-1. Verify SID string integrity using Test-SIDFormat
-2. Check data source for corruption
-3. Validate SID encoding
-
-### "SID validation cache hit for [SID]"
-
-**Meaning:** Result returned from cache (debug message)
-
-**Action:** Normal operation, no action needed
-
-### "SID could not be resolved - marking as orphaned"
-
-**Meaning:** All AD lookup methods failed to find the SID
-
-**Resolution:**
-1. Verify the SID actually exists in AD
-2. Check AD connectivity and permissions
-3. Consider if SID is from a different domain/forest
-
-### "Error testing SID for orphaned status"
-
-**Meaning:** Unexpected error during the detection process
-
-**Resolution:**
-1. Check correlation ID in logs for detailed error context
-2. Verify AD module availability
-3. Check system resource constraints
-
-## Logging and Diagnostics
-
-### Enable Debug Logging
+## Diagnostics
 
 ```powershell
-# Enable detailed logging for troubleshooting
-$VerbosePreference = 'Continue'
-$DebugPreference = 'Continue'
+# Trace one SID with its own correlation ID
+$correlationId = [guid]::NewGuid().ToString()
+Test-OrphanedSID -SID "S-1-5-21-1234567890-1234567890-1234567890-1001" -CorrelationId $correlationId -Verbose
 
-# Test with correlation tracking
-$correlationId = [System.Guid]::NewGuid().ToString()
-$result = Test-OrphanedSID -SID "S-1-5-21-1234567890-1234567890-1234567890-1001" -CorrelationId $correlationId -Verbose
-
-# Search logs for correlation ID to trace the operation
-```
-
-### Cache Performance Monitoring
-
-```powershell
-# Continuous cache monitoring
-$monitoringInterval = 60  # seconds
-$maxIterations = 10
-
-for ($i = 0; $i -lt $maxIterations; $i++) {
-    $stats = Get-SIDValidationCacheStat
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-
-    Write-Output "[$timestamp] Cache Stats - Total: $($stats.TotalEntries), Hit Ratio: $($stats.CacheHitRatio)%"
-
-    Start-Sleep -Seconds $monitoringInterval
-}
+# Then search the log for that ID
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime | Select-Object -Last 1
+Select-String -Path $log.FullName -Pattern $correlationId
 ```
 
 ## Best Practices
 
-### 1. Batch Processing
+- Review `-WhatIf` output before any `-Remove` run; a SID marked orphaned because of an error is
+  indistinguishable from a real orphan in the CSV.
+- Run from a host close to a domain controller; per-SID latency dominates run time.
+- In an interactive session, clear the cache between runs against different domains.
+- Use correlation IDs to tie a reported SID back to the exact lookup sequence in the log.
 
-Process SIDs in manageable batches:
+## Related Documentation
 
-```powershell
-# Recommended batch processing pattern
-function Invoke-BatchOrphanedSIDTest {
-    param(
-        [Parameter(Mandatory)]
-        [string[]]$SIDList,
-
-        [int]$BatchSize = 50,
-
-        [switch]$ClearCachePerBatch
-    )
-
-    $results = @{}
-    $totalBatches = [Math]::Ceiling($SIDList.Count / $BatchSize)
-
-    for ($i = 0; $i -lt $SIDList.Count; $i += $BatchSize) {
-        $currentBatch = [Math]::Floor($i / $BatchSize) + 1
-        $batch = $SIDList[$i..([Math]::Min($i + $BatchSize - 1, $SIDList.Count - 1))]
-
-        Write-Progress -Activity "Testing Orphaned SIDs" -Status "Batch $currentBatch of $totalBatches" -PercentComplete (($i / $SIDList.Count) * 100)
-
-        foreach ($sid in $batch) {
-            $results[$sid] = Test-OrphanedSID -SID $sid
-        }
-
-        if ($ClearCachePerBatch) {
-            Clear-SIDValidationCache
-        }
-    }
-
-    Write-Progress -Activity "Testing Orphaned SIDs" -Completed
-    return $results
-}
-```
-
-### 2. Error Handling
-
-Implement comprehensive error handling:
-
-```powershell
-try {
-    $correlationId = [System.Guid]::NewGuid().ToString()
-    $isOrphaned = Test-OrphanedSID -SID $sidString -CorrelationId $correlationId
-
-    if ($isOrphaned) {
-        Write-Warning "SID is orphaned: $sidString"
-        # Handle orphaned SID appropriately
-    } else {
-        Write-Information "SID is valid: $sidString"
-        # Continue processing
-    }
-} catch {
-    Write-Error "Failed to test SID $sidString : $($_.Exception.Message)"
-    # Log error with correlation ID for troubleshooting
-}
-```
-
-### 3. Cache Management
-
-Implement proactive cache management:
-
-```powershell
-# Regular cache maintenance
-function Invoke-CacheMaintenance {
-    $stats = Get-SIDValidationCacheStat
-
-    # Clear cache if too large
-    if ($stats.TotalEntries -gt 5000) {
-        Write-Warning "Cache size ($($stats.TotalEntries)) exceeds threshold, clearing cache"
-        Clear-SIDValidationCache
-    }
-
-    # Monitor cache efficiency
-    if ($stats.TotalEntries -gt 100 -and $stats.CacheHitRatio -lt 50) {
-        Write-Warning "Low cache efficiency ($($stats.CacheHitRatio)%), consider cache strategy review"
-    }
-}
-```
-
-## Contact Information
-
-For additional support:
-- **Author:** Jeffrey Stuhr
-- **Blog:** https://www.techbyjeff.net
-- **LinkedIn:** https://www.linkedin.com/in/jeffrey-stuhr-034214aa/
-
-For urgent issues, check the main troubleshooting directory:
-- `.\Troubleshooting\Common\` - General issues
-- `.\Troubleshooting\Security\` - Security-specific problems
-- `.\Troubleshooting\Performance\` - Performance optimization
+- [Identity Resolution Issues](./Identity-Resolution-Issues.md)
+- [SID Format Issues](./SID-Format-Issues.md)
+- [SID Analysis Issues](./SID-Analysis-Issues.md)
+- [Performance Tuning](../Performance/Performance-Tuning.md)
+- [Find-UnknownSID Issues](../Common/Find-UnknownSID-Issues.md)

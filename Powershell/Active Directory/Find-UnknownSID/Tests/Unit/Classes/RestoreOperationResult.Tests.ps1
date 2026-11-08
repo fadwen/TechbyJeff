@@ -2,7 +2,7 @@
 #Requires -Modules Pester
 
 # Calculate path to the Classes directory
-$ModuleRoot = "C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID"
+$ModuleRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $ClassesPath = Join-Path $ModuleRoot "Classes"
 
 # Import the class file

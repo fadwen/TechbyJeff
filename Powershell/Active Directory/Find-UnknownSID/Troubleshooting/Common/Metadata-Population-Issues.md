@@ -1,412 +1,178 @@
 # Metadata Population Issues - Troubleshooting Guide
 
 ## Overview
-This guide addresses issues related to metadata population in SID analysis result objects, focusing on timestamp accuracy, processing metrics, and audit trail completeness.
+
+Every orphaned SID the script finds becomes one `OrphanedSIDResult` object
+(`Classes\OrphanedSIDResult.ps1`). `New-OrphanedSIDResult` (`Private\SID\New-SIDResult.ps1`) fills
+it in three steps:
+
+1. Core identification: `ObjectDN`, `ObjectClass`, `OrphanedSID`, `LikelySource`, `Confidence`,
+   `AnalysisNotes`.
+2. `Add-ProcessingMetadata`: `ProcessingMethod`, `ActionTaken` (always `Detected`),
+   `CorrelationId`, `Timestamp`, plus a `ProcessingContext` note property.
+3. `Set-ACLMetadata`: `AccessControlType`, `ActiveDirectoryRights`, `InheritanceType`,
+   `ObjectType`, `InheritedObjectType`, `IsInherited`, read from the access rule.
+
+`Find-OrphanedSIDsInObject` then attaches a `ProcessingStatistics` note property to each result for
+the object it came from. This guide covers the metadata that can look wrong and why.
 
 ## Common Issues
 
-### 1. Timestamp Issues
+### 1. Timestamps
 
-#### Issue: Inconsistent Timestamps
-**Symptoms:**
-- Timestamps showing different time zones within same processing run
-- Timestamps appearing in the future or significantly in the past
-- Timestamp format inconsistencies across result objects
+#### Issue: Timestamps are local time, not UTC
 
-**Root Causes:**
-- Mixed use of local time vs UTC
-- System clock synchronization issues
-- Time zone configuration problems
-- Daylight saving time transitions
+`Timestamp` is set with `Get-Date` in the class constructor and again in `Add-ProcessingMetadata`,
+so it carries the local time of the machine running the script with `Kind = Local`. The CSV written
+by `-OutputPath` serialises it in the local culture's format. This is by design; convert on the way
+out when a downstream system needs UTC:
 
-**Resolution Steps:**
-1. **Standardize on UTC:**
-   ```powershell
-   # Always use UTC for consistent timestamps
-   $timestamp = [DateTime]::UtcNow
+```powershell
+Import-Csv -Path .\Reports\orphaned-sids.csv | ForEach-Object {
+    $_.Timestamp = ([datetime]$_.Timestamp).ToUniversalTime().ToString('o')
+    $_
+} | Export-Csv -Path .\Reports\orphaned-sids-utc.csv -NoTypeInformation
+```
 
-   # Verify UTC usage
-   if ($timestamp.Kind -ne [DateTimeKind]::Utc) {
-       Write-Warning "Timestamp is not UTC: $($timestamp.Kind)"
-   }
-   ```
+Backup files use a different field: `BackupDate` is written as `yyyy-MM-ddTHH:mm:ss.fffZ` text
+(local time with a literal `Z`). Treat it as local when comparing with `Timestamp`.
 
-2. **Validate System Clock:**
-   ```powershell
-   # Check system time accuracy
-   $systemTime = Get-Date
-   $utcTime = [DateTime]::UtcNow
-   $localToUtcDiff = ($systemTime - $utcTime.ToLocalTime()).TotalSeconds
+#### Issue: Timestamps appear out of order or far apart in one run
 
-   if ([Math]::Abs($localToUtcDiff) -gt 5) {
-       Write-Warning "System clock may be inaccurate. Difference: $localToUtcDiff seconds"
-   }
-   ```
+Results are created when each access rule is evaluated, so the `Timestamp` spread equals the
+run's duration. A gap of minutes between consecutive objects usually reflects SID lookups being
+retried (`Retry attempt N of M for object <DN>` in the log). Check the system clock only when
+timestamps are in the future relative to the log file's own timestamps.
 
-3. **Test Time Zone Configuration:**
-   ```powershell
-   # Verify time zone settings
-   $timeZone = Get-TimeZone
-   Write-Verbose "Current time zone: $($timeZone.DisplayName)"
-   Write-Verbose "UTC offset: $($timeZone.BaseUtcOffset)"
+### 2. Processing Metrics
 
-   # Check for daylight saving time
-   if ($timeZone.SupportsDaylightSavingTime) {
-       $isDST = $timeZone.IsDaylightSavingTime((Get-Date))
-       Write-Verbose "Daylight saving time active: $isDST"
-   }
-   ```
+#### Issue: Per-object duration looks wrong
 
-#### Issue: Missing or Null Timestamps
-**Symptoms:**
-- Timestamp properties contain null values
-- Creation time not recorded for result objects
-- Audit trail incomplete due to missing time information
+There is no per-result `ProcessingTime` property. Timing lives in the `ProcessingStatistics` note
+property that `Find-OrphanedSIDsInObject` attaches to every result from one object:
 
-**Root Causes:**
-- Exception during timestamp generation
-- Memory pressure preventing DateTime creation
-- Incorrect property initialization order
+| Key | Meaning |
+| --- | --- |
+| `ObjectDN` | Object the statistics belong to |
+| `StartTime`, `EndTime` | `Get-Date` at start and end of that object |
+| `Duration` | Milliseconds between them |
+| `AccessRulesRetrieved` | Rules returned by `Get-ObjectAccessRule` |
+| `ProcessedSIDs` | Rules evaluated |
+| `SkippedSIDs` | Rules skipped (no identity, well-known, or error) |
+| `OrphanedSIDsFound` | Results created |
+| `ErrorsEncountered` | Exceptions caught for that object |
+| `ProcessingMethod` | `Orchestrated-Workflow` |
 
-**Resolution Steps:**
-1. **Implement Defensive Timestamp Creation:**
-   ```powershell
-   # Safe timestamp creation with fallback
-   try {
-       $timestamp = [DateTime]::UtcNow
-   }
-   catch {
-       Write-Warning "Failed to get current time, using fallback"
-       $timestamp = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
-   }
+`Duration` is a `Get-Date` difference, so sub-millisecond work shows as `0`. It is not written to
+the CSV (only class members are exported). To see it, run the per-object function directly in a
+diagnostic session:
 
-   # Validate timestamp before use
-   if ($timestamp -eq [DateTime]::MinValue) {
-       $timestamp = [DateTime]::UtcNow
-   }
-   ```
+```powershell
+Set-Location 'C:\Scripts\Find-UnknownSID'
+Import-Module ActiveDirectory
+. .\Private\Core\Import-LoggingSystem.ps1
+Get-ChildItem .\Classes\*.ps1 | ForEach-Object { . $_.FullName }
+'SID\Test-SIDFormat', 'SID\Get-SIDAnalysis', 'ActiveDirectory\Invoke-ADOperationWithRetry',
+'Operations\Invoke-OperationWithRetry', 'Logging\Write-ADOperationSecurityLog', 'SID\Test-OrphanedSID',
+'Security\Get-SecurityDescriptor', 'SID\Resolve-SIDIdentity', 'SID\New-SIDResult', 'SID\Invoke-SIDProcessing' |
+    ForEach-Object { . ".\Private\$_.ps1" }
 
-2. **Monitor Memory Pressure:**
-   ```powershell
-   # Check memory before timestamp operations
-   $availableMemory = Get-MemoryStatistics
-   if ($availableMemory.AvailableMemoryMB -lt 50) {
-       Write-Warning "Low memory may affect timestamp creation"
-       Invoke-GarbageCollection -Force
-   }
-   ```
+$object = Get-ADObject -Identity 'CN=User1,OU=Test,DC=contoso,DC=com' -Properties nTSecurityDescriptor, ObjectClass
+$results = Find-OrphanedSIDsInObject -ADObject $object -IncludeInherited
+$results | Select-Object -First 1 -ExpandProperty ProcessingStatistics
+```
 
-### 2. Processing Metrics Issues
+`Get-SIDProcessingStatistics` (same file) aggregates these across results:
+`TotalObjectsProcessed`, `TotalSIDsProcessed`, `AverageProcessingTimeMS`, `ProcessingThroughput`
+and so on. It returns `$null` with the warning `No processing statistics found in results` when the
+results carry no `ProcessingStatistics` property, which happens after a round trip through CSV.
 
-#### Issue: Inaccurate Processing Time
-**Symptoms:**
-- Processing time showing as zero or negative values
-- Inconsistent timing measurements
-- Performance metrics don't match actual processing time
+#### Issue: Memory figures missing from the summary
 
-**Root Causes:**
-- Stopwatch not started or stopped correctly
-- Timer overflow with very long operations
-- System performance counter issues
+`Peak memory usage: N MB` in the summary comes from `MemoryManager.GetPeakMemoryUsage()`. Current
+process figures come from `Get-CurrentMemoryUsage` (`Private\System\Get-MemoryStatistics.ps1`),
+which returns `WorkingSetMB`, `PrivateMemoryMB`, `VirtualMemoryMB` and `GCTotalMemoryMB`; a failure
+is reported as `Failed to retrieve memory usage: <message>`. These read the current process only;
+no WMI query is involved. See `.\Troubleshooting\Performance\Memory-Management-Issues.md`.
 
-**Resolution Steps:**
-1. **Validate Stopwatch Usage:**
-   ```powershell
-   # Proper stopwatch implementation
-   $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+### 3. Correlation IDs
 
-   try {
-       # Processing logic here
-       Start-Sleep -Milliseconds 10  # Simulate work
-   }
-   finally {
-       $stopwatch.Stop()
+#### Issue: Many results share one correlation ID
 
-       # Validate timing result
-       if ($stopwatch.ElapsedMilliseconds -lt 0) {
-           Write-Warning "Invalid negative processing time detected"
-           $processingTime = [TimeSpan]::Zero
-       }
-       else {
-           $processingTime = $stopwatch.Elapsed
-       }
-   }
-   ```
+Expected. `New-OrphanedSIDResult` receives `-CorrelationId` from the calling chain
+(`Find-OrphanedSIDsInObject` -> `Test-AccessRuleForOrphanedSID`), so every result from one object
+shares that object's ID. A result generates its own GUID in the class constructor only when no ID is
+passed. Uniqueness per result is not a goal; traceability from result to log lines is.
 
-2. **Handle Timer Overflow:**
-   ```powershell
-   # Check for timer overflow (operations > 24 days)
-   if ($stopwatch.Elapsed.TotalDays -gt 24) {
-       Write-Warning "Processing time overflow detected, using maximum value"
-       $processingTime = [TimeSpan]::FromDays(24)
-   }
-   ```
+The main run's `-CorrelationId` is what appears in the `[Main]`, `[MainProcessing]` and `[Summary]`
+log lines. Per-object IDs are generated inside `Invoke-MainProcessingLogic` when it calls
+`Find-OrphanedSIDsInObject`, so a result's `CorrelationId` is the per-object GUID, not the run's.
+To tie a result back to a run, filter the log file by `ObjectDN` instead:
 
-3. **Test Performance Counter Access:**
-   ```powershell
-   # Verify performance counter functionality
-   try {
-       $testStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-       Start-Sleep -Milliseconds 1
-       $testStopwatch.Stop()
+```powershell
+$dn = 'CN=User1,OU=Test,DC=contoso,DC=com'
+Select-String -Path .\Logs\Find-UnknownSID_*.log -Pattern ([regex]::Escape($dn)) | Select-Object -First 10
+```
 
-       if ($testStopwatch.ElapsedMilliseconds -eq 0) {
-           Write-Warning "Performance counters may not be working correctly"
-       }
-   }
-   catch {
-       Write-Error "Performance counter access failed: $($_.Exception.Message)"
-   }
-   ```
+#### Issue: Correlation ID format
 
-#### Issue: Memory Statistics Collection Failures
-**Symptoms:**
-- Memory usage metrics showing as zero or null
-- Memory statistics not updated during processing
-- Out of memory errors despite showing available memory
+All generated IDs are GUID strings (`[System.Guid]::NewGuid().ToString()`). The main script accepts
+any string for `-CorrelationId`, but `Test-BackupValidation` in the restore path validates
+`-CorrelationId` as a GUID (`CorrelationId must be in valid GUID format`). Use GUIDs throughout:
 
-**Root Causes:**
-- WMI service issues preventing memory queries
-- Insufficient permissions for performance counter access
-- Memory pressure causing query failures
+```powershell
+$id = [guid]::NewGuid().ToString()
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Test,DC=contoso,DC=com' -CorrelationId $id
+```
 
-**Resolution Steps:**
-1. **Test WMI Connectivity:**
-   ```powershell
-   # Verify WMI service availability
-   try {
-       $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-       $totalMemory = [Math]::Round($os.TotalVisibleMemorySize / 1024, 0)
-       Write-Verbose "Total system memory: $totalMemory MB"
-   }
-   catch {
-       Write-Error "WMI query failed: $($_.Exception.Message)"
-   }
-   ```
+### 4. Processing Context
 
-2. **Check Performance Counter Permissions:**
-   ```powershell
-   # Test performance counter access
-   try {
-       $process = Get-Process -Name "powershell" | Select-Object -First 1
-       $workingSet = $process.WorkingSet64
-       Write-Verbose "Current process memory: $([Math]::Round($workingSet / 1MB, 2)) MB"
-   }
-   catch {
-       Write-Warning "Cannot access process memory information: $($_.Exception.Message)"
-   }
-   ```
+Each result also carries a `ProcessingContext` note property (hashtable) with `MachineName`,
+`UserName`, `ProcessId`, `PowerShellVersion` and `ModuleVersion`. Like `ProcessingStatistics` it is
+not a class member and is not exported to CSV; it is available on the live objects only.
 
-3. **Implement Fallback Memory Detection:**
-   ```powershell
-   # Fallback memory detection methods
-   try {
-       # Primary method: WMI
-       $memInfo = Get-CimInstance Win32_OperatingSystem
-       $availableMemory = [Math]::Round($memInfo.FreePhysicalMemory / 1024, 0)
-   }
-   catch {
-       try {
-           # Fallback method: .NET GC
-           $gcMemory = [System.GC]::GetTotalMemory($false)
-           $availableMemory = [Math]::Round((2GB - $gcMemory) / 1MB, 0)  # Estimate
-           Write-Warning "Using estimated memory values"
-       }
-       catch {
-           Write-Error "All memory detection methods failed"
-           $availableMemory = 0
-       }
-   }
-   ```
+### 5. ACL Metadata Defaults
 
-### 3. Correlation ID Issues
+When the access rule lacks a property, `Set-ACLMetadata` substitutes a default and logs it at
+Debug level:
 
-#### Issue: Duplicate Correlation IDs
-**Symptoms:**
-- Multiple result objects sharing the same correlation ID
-- Difficulty tracing individual processing operations
-- Audit trail confusion
+| Property | Default when absent | Debug message |
+| --- | --- | --- |
+| `AccessControlType` | `Allow` | `AccessControlType property missing, set to Allow` |
+| `ActiveDirectoryRights` | `GenericRead` (after trying a `Rights` property) | `ActiveDirectoryRights property missing, set to GenericRead` |
+| `InheritanceType` | `None` | `InheritanceFlags property missing, set to None` |
+| `ObjectType`, `InheritedObjectType` | `Guid.Empty` | `GUID property <name> missing or null, set to Empty` |
+| `IsInherited` | `$false` | `IsInherited property missing, set to false` |
 
-**Root Causes:**
-- GUID generation not called for each object
-- Correlation ID being reused across objects
-- Threading issues with shared correlation ID
-
-**Resolution Steps:**
-1. **Ensure Unique ID Generation:**
-   ```powershell
-   # Generate unique ID for each result
-   function New-UniqueCorrelationId {
-       $guid = [System.Guid]::NewGuid()
-       $timestamp = [DateTime]::UtcNow.ToString('yyyyMMddHHmmss')
-       return "$timestamp-$($guid.ToString('N').Substring(0, 8))"
-   }
-
-   # Validate uniqueness
-   $correlationId = New-UniqueCorrelationId
-   if ([string]::IsNullOrEmpty($correlationId)) {
-       throw "Failed to generate correlation ID"
-   }
-   ```
-
-2. **Test GUID Generation:**
-   ```powershell
-   # Verify GUID generation is working
-   $testGuids = 1..100 | ForEach-Object { [System.Guid]::NewGuid() }
-   $uniqueGuids = $testGuids | Select-Object -Unique
-
-   if ($testGuids.Count -ne $uniqueGuids.Count) {
-       Write-Error "GUID generation producing duplicates"
-   }
-   ```
-
-3. **Implement Thread-Safe ID Generation:**
-   ```powershell
-   # Thread-safe correlation ID generation
-   $script:correlationIdCounter = 0
-   $script:correlationIdLock = [object]::new()
-
-   function Get-ThreadSafeCorrelationId {
-       [System.Threading.Monitor]::Enter($script:correlationIdLock)
-       try {
-           $counter = ++$script:correlationIdCounter
-           $guid = [System.Guid]::NewGuid()
-           return "$counter-$($guid.ToString('N').Substring(0, 12))"
-       }
-       finally {
-           [System.Threading.Monitor]::Exit($script:correlationIdLock)
-       }
-   }
-   ```
-
-#### Issue: Correlation ID Format Issues
-**Symptoms:**
-- Correlation IDs containing invalid characters
-- Inconsistent ID formats across processing runs
-- Log parsing failures due to format variations
-
-**Root Causes:**
-- Manual ID construction introducing errors
-- Character encoding issues
-- Format changes between script versions
-
-**Resolution Steps:**
-1. **Standardize ID Format:**
-   ```powershell
-   # Standard correlation ID format
-   function New-StandardCorrelationId {
-       param(
-           [string]$Prefix = "SID"
-       )
-
-       $timestamp = [DateTime]::UtcNow.ToString('yyyyMMddHHmmss')
-       $guid = [System.Guid]::NewGuid().ToString('N').Substring(0, 8).ToUpper()
-
-       return "$Prefix-$timestamp-$guid"
-   }
-
-   # Validate format
-   $correlationId = New-StandardCorrelationId
-   if ($correlationId -notmatch '^[A-Z]+-\d{14}-[A-F0-9]{8}$') {
-       Write-Error "Invalid correlation ID format: $correlationId"
-   }
-   ```
-
-2. **Implement Format Validation:**
-   ```powershell
-   # Validate correlation ID format
-   function Test-CorrelationIdFormat {
-       param([string]$CorrelationId)
-
-       # Expected format: PREFIX-YYYYMMDDHHMMSS-HEXSTRING
-       $pattern = '^[A-Z]+-\d{14}-[A-F0-9]{8}$'
-
-       if ($CorrelationId -match $pattern) {
-           return $true
-       }
-       else {
-           Write-Warning "Invalid correlation ID format: $CorrelationId"
-           return $false
-       }
-   }
-   ```
+Defaults appear mainly on deserialized access rules. If many results show `GenericRead` and
+`Allow`, run with `-LogLevel Debug` and look for these messages to confirm.
 
 ## Validation Commands
 
-### Test Timestamp Accuracy
 ```powershell
-# Test timestamp consistency
-$results = 1..10 | ForEach-Object {
-    [PSCustomObject]@{
-        Timestamp = [DateTime]::UtcNow
-        Index = $_
-    }
-    Start-Sleep -Milliseconds 10
-}
+# After a run with -OutputPath
+$rows = Import-Csv -Path .\Reports\orphaned-sids.csv
 
-# Verify timestamps are sequential and UTC
-$timestamps = $results | ForEach-Object { $_.Timestamp }
-$timestamps | Should -BeOrdered
-$timestamps | ForEach-Object { $_.Kind | Should -Be ([DateTimeKind]::Utc) }
+# Every row has the identifying fields
+$rows | Where-Object { -not $_.ObjectDN -or -not $_.OrphanedSID -or -not $_.CorrelationId }
+
+# Timestamps fall inside the run window recorded in the log
+$rows | ForEach-Object { [datetime]$_.Timestamp } | Measure-Object -Minimum -Maximum
+
+# SIDs are well formed
+$rows | Where-Object { $_.OrphanedSID -notmatch '^S-1-\d+(-\d+)+$' }
 ```
-
-### Test Processing Time Measurement
-```powershell
-# Test stopwatch accuracy
-$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-Start-Sleep -Milliseconds 100
-$stopwatch.Stop()
-
-$elapsed = $stopwatch.ElapsedMilliseconds
-$elapsed | Should -BeGreaterThan 90
-$elapsed | Should -BeLessThan 200
-```
-
-### Test Correlation ID Uniqueness
-```powershell
-# Test correlation ID uniqueness
-$correlationIds = 1..1000 | ForEach-Object {
-    [System.Guid]::NewGuid().ToString()
-}
-
-$uniqueIds = $correlationIds | Select-Object -Unique
-$correlationIds.Count | Should -Be $uniqueIds.Count
-```
-
-## Best Practices
-
-### 1. Timestamp Management
-- Always use UTC timestamps for consistency
-- Validate timestamps before using in calculations
-- Implement time zone awareness for display purposes
-- Monitor system clock accuracy
-
-### 2. Processing Metrics
-- Use high-resolution timers for accurate measurements
-- Implement proper stopwatch lifecycle management
-- Validate timing results for reasonableness
-- Include performance metrics in all result objects
-
-### 3. Correlation ID Management
-- Generate unique IDs for each processing operation
-- Use consistent ID format across all systems
-- Implement ID validation and verification
-- Include correlation IDs in all log entries
-
-### 4. Error Handling
-- Implement defensive programming for metadata creation
-- Provide fallback values for critical metadata
-- Log metadata population failures with context
-- Validate metadata completeness before using results
 
 ## Related Documentation
-- [Result Creation Issues](./Result-Creation-Issues.md)
-- [Result Validation Issues](./Result-Validation-Issues.md)
-- [SID Processing Orchestration Issues](./SID-Processing-Orchestration-Issues.md)
-- [Memory Management Issues](../Performance/Memory-Management-Issues.md)
+
+- `.\Troubleshooting\Common\Result-Creation-Issues.md`
+- `.\Troubleshooting\Common\Result-Validation-Issues.md`
+- `.\Troubleshooting\Common\SID-Processing-Orchestration-Issues.md`
+- `.\Troubleshooting\Performance\Memory-Management-Issues.md`
 
 ## Support Information
-- **Module**: New-SIDResult.ps1
-- **Functions**: New-OrphanedSIDResult, Set-ResultMetadata
-- **Last Updated**: $(Get-Date -Format 'yyyy-MM-dd')
-- **Correlation ID**: Include in all support requests for faster resolution
+
+- **Module**: `Private\SID\New-SIDResult.ps1`
+- **Functions**: `New-OrphanedSIDResult`, `Add-ProcessingMetadata`, `Set-ACLMetadata`,
+  `Get-SafeGuidProperty`, `ConvertTo-ResultSummary`
+- **Correlation ID**: include the run's `-CorrelationId` in support requests

@@ -161,7 +161,7 @@ if ($testSID -match $testPattern) {
 
 ### "SID format invalid - does not match basic pattern"
 
-**Meaning:** The SID string doesn't start with the expected "S-1-" pattern
+**Meaning:** The SID string does not match the pattern `^S-1-\d+-\d+` (the `S-1-` prefix followed by at least an authority and one sub-authority)
 
 **Resolution:**
 1. Check the SID string for typos

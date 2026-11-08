@@ -208,6 +208,7 @@ function Invoke-ResourceDisposal {
     param(
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
+        [AllowNull()]
         [object[]]$Resources,
 
         [Parameter()]

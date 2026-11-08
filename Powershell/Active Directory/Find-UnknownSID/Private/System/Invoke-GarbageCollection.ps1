@@ -347,15 +347,21 @@ function Invoke-GCWaitForPendingFinalizers {
     [System.GC]::WaitForPendingFinalizers()
 }
 
-function Write-StructuredLog {
-    param(
-        [string]$Message,
-        [string]$Level = 'Information',
-        [string]$Component = 'General',
-        [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
-    )
-    
-    Write-Verbose "$Level [$Component] $Message (CorrelationId: $CorrelationId)"
+# Fallbacks for running this file on its own (tests, interactive diagnosis). The main script
+# dot-sources the logging system and Get-MemoryStatistics.ps1 before this file, so these must not
+# replace the real definitions: an unguarded version here silently turned every later log line
+# into Write-Verbose output and dropped the file log.
+if (-not (Get-Command Write-StructuredLog -ErrorAction SilentlyContinue)) {
+    function Write-StructuredLog {
+        param(
+            [string]$Message,
+            [string]$Level = 'Information',
+            [string]$Component = 'General',
+            [string]$CorrelationId = [System.Guid]::NewGuid().ToString()
+        )
+
+        Write-Verbose "$Level [$Component] $Message (CorrelationId: $CorrelationId)"
+    }
 }
 
 function Get-GCTotalMemory {
@@ -363,9 +369,11 @@ function Get-GCTotalMemory {
     return [System.GC]::GetTotalMemory($ForceFullCollection)
 }
 
-function Get-CurrentMemoryUsage {
-    # Helper function for compatibility
-    return @{
-        WorkingSetMB = [math]::Round((Get-Process -Id $PID).WorkingSet / 1MB, 2)
+if (-not (Get-Command Get-CurrentMemoryUsage -ErrorAction SilentlyContinue)) {
+    function Get-CurrentMemoryUsage {
+        # Minimal stand-in for the full version in Get-MemoryStatistics.ps1
+        return @{
+            WorkingSetMB = [math]::Round((Get-Process -Id $PID).WorkingSet / 1MB, 2)
+        }
     }
 }

@@ -78,8 +78,16 @@
         # Always write to console for user feedback
         Write-ConsoleLogEntry -FormattedMessage $formattedEntryForConsole -Level $Level
         
+        # File output honours the configured -LogLevel; console output does not, so that warnings and
+        # errors still reach an operator who lowered the file verbosity. Security entries bypass this
+        # filter through Write-SecurityStructuredLogEntry.
+        $writeToFile = $true
+        if (Get-Command Test-LogLevel -ErrorAction SilentlyContinue) {
+            $writeToFile = Test-LogLevel $Level
+        }
+
         # Also write to file if log path is available
-        if ($effectiveLogPath) {
+        if ($effectiveLogPath -and $writeToFile) {
             try {
                 Add-Content -Path $effectiveLogPath -Value $formattedEntryForFile -Encoding UTF8
             } catch {

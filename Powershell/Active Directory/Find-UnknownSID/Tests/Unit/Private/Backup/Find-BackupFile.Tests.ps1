@@ -13,15 +13,8 @@ Describe "Find-BackupFile Function Tests" -Tag "Unit", "Backup", "Discovery" {
         }
 
         function Write-StructuredLogEntry {
-            param($Message, $Level, $CorrelationId, $Component, $Details)        It "Should provide comprehensive discovery results logging" {
-            Find-BackupFile -BackupPath 'C:\ValidBackupPath'
-            
-            # Check for discovery completion log
-            $discoveryLogs = $script:WriteStructuredLogCalls | Where-Object { 
-                $_.Message -match 'Backup discovery completed' -and $_.Level -eq 'Verbose'
-            }
-            $discoveryLogs | Should Not BeNullOrEmpty
-        }       # Mock implementation - suppress output during tests
+            param($Message, $Level, $CorrelationId, $Component, $Details)
+            # Mock implementation - suppress output during tests
         }
 
         # Import required functions directly for dot sourcing without module manifest

@@ -52,7 +52,8 @@ class ScriptConfiguration {
             '*CN=Computers,DC=*'
         )
 
-        $this.BatchSize = 100
+        # Results per streaming batch file written by StreamingResultsManager
+        $this.BatchSize = 50
         $this.MemoryCheckInterval = 50
         $this.EnableDetailedLogging = $false
         $this.LogLevel = 'Information'

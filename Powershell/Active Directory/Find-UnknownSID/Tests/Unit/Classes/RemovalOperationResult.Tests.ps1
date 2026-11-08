@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 #Requires -Module Pester
 
-$ModuleRoot = "C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID"
+$ModuleRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 . "$ModuleRoot\Classes\RemovalOperationResult.ps1"
 
 Describe "RemovalOperationResult Class Tests" {

@@ -154,8 +154,18 @@ Describe "Initialize-LogDirectory" {
         }
         
         It "Should handle log file in root directory" {
-            $rootLogPath = "C:\temp-test-$(Get-Random).log"
+            $driveRoot = [System.IO.Path]::GetPathRoot($env:TEMP)
+            $rootLogPath = Join-Path $driveRoot "temp-test-$(Get-Random).log"
             try {
+                # Writing to the drive root needs elevation on a default Windows install.
+                # Probe first and report inconclusive rather than failing on a permissions difference.
+                try {
+                    [System.IO.File]::WriteAllText($rootLogPath, '')
+                    Remove-Item $rootLogPath -Force
+                } catch [System.UnauthorizedAccessException] {
+                    Set-TestInconclusive -Message "No write access to $driveRoot; run elevated to exercise this case"
+                }
+
                 Initialize-LogDirectory -LogPath $rootLogPath
                 $rootLogPath | Should Exist
             }

@@ -2,475 +2,217 @@
 
 ## Overview
 
-The Find-UnknownSID script uses a sophisticated memory management architecture combining streaming result processing with aggressive garbage collection to maintain stable memory usage even in very large Active Directory environments.
+`Find-UnknownSID.ps1` keeps memory flat on large Active Directory scans by streaming results to
+disk in small batches and by monitoring the process working set against a configurable threshold.
+This document describes those two mechanisms as implemented, the log messages they produce, and
+how to diagnose them.
 
 ## Architecture Components
 
 ### 1. StreamingResultsManager
-- **Purpose**: Eliminates memory accumulation by streaming results to disk in batches
-- **Batch Size**: Default 50 results per batch file
-- **Memory Benefits**: Prevents unbounded growth of in-memory result collections
-- **Storage**: Uses temporary JSON files in system temp directory
-- **Cleanup**: Automatic disposal and optional file cleanup
+
+Defined in `Classes\StreamingResultsManager.ps1`, created once per run by
+`Private\Core\Invoke-MainProcessingLogic.ps1`.
+
+- **Purpose**: results are never accumulated in an in-memory array. Each `OrphanedSIDResult` is
+  passed to `AddResult()`; when `BatchSize` are held the batch is written to disk and the list is
+  cleared.
+- **Batch size**: the `BatchSize` configuration key (1-1000, default 50), read from `-ConfigPath`
+  and passed to the constructor by `Invoke-MainProcessingLogic`.
+- **Storage**: `<TEMP>\Find-UnknownSID-<CorrelationId>\`, where `<TEMP>` is
+  `[System.IO.Path]::GetTempPath()`. Batches are `batch_1.json`, `batch_2.json`, ... (compressed
+  JSON arrays); a `summary_<yyyyMMdd_HHmmss>.json` records totals and the batch file list.
+- **Garbage collection**: `GC.Collect()` after every flush.
+- **Export**: `ExportToCsv($path)` flushes the current batch, reads all batch files back, and calls
+  `Export-Csv`. `Write-ProcessingSummary` calls it when `-OutputPath` is given.
+- **Cleanup**: `Dispose()` flushes, updates the summary and removes the temp directory unless the
+  `PreserveFiles` property is set. The main script sets that property when `-PreserveTempFiles` is
+  passed, and logs `Temporary result files preserved in: <path>`.
+- **WhatIf**: under `-WhatIf` no directory or files are created; flushes are simulated and logged
+  as `WhatIf: Would flush batch N with M results to <file>`.
 
 ### 2. MemoryManager Class
-- **Purpose**: Monitors and manages system memory usage during processing
-- **Check Frequency**: Every 25 operations (improved from 50)
-- **Threshold Monitoring**: Configurable memory limits with automatic cleanup
-- **Garbage Collection**: Aggressive GC with memory pressure techniques
 
-### 3. Processing Loop Optimizations
-- **Frequent GC**: Additional forced garbage collection every 100 objects
-- **Object Cleanup**: Explicit disposal of security descriptor objects
-- **Memory Logging**: Detailed memory usage tracking for troubleshooting
+Defined in `Classes\MemoryManager.ps1`, created by `Initialize-MemoryManager` during
+`Initialize-ScriptExecution`.
+
+- **Threshold**: `-MaxMemoryUsageMB` (100-16384, default 1024), compared against the process
+  working set.
+- **Check frequency**: every `MemoryCheckInterval` operations. The value comes from the
+  configuration object (`Classes\ScriptConfiguration.ps1`), default 50, overridable through a
+  `-ConfigPath` JSON file with a value from 1 to 100.
+- **On exceeding the threshold**: two `GC.Collect()` calls around `WaitForPendingFinalizers()`,
+  `AddMemoryPressure(50MB)` followed immediately by `RemoveMemoryPressure(50MB)`, then a second
+  measurement. If still above the limit a warning is written; processing continues.
+- **Peak tracking**: `GetPeakMemoryUsage()` is reported as `Peak memory usage: N MB` in the
+  processing summary.
+
+### 3. Processing Loop
+
+In `Invoke-MainProcessingLogic`:
+
+- `Invoke-MemoryCheck -MemoryManager $script:MemoryManager` runs before every object.
+- Every 100 objects, `Invoke-Cleanup` runs three collect/finalize cycles with 50 MB of GC pressure
+  applied, and the result is written as a verbose line:
+  `Memory usage at 100 objects: 412.3 MB (Freed: 18.6 MB)`.
+- In `Private\SID\Invoke-SIDProcessing.ps1`, access-rule references are nulled after each object
+  and a collection runs every 100 SIDs inspected.
+- In the script's `finally` block, `Invoke-ResourceCleanup` disposes the streaming manager and the
+  memory manager and runs a final collection.
 
 ## Memory Usage Patterns
 
-### Expected Behavior
-```
-✅ EXCELLENT: Memory increase < 20MB over baseline
-✅ GOOD: Memory increase < 50MB over baseline
-⚠️ ACCEPTABLE: Memory increase < 100MB over baseline
-❌ CONCERNING: Memory increase >= 100MB over baseline
-```
+### Expected behaviour
 
-### Streaming Benefits
-- **Constant Memory**: Results are streamed to disk, not accumulated in memory
-- **Batch Processing**: Small in-memory batches (50 results) prevent large allocations
-- **Automatic Cleanup**: Aggressive garbage collection after each batch
-- **Scalable**: Memory usage remains stable regardless of total result count
+Working set rises during module import and the first few hundred objects, then stays roughly flat.
+`Get-MemoryUsageReport` (in `Private\System\Get-MemoryStatistics.ps1`) rates the current working
+set against the threshold:
 
-## Common Memory Issues
+| PerformanceStatus | Working set |
+|---|---|
+| Excellent | below 80 % of `-MaxMemoryUsageMB` |
+| Good | 80 % to 90 % |
+| Acceptable | 90 % to 100 % |
+| Concerning | at or above 100 % |
 
-### 1. Memory Leaks
-**Symptoms:**
-- Continuously increasing memory usage
-- Script becomes unresponsive over time
-- System performance degradation
-
+With the default 1024 MB threshold a plain Windows PowerShell session with the ActiveDirectory
+module loaded commonly starts between 150 and 300 MB.
 
 ## Common Memory Issues
 
-### Issue: High Memory Usage (Legacy)
-**Symptoms**: Memory grows continuously during large-scale operations
-**Root Cause**: Previous versions accumulated all results in `$script:AllResults`
-**Resolution**: Upgrade to streaming architecture (current version)
+### Issue: Threshold warnings during a large run
 
-### Issue: Memory Not Released After Processing
-**Symptoms**: Memory remains high after script completion
-**Resolution**:
+**Symptoms**: `Memory usage threshold exceeded: N MB (Limit: M MB)` warnings; processing continues.
+
+**Resolution**: raise `-MaxMemoryUsageMB`, lower `MemoryCheckInterval` so cleanup starts earlier,
+or split the run. Details in [Memory-Management-Issues.md](./Memory-Management-Issues.md).
+
+### Issue: Memory not released after the run
+
+**Symptoms**: the PowerShell process stays large after the script returns.
+
+**Resolution**: `Invoke-ResourceCleanup` already runs a full collection at exit. Remaining working
+set belongs to the session (loaded modules, the AD provider drive). Start large runs in a fresh
+process:
+
 ```powershell
-# Manual cleanup if needed
-[System.GC]::Collect()
-[System.GC]::WaitForPendingFinalizers()
-[System.GC]::Collect()
+powershell.exe -NoProfile -File .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -MaxMemoryUsageMB 2048
 ```
 
-### Issue: Temporary File Accumulation
-**Symptoms**: Disk space consumed by temporary batch files
+### Issue: Temporary file accumulation
+
+**Symptoms**: `Find-UnknownSID-<guid>` folders left under the temp directory.
+
+**Cause**: a run ended before `Dispose()` could execute (process killed, host crash), or runs were
+made with `-PreserveTempFiles`.
+
 **Resolution**:
+
 ```powershell
-# Use PreserveTempFiles parameter to control cleanup
-.\Find-UnknownSID.ps1 -SearchBase "DC=domain,DC=com" -PreserveTempFiles:$false
+# List leftover streaming folders with their size
+Get-ChildItem ([System.IO.Path]::GetTempPath()) -Filter 'Find-UnknownSID-*' -Directory | ForEach-Object {
+    $sizeMB = (Get-ChildItem $_.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB
+    "{0}: {1:N2} MB" -f $_.Name, $sizeMB
+}
+
+# Remove them (drop -WhatIf to execute)
+Get-ChildItem ([System.IO.Path]::GetTempPath()) -Filter 'Find-UnknownSID-*' -Directory |
+    Remove-Item -Recurse -Force -WhatIf
 ```
+
+The batch files contain object DNs and SIDs; treat them as sensitive and do not leave them on a
+shared host.
 
 ## Monitoring and Diagnostics
 
-### Memory Monitoring Commands
+### Memory monitoring during a run
+
 ```powershell
-# Check current PowerShell process memory
-$process = Get-Process -Id $PID
-$memoryMB = [Math]::Round($process.WorkingSet64 / 1MB, 2)
-Write-Host "Current Memory Usage: $memoryMB MB"
-
-# Monitor during script execution
-Get-Process powershell | Select-Object ProcessName, Id, @{Name="MemoryMB";Expression={[Math]::Round($_.WorkingSet64/1MB,2)}}
+# From a second console while the script runs
+Get-Process -Name powershell, pwsh -ErrorAction SilentlyContinue |
+    Select-Object Id, ProcessName, @{ Name = 'WorkingSetMB'; Expression = { [Math]::Round($_.WorkingSet64 / 1MB, 1) } }
 ```
 
-### Streaming Diagnostics
+### Log messages to search for
+
+Regular log entries are written as `[timestamp] [Level] [Component] [CorrelationId] Message`.
+Memory events use the `MemoryManagement` component. Debug-level lines reach the file only with
+`-LogLevel Debug`.
+
 ```powershell
-# Test streaming functionality
-.\Tools\Test-StreamingMemory.ps1
-
-# Check temp directory usage
-$tempDir = $env:TEMP
-Get-ChildItem $tempDir -Filter "*SIDStreaming*" -Directory | ForEach-Object {
-    $size = (Get-ChildItem $_.FullName -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
-    Write-Host "$($_.Name): $([Math]::Round($size, 2)) MB"
-}
+$log = Get-ChildItem .\Logs\Find-UnknownSID_*.log | Sort-Object LastWriteTime | Select-Object -Last 1
+Select-String -Path $log.FullName -Pattern 'MemoryManagement|threshold exceeded|Peak memory usage|Memory usage at'
 ```
 
-## Performance Optimization
+Messages written at Information level and above:
 
-### Memory Thresholds
+- `Initializing memory manager with threshold N MB`
+- `Memory manager initialized successfully`
+- `Starting memory cleanup operation...` and `Memory after cleanup: N MB (Freed: M MB)`
+- `Memory usage threshold exceeded: ...` (warning, from the class)
+- `Memory manager disposed successfully`
+- `Peak memory usage: N MB` (processing summary)
+
+### Streaming diagnostics
+
 ```powershell
-# Adjust memory threshold based on environment size
-$memoryThreshold = switch ($objectCount) {
-    {$_ -lt 1000} { 1024 }      # 1GB for small environments
-    {$_ -lt 10000} { 2048 }     # 2GB for medium environments
-    {$_ -lt 50000} { 4096 }     # 4GB for large environments
-    default { 8192 }            # 8GB for very large environments
-}
+# Keep the batch files and inspect them afterwards
+.\Find-UnknownSID.ps1 -SearchBase "OU=Users,DC=contoso,DC=com" -PreserveTempFiles -CorrelationId 'mem-check-01'
 
-.\Find-UnknownSID.ps1 -MaxMemoryUsageMB $memoryThreshold
+$dir = Join-Path ([System.IO.Path]::GetTempPath()) 'Find-UnknownSID-mem-check-01'
+Get-ChildItem $dir
+(Get-Content (Join-Path $dir 'batch_1.json') -Raw | ConvertFrom-Json).Count   # 50 for a full batch
+Get-Content (Get-ChildItem $dir -Filter 'summary_*.json').FullName -Raw | ConvertFrom-Json
 ```
 
-### Batch Size Tuning
+## Configuration
+
 ```powershell
-# Smaller batches for memory-constrained environments
-# Larger batches for high-performance environments
-# (Controlled internally by StreamingResultsManager)
+# Threshold is a parameter
+.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -MaxMemoryUsageMB 2048
+
+# Check interval is a configuration key (1-100)
+@{ MemoryCheckInterval = 25 } | ConvertTo-Json | Set-Content .\config.json
+.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -ConfigPath .\config.json
+
+# Keep streaming files for analysis
+.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -PreserveTempFiles
 ```
 
-## Enterprise Recommendations
+Suggested thresholds by object count; adjust to the host's free memory:
 
-### Production Environments
-- **Memory Monitoring**: Implement continuous memory monitoring during execution
-- **Baseline Testing**: Establish memory usage baselines for your environment
-- **Streaming Validation**: Run streaming memory tests before production deployment
-- **Resource Planning**: Allocate sufficient disk space for temporary streaming files
-
-### Large-Scale Deployments (>10,000 objects)
-- **Memory Threshold**: Use 2048MB+ for optimal performance
-- **Batch Processing**: Leverage streaming architecture for consistent memory usage
-- **Monitoring Integration**: Integrate with enterprise monitoring solutions
-- **Staged Execution**: Consider processing in smaller search base chunks for very large environments
-
-### Troubleshooting Workflow
-1. **Check Current Memory**: Monitor baseline before script execution
-2. **Enable Verbose Logging**: Use `-Verbose` parameter for detailed memory tracking
-3. **Run Streaming Test**: Execute `Test-StreamingMemory.ps1` to validate functionality
-4. **Monitor Temp Files**: Check temporary file creation and cleanup
-5. **Adjust Thresholds**: Increase memory threshold if needed for environment size
-6. **Review Logs**: Analyze detailed logs for memory management events
-
-## Emergency Procedures
-
-### Script Hanging or High Memory
-```powershell
-# Emergency memory cleanup
-$processes = Get-Process powershell | Where-Object { $_.WorkingSet64 -gt 500MB }
-$processes | Select-Object Id, ProcessName, @{Name="MemoryMB";Expression={[Math]::Round($_.WorkingSet64/1MB,2)}}
-
-# If necessary, terminate runaway processes
-# $processes | Stop-Process -Force
-```
-
-### Temporary File Cleanup
-```powershell
-# Manual cleanup of streaming temp files
-$tempPattern = Join-Path $env:TEMP "*SIDStreaming*"
-Get-ChildItem $tempPattern -Directory | Remove-Item -Recurse -Force -WhatIf
-
-# Remove WhatIf to execute cleanup
-```
-
-## Validation and Testing
-
-### Memory Test Results (Expected)
-```
-Test: 2000 results, batch size 100
-Initial: ~90 MB
-Final: ~78 MB
-Memory Increase: ~-12 MB (Memory actually decreased!)
-Performance: EXCELLENT
-```
-
-### Key Success Metrics
-- ✅ Memory usage stable or decreasing during processing
-- ✅ Temporary files created and cleaned up properly
-- ✅ CSV export successful with all results
-- ✅ No memory-related errors or warnings
-- ✅ Streaming summary matches expected result counts
-
-This streaming architecture ensures reliable, scalable memory management for enterprise Active Directory environments of any size.
+| Objects in scope | `-MaxMemoryUsageMB` |
+|---|---|
+| under 1,000 | 1024 |
+| 1,000 to 10,000 | 2048 |
+| 10,000 to 50,000 | 4096 |
+| more than 50,000 | 8192, or split the search base |
 
 ## Implementation Details
 
-### StreamingResultsManager Class Location
-```
-.\Classes\StreamingResultsManager.ps1
-```
+### StreamingResultsManager key members
 
-### Key Methods
-- `AddResult($result)`: Adds result to current batch, flushes when full
-- `FlushBatch()`: Writes current batch to disk, clears memory
-- `GetAllResults()`: Retrieves all results from disk (for final export)
-- `ExportToCsv($path)`: Efficient direct CSV export from streaming files
-- `Dispose()`: Cleanup and final batch flush
-- `Cleanup()`: Remove temporary files (optional)
+- `AddResult($result)`: adds to the current batch and flushes when 50 are held
+- `FlushBatch()`: writes `batch_N.json`, clears the list, collects
+- `GetSummary()`: returns totals and batch file list, updating the summary file
+- `GetAllResults()`: flushes, then reads every batch file back
+- `ExportToCsv($path)`: `GetAllResults()` piped to `Export-Csv`
+- `Dispose()`: flush, summary update, `Cleanup()` unless `PreserveFiles`, final collection
+- `Cleanup()`: removes the temp directory
 
-### Integration Points
-- **Main Processing**: Results added via `$script:StreamingResults.AddResult()`
-- **Export Logic**: CSV export via `$streamingManager.ExportToCsv()`
-- **Cleanup**: Automatic disposal in finally block
-- **Monitoring**: Memory usage tracking integrated with streaming operations
+### Integration points
 
-### Configuration Options
-```powershell
-# Control temporary file preservation
-.\Find-UnknownSID.ps1 -PreserveTempFiles:$true
-
-# Adjust memory monitoring (existing parameter)
-.\Find-UnknownSID.ps1 -MaxMemoryUsageMB 2048
-```
-
-This comprehensive approach ensures enterprise-grade memory management with predictable, scalable performance characteristics.
-```powershell
-# Force garbage collection at strategic points
-if ($ProcessedItems % 1000 -eq 0) {
-    [System.GC]::Collect()
-    [System.GC]::WaitForPendingFinalizers()
-    [System.GC]::Collect()
-}
-```
-
-### 4. Large-Scale Discovery Memory Growth
-**Symptoms:**
-- Memory usage steadily increases during processing (e.g., 3659MB at 11,000 objects)
-- Memory exceeds configured threshold (e.g., 1024MB limit)
-- Processing continues but with warnings about memory usage
-
-**Root Cause Analysis:**
-This issue typically occurs due to:
-- Security descriptor objects accumulating in memory
-- Insufficient garbage collection frequency during large operations
-- Large result sets being held in memory simultaneously
-
-**Diagnostic Steps:**
-```powershell
-# Monitor memory during large operations
-Write-Host "Starting memory monitoring for large discovery..."
-$startMemory = (Get-Process -Id $PID).WorkingSet64 / 1MB
-Write-Host "Initial memory: $startMemory MB"
-
-# Check memory every 1000 objects
-$checkInterval = 1000
-if ($processedCount % $checkInterval -eq 0) {
-    $currentMemory = (Get-Process -Id $PID).WorkingSet64 / 1MB
-    $memoryGrowth = $currentMemory - $startMemory
-    Write-Host "Objects: $processedCount, Memory: $currentMemory MB, Growth: $memoryGrowth MB"
-}
-```
-
-**Resolution (Implemented in Latest Version):**
-1. **Reduced Memory Check Interval**: Now checks every 25 operations instead of 50
-2. **Enhanced Garbage Collection**:
-   ```powershell
-   # Additional cleanup every 100 operations
-   if ($processedCount % 100 -eq 0) {
-       [System.GC]::Collect()
-   }
-
-   # Aggressive cleanup with memory pressure
-   [System.GC]::AddMemoryPressure(50MB)
-   [System.GC]::RemoveMemoryPressure(50MB)
-   ```
-3. **Object Disposal**: Automatic cleanup of security descriptors
-4. **Non-Blocking Processing**: Warnings instead of errors when memory remains high
-
-**Workaround for Extreme Cases:**
-```powershell
-# Increase memory limit for very large environments
-.\Find-UnknownSID.ps1 -SearchBase "DC=domain,DC=com" -MaxMemoryUsageMB 4096
-
-# Process in smaller batches
-$searchBases = @("OU=Users,DC=domain,DC=com", "OU=Computers,DC=domain,DC=com")
-foreach ($base in $searchBases) {
-    .\Find-UnknownSID.ps1 -SearchBase $base -MaxMemoryUsageMB 2048
-}
-```
-
-## Memory Optimization Strategies
-
-### 1. Efficient Data Structures
-```powershell
-# Use appropriate collection types
-$hashTable = @{}                    # Fast lookups
-$arrayList = [System.Collections.ArrayList]::new()  # Dynamic sizing
-$stringBuilder = [System.Text.StringBuilder]::new() # String concatenation
-```
-
-### 2. Memory-Efficient Processing
-```powershell
-# Process data in chunks rather than loading everything
-$chunkSize = 1000
-$allItems = Get-LargeDataSet
-for ($i = 0; $i -lt $allItems.Count; $i += $chunkSize) {
-    $chunk = $allItems[$i..($i + $chunkSize - 1)]
-    Process-Chunk -Data $chunk
-
-    # Clear chunk from memory
-    $chunk = $null
-    [System.GC]::Collect()
-}
-```
-
-### 3. Resource Management
-```powershell
-# Implement proper disposal patterns
-try {
-    $resource = New-Object System.IO.FileStream($path, [System.IO.FileMode]::Open)
-    # Use resource
-} finally {
-    if ($resource -and $resource -is [System.IDisposable]) {
-        $resource.Dispose()
-    }
-}
-```
-
-## Performance Monitoring
-
-### Memory Baseline Establishment
-```powershell
-# Establish memory baseline before script execution
-$baseline = @{
-    Timestamp = Get-Date
-    WorkingSet = (Get-Process -Id $PID).WorkingSet64
-    PrivateMemory = (Get-Process -Id $PID).PrivateMemorySize64
-    VirtualMemory = (Get-Process -Id $PID).VirtualMemorySize64
-    AvailableMemory = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory * 1KB
-}
-```
-
-### Continuous Monitoring
-```powershell
-# Set up performance counters
-$performanceCounters = @(
-    '\Process(powershell*)\Working Set'
-    '\Process(powershell*)\Private Bytes'
-    '\Process(powershell*)\Virtual Bytes'
-    '\Memory\Available Bytes'
-)
-```
-
-## Enterprise Configuration
-
-### Memory Limits
-```powershell
-# Configure memory limits for enterprise deployment
-$memoryLimitMB = 2048  # 2GB limit
-$currentMemoryMB = [Math]::Round((Get-Process -Id $PID).WorkingSet64 / 1MB, 2)
-
-if ($currentMemoryMB -gt $memoryLimitMB) {
-    Write-Warning "Memory usage ($currentMemoryMB MB) exceeds limit ($memoryLimitMB MB)"
-    # Implement memory reduction strategy
-}
-```
-
-### Monitoring Integration
-```powershell
-# Integration with enterprise monitoring systems
-$memoryMetrics = @{
-    ScriptName = 'Find-UnknownSID'
-    Timestamp = Get-Date
-    WorkingSetMB = [Math]::Round((Get-Process -Id $PID).WorkingSet64 / 1MB, 2)
-    PrivateMemoryMB = [Math]::Round((Get-Process -Id $PID).PrivateMemorySize64 / 1MB, 2)
-    VirtualMemoryMB = [Math]::Round((Get-Process -Id $PID).VirtualMemorySize64 / 1MB, 2)
-    CorrelationId = $CorrelationId
-}
-
-# Send to monitoring system
-Send-Metrics -Data $memoryMetrics -Endpoint $MonitoringEndpoint
-```
-
-## Troubleshooting Workflows
-
-### Memory Leak Detection
-1. **Baseline Measurement**
-   - Record initial memory usage
-   - Document expected memory growth patterns
-   - Set monitoring thresholds
-
-2. **Periodic Monitoring**
-   - Sample memory usage every 5 minutes
-   - Compare against baseline and thresholds
-   - Log anomalies for analysis
-
-3. **Leak Analysis**
-   - Identify memory growth patterns
-   - Correlate with script operations
-   - Implement targeted fixes
-
-### Performance Degradation
-1. **Symptom Identification**
-   - Measure operation duration
-   - Monitor memory allocation patterns
-   - Check for excessive garbage collection
-
-2. **Root Cause Analysis**
-   - Profile memory usage during operations
-   - Identify memory-intensive functions
-   - Analyze data structure efficiency
-
-3. **Optimization Implementation**
-   - Implement memory-efficient algorithms
-   - Add strategic garbage collection
-   - Optimize data structures
-
-## Best Practices
-
-### Memory Management
-- **Proactive Monitoring**: Implement continuous memory monitoring
-- **Resource Cleanup**: Always dispose of resources properly
-- **Efficient Data Structures**: Use appropriate collection types
-- **Batch Processing**: Process large datasets in chunks
-- **Strategic GC**: Force garbage collection at appropriate intervals
-
-### Performance Optimization
-- **Memory Profiling**: Regular profiling during development
-- **Threshold Management**: Set and monitor memory thresholds
-- **Efficient Algorithms**: Use memory-efficient processing patterns
-- **Resource Pooling**: Reuse objects when possible
-- **Lazy Loading**: Load data only when needed
-
-### Enterprise Integration
-- **Centralized Monitoring**: Integrate with enterprise monitoring systems
-- **Alerting**: Set up proactive alerts for memory issues
-- **Documentation**: Maintain detailed memory usage documentation
-- **Capacity Planning**: Plan memory requirements for scale
-- **Compliance**: Ensure memory usage meets enterprise standards
-
-## Diagnostic Tools
-
-### PowerShell Commands
-```powershell
-# Memory diagnostics
-Get-Process -Id $PID | Select-Object WorkingSet64, PrivateMemorySize64, VirtualMemorySize64
-Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize
-[System.GC]::GetTotalMemory($false)
-```
-
-### Performance Counters
-```powershell
-# Set up performance monitoring
-$counters = @(
-    '\Process(powershell*)\Working Set'
-    '\Process(powershell*)\Private Bytes'
-    '\Memory\Available Bytes'
-    '\Memory\Pages/sec'
-)
-
-foreach ($counter in $counters) {
-    Get-Counter -Counter $counter -SampleInterval 1 -MaxSamples 10
-}
-```
+- Results added via `$script:StreamingResults.AddResult()` in `Invoke-MainProcessingLogic`
+- CSV export via `$ProcessingResults.StreamingManager.ExportToCsv($OutputPath)` in
+  `Private\Reporting\Write-ProcessingSummary.ps1`
+- Disposal via `Invoke-ResourceCleanup -AdditionalResources @($script:StreamingResults)` in the
+  main script's `finally` block
 
 ## Related Documentation
-- [Performance Tuning Guide](./Performance-Tuning.md)
+
+- [Memory Management Issues](./Memory-Management-Issues.md)
+- [Memory WhatIf Behavior](./Memory-WhatIf-Behavior.md)
+- [Performance Tuning](./Performance-Tuning.md)
 - [Security Validation Guide](../Security/Security-Validation-Guide.md)
 - [Enterprise Integration Guide](../Integration/Enterprise-Integration-Guide.md)
 - [Find-UnknownSID Issues](../Common/Find-UnknownSID-Issues.md)
-
-## Support and Escalation
-For persistent memory issues that cannot be resolved using this guide:
-1. Collect memory diagnostic data
-2. Document reproduction steps
-3. Gather system configuration details
-4. Contact enterprise support with correlation ID
-5. Escalate to PowerShell development team if needed
-
----
-*Last Updated: $(Get-Date)*
-*Version: 1.0.0*
-*Author: Enterprise PowerShell Team*

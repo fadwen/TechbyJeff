@@ -26,6 +26,15 @@ function Write-StructuredLog {
     }
 }
 
+# Pester 3.4 can only mock a command that exists. Stub Get-ADObject when the RSAT
+# ActiveDirectory module is not installed so the Mock calls below have something to replace.
+if (-not (Get-Command Get-ADObject -ErrorAction SilentlyContinue)) {
+    function global:Get-ADObject {
+        param($Identity, $SearchBase, $Filter, $Properties, $SearchScope, $ResultPageSize, $Server)
+        throw 'Get-ADObject stub: the ActiveDirectory module is not installed and this call was not mocked'
+    }
+}
+
 # Now import the function under test
 . "$PSScriptRoot\..\..\..\..\Private\Security\Get-SecurityDescriptor.ps1"
 

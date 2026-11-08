@@ -1,7 +1,7 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 
 # Import the class
-$ModuleRoot = "C:\Users\Administrator\TechbyJeff\Powershell\Active Directory\Find-UnknownSID"
+$ModuleRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 . "$ModuleRoot\Classes\StreamingResultsManager.ps1"
 
 Describe "StreamingResultsManager Tests" {

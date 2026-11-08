@@ -1,680 +1,352 @@
-﻿# Find-UnknownSID Enterprise PowerShell Solution
+﻿# Find-UnknownSID
 
-[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207.x-blue)](https://github.com/PowerShell/PowerShell)
-[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
-[![Active Directory](https://img.shields.io/badge/dependency-ActiveDirectory-orange)](https://docs.microsoft.com/en-us/powershell/module/activedirectory/)
-[![Test Coverage](https://img.shields.io/badge/tests-2,772%20tests%20(100%25%20pass)-brightgreen)](./Documentation/Quick-Test-Reference.md)
-[![Enterprise Testing](https://img.shields.io/badge/testing-All%20components%20complete-success)](./Documentation/Quick-Test-Reference.md)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207.x%20(Windows)-blue)](https://github.com/PowerShell/PowerShell)
+[![Active Directory](https://img.shields.io/badge/dependency-RSAT%20ActiveDirectory-orange)](https://learn.microsoft.com/powershell/module/activedirectory/)
+[![Tests](https://img.shields.io/badge/tests-Pester%203.4-blue)](./Documentation/Quick-Test-Reference.md)
 
-## 📖 Overview
+## Overview
 
-**Business Value:** Enterprise-grade Active Directory security management solution that identifies and removes orphaned Security Identifiers (SIDs) from ACLs, reducing security risks and improving compliance posture while maintaining comprehensive audit trails for regulatory requirements.
+**Business value:** Orphaned Security Identifiers (SIDs) are access control entries that still grant
+rights to accounts that no longer exist. They accumulate on every Active Directory object as users,
+groups and computers are deleted, and they clutter security reviews. Find-UnknownSID finds them,
+removes them with a backup of every ACL it touches, and can put an ACL back from that backup.
 
-**Technical Summary:** Modular PowerShell solution with parallel processing, memory management, secure class loading, comprehensive backup/restore capabilities, and enterprise integration features for large-scale Active Directory security maintenance.
+**Technical summary:** A single PowerShell script, `Find-UnknownSID.ps1`, that dot-sources its
+components from `Private/` and `Classes/`. It walks the objects under one or more search bases,
+reads each security descriptor, resolves every identity reference, and records the ones that do not
+resolve. Results stream to batch files on disk so memory stays flat on large OUs.
 
-### Key Features
-- 🚀 **Parallel Processing**: Configurable multi-threading (1-50 threads) for enterprise-scale operations
-- 🛡️ **Security Validation**: Comprehensive risk assessment with protected SID checking and safe operations
-- 📊 **Memory Management**: Intelligent memory monitoring and optimization (100-16384 MB configurable)
-- 🔄 **Backup & Restore**: Timestamped backup organization with full rollback capabilities
-- 📋 **Audit Compliance**: Detailed correlation tracking for SOX, HIPAA, and GDPR requirements
-- ⚡ **Performance Optimized**: Batch processing and streaming results for large environments
-- 🔧 **Enterprise Integration**: JSON configuration, SIEM integration, and CI/CD compatibility
-- 🛠️ **Modular Architecture**: Object-oriented design with specialized PowerShell classes
-- 🧪 **Enterprise Testing**: Complete test suite with 2,772 tests across all core components (100% pass rate)
-- 📈 **Quality Assurance**: All 6 SID components at enterprise standards with comprehensive coverage
+### Key features
 
-### Target Audience
-- **Active Directory Administrators**: Security maintenance and compliance operations
-- **Security Teams**: Risk assessment and vulnerability remediation
-- **Compliance Officers**: Audit trail maintenance and regulatory reporting
+- **Three modes.** Discovery (default, read-only), `-Remove` (backup then strip the orphaned ACEs),
+  and `-Restore` (apply a backed-up ACL to an object).
+- **Backup before change.** Every `-Remove` run writes one Clixml file per modified object into a
+  timestamped folder. `-Restore` validates the backup's SHA256 hash before applying it.
+- **Protected SID checks.** Well-known SIDs (BUILTIN groups, SYSTEM, LOCAL SERVICE, NETWORK SERVICE,
+  Domain Admins, Enterprise Admins, Schema Admins) are never treated as orphaned.
+- **Confirmation gate.** `-Remove` and `-Restore` prompt once in an interactive console. In an
+  unattended session they stop unless `-Force` is given. `-WhatIf` previews either mode.
+- **Correlation tracking.** One correlation ID per run, carried through every log line, backup file
+  and result row. Pass your own with `-CorrelationId` to tie a run to a ticket or pipeline job.
+- **Audit log that survives log-level filtering.** Security events are written to the log file
+  regardless of `-LogLevel`.
+- **Memory management.** Results are flushed to disk in batches (`BatchSize`, default 50); memory is
+  checked against `-MaxMemoryUsageMB` and garbage collection runs when the threshold is exceeded.
 
-### 🏆 Enterprise Testing Achievement
+### Target audience
 
-**Complete Testing Framework**: All major testing categories have achieved enterprise-grade standards:
+- **Active Directory administrators** cleaning up delegated permissions on OUs.
+- **Security teams** auditing which objects carry rights for deleted principals.
+- **Compliance teams** who need a CSV and a log with a correlation ID per run.
 
-| Category | Tests | Pass Rate | Status |
-|----------|-------|-----------|---------|
-| **Core Tests** | 154/154 | 100% | ✅ Perfect |
-| **Legacy Core Tests** | 178/178 | 100% | ✅ Perfect |
-| **Security Tests** | 95/95 | 100% | ✅ Perfect |
-| **ACL Tests** | 51/51 | 100% | ✅ Perfect |
-| **ActiveDirectory Tests** | 132/132 | 100% | ✅ Perfect |
-| **Backup Tests** | 474/474 | 100% | ✅ Perfect |
-| **ClassManagement Tests** | 166/166 | 100% | ✅ Perfect |
-| **Utilities Tests** | 141/141 | 100% | ✅ Perfect |
-| **Operations Tests** | 20/20 | 100% | ✅ Perfect |
-| **Reporting Tests** | 92/92 | 100% | ✅ Perfect |
-| **Class Tests** | 208/208 | 100% | ✅ Perfect |
-| **SID Tests** | 171/171 | 100% | ✅ Perfect |
-| **FileSystem Tests** | 121/121 | 100% | ✅ Perfect |
-| **Logging Tests** | 106/106 | 100% | ✅ Perfect |
-| **Public Tests** | 20/20 | 100% | ✅ Perfect |
-| **Overall Total** | **2,772 Tests** | **100%** | ✅ **Enterprise Excellence** |
+## Project status
 
-### 📊 Test Coverage by Category
-| Category | Test Count | Coverage | Status |
-|----------|------------|----------|---------|
-| **Unit Tests** | 2,386 | 100% | ✅ Complete |
-| **Integration Tests** | 216 | 100% | ✅ Complete |
-| **Performance Tests** | 170 | 100% | ✅ Complete |
-| **Total Tests** | **2,772** | **100%** | ✅ **Comprehensive** |
+The script and its components are complete for the three modes above. The Pester suite under
+`Tests/` targets Pester 3.4 on Windows PowerShell 5.1; see
+[Quick Test Reference](./Documentation/Quick-Test-Reference.md) for how to run it and the
+current pass counts.
 
-**Testing Benefits**:
-- 🎯 **Reliability**: Comprehensive validation of all core functionality
-- 🚀 **CI/CD Ready**: No interactive prompts, automated testing pipeline compatible
-- 📊 **Quality Metrics**: Complete pass rate with comprehensive coverage
-- 🛡️ **Security Validation**: All security-critical components thoroughly tested
-- ⚡ **Performance Verified**: Testing execution optimized for rapid feedback
+Known gaps:
 
-See [Quick Test Reference](./Documentation/Quick-Test-Reference.md) for detailed test execution commands.
+- Objects are processed sequentially. There is no parallel processing and no thread count to tune.
+- The script writes nothing to the pipeline. Automation reads the CSV from `-OutputPath` or the
+  summary block in the log.
+- Class file hashes are recorded in `Private/ClassManagement/Get-ApprovedClassList.ps1` but are not
+  verified at load time; only the class name is checked against the approved list.
+- The script runs as the caller. There is no `-Credential` parameter.
 
-## 🎯 Project Status
-
-**Current State**: ✅ **Production Ready - Enterprise Excellence**
-
-- **Core Functionality**: 100% Operational with comprehensive enterprise feature set
-- **Testing Coverage**: 2,772 tests across all components with 100% pass rate  
-- **Security Standards**: Full compliance logging and enterprise-grade security validation
-- **Documentation**: Professionally organized with 6 current guides + comprehensive archive
-- **Quality Assurance**: All enterprise standards exceeded with continuous validation
-- **Development**: Active maintenance with structured enhancement pipeline and modular architecture
-
-**Recent Achievements** (July 2025):
-- ✅ Completed comprehensive enterprise testing framework (all categories)
-- ✅ Achieved perfect test coverage (2,772 tests, 100% pass rate)
-- ✅ Implemented advanced modular architecture with specialized components
-- ✅ Established enterprise-grade security and performance validation
-- ✅ Validated CI/CD readiness with automated testing pipeline
-
-## 🔧 TODO
-
-### Integration & System Testing (High Priority)
-- **System Integration Tests**: Implement end-to-end workflow validation for complete AD environment testing
-- **Multi-Domain Testing**: Add support for cross-domain and forest-level operations
-- **Performance Benchmarking**: Establish performance baselines for enterprise-scale environments (50K+ objects)
-
-### Feature Enhancement
-- **Advanced Filtering**: Enhance inherited vs explicit ACL filtering for improved discovery precision
-- **Reporting Enhancements**: Add PowerBI/Tableau integration for executive dashboards
-- **REST API Interface**: Develop REST API wrapper for enterprise system integration
-
-### Storage & Performance Optimization  
-- **Backup Compression**: Implement zip compression for backup folders to reduce storage footprint and improve backup transfer efficiency
-- **Memory Optimization**: Further optimize memory cleanup patterns for very large-scale operations
-- **Parallel Processing**: Enhance parallel processing capabilities for maximum throughput
-
-### Logging & Compliance Enhancement
-- **Advanced Correlation**: Implement distributed correlation tracking across multiple domain controllers
-- **Enhanced SIEM Integration**: Add native Splunk/QRadar/Sentinel integration modules
-- **Compliance Reporting**: Automated compliance report generation for SOX/HIPAA/GDPR frameworks
-
-## 🚀 Quick Start
-
-**TL;DR for experienced administrators:**
+## Quick start
 
 ```powershell
-# Discovery Mode - Identify orphaned SIDs (no changes made)
-.\Find-UnknownSID.ps1 -SearchBase "OU=Users,DC=contoso,DC=com" -OutputPath ".\Reports\audit.csv" -Verbose
+# Discovery: list orphaned SIDs under an OU, no changes made
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Users,DC=contoso,DC=com' -OutputPath '.\Reports\audit.csv' -Verbose
 
-# Removal Mode - Remove orphaned SIDs with automatic backup
-.\Find-UnknownSID.ps1 -SearchBase "OU=Computers,DC=contoso,DC=com" -Remove -Force -OutputPath ".\Reports\cleanup.csv"
+# Preview a removal
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Computers,DC=contoso,DC=com' -Remove -WhatIf
 
-# Restore Mode - Rollback from previous backup
-.\Find-UnknownSID.ps1 -Restore -BackupPath ".\Backup\20250703_104232"
+# Remove, unattended, with the backup in the default .\Backup\<timestamp>\ folder
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Computers,DC=contoso,DC=com' -Remove -Force -OutputPath '.\Reports\cleanup.csv'
+
+# Restore one object from a backup folder
+.\Find-UnknownSID.ps1 -Restore -SearchBase 'CN=SRV01,OU=Computers,DC=contoso,DC=com' -BackupPath '.\Backup\20250703_104232' -Force
 ```
 
-**Expected Output:**
-```
-🔍 Analyzing Active Directory objects...
-✅ Discovery completed: 247 objects scanned, 15 orphaned SIDs found
-📊 Processing time: 2.3 minutes | Memory usage: 89MB
-📄 Results: .\Reports\audit_20250703_104232.csv
-🔄 Backup created: .\Backup\20250703_104232\
-```
+The console shows progress and a summary block. The same lines, with timestamps and the correlation
+ID, go to `.\Logs\Find-UnknownSID_<yyyyMMdd_HHmmss>.log`.
 
-**Next Steps:** See [Configuration](#️-configuration) for enterprise setup and [Advanced Examples](#-usage) for automation scenarios.
+## Prerequisites
 
-## 📋 Prerequisites
+| Component | Requirement | Notes |
+| --- | --- | --- |
+| PowerShell | Windows PowerShell 5.1, or PowerShell 7.x on Windows | The ActiveDirectory module is Windows-only |
+| ActiveDirectory module | RSAT: Active Directory PowerShell | Not on the PowerShell Gallery; install RSAT (below) |
+| Domain | Domain-joined machine with line of sight to a domain controller | |
+| Disk | Space for backups and logs | One Clixml file per modified object |
 
-### System Requirements
-| Component | Minimum | Recommended | Notes |
-|-----------|---------|-------------|-------|
-| **PowerShell** | 5.1 | 7.4+ | Cross-platform support in 7.x |
-| **Operating System** | Windows Server 2012 R2 | Windows Server 2019+ | Domain-joined required |
-| **Memory** | 4GB RAM | 16GB+ RAM | Depends on AD size and threading |
-| **Disk Space** | 500MB | 2GB+ | For backups, logs, and reports |
-| **Network** | Domain connectivity | High-speed LAN | AD controller access required |
+Install the module from RSAT:
 
-### Required Modules
 ```powershell
-# Install required PowerShell modules
-Install-Module ActiveDirectory -Scope CurrentUser
-```
+# Windows 10 / 11
+Add-WindowsCapability -Online -Name 'Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0'
 
-| Module | Version | Purpose | Installation |
-|--------|---------|---------|--------------|
-| **ActiveDirectory** | Any | AD cmdlets and connectivity | `Install-Module ActiveDirectory` |
-
-### Permissions & Access
-<details>
-<summary>🔐 Detailed Permission Requirements</summary>
-
-#### Active Directory Permissions
-1. **Discovery Mode**: Domain Users (read-only operations)
-2. **Removal Mode**: Account Operators or Domain Admins (modify ACLs)
-3. **Restore Mode**: Same as removal mode (restore ACLs)
-
-#### Required AD Rights
-| Operation | Required Permission | Scope |
-|-----------|-------------------|-------|
-| **Discovery** | Read permissions | Target OUs |
-| **ACL Modification** | Write permissions | Target objects |
-| **Backup Creation** | Read permissions | File system |
-| **Log Writing** | Write permissions | Log directory |
-
-</details>
-
-## 🔧 Installation
-
-### Method 1: Direct Download (Recommended)
-```powershell
-# Download and extract to desired location
-$destinationPath = "C:\Scripts\Find-UnknownSID"
-New-Item -Path $destinationPath -ItemType Directory -Force
-
-# Extract files maintaining directory structure
-# Copy entire folder structure including Classes, Private, Documentation, etc.
-```
-
-### Method 2: Git Clone
-```powershell
-# Clone repository and navigate to script directory
-git clone https://github.com/TechbyJeff/TechbyJeff.git
-cd "TechbyJeff\Powershell\Active Directory\Find-UnknownSID"
-
-# Verify file structure
-Get-ChildItem -Recurse | Select-Object Name, Mode
-```
-
-## ⚙️ Configuration
-
-### Basic Configuration
-```powershell
-# Default configuration works for most environments
-# Advanced configuration available via JSON files
-
-# Create custom configuration (optional)
-$config = @{
-    "performance" = @{
-        "maxThreads" = 10
-        "memoryLimitMB" = 2048
-        "batchSize" = 100
-    }
-    "security" = @{
-        "enableDetailedValidation" = $true
-        "requireConfirmation" = $true
-    }
-    "logging" = @{
-        "logLevel" = "Information"
-        "enableFileLogging" = $true
-    }
-}
-$config | ConvertTo-Json | Out-File ".\custom-config.json"
-```
-
-### Environment Variables
-```powershell
-# Optional environment configuration
-$env:FINDUNKNOWNSIDS_CONFIG = "C:\Config\production-config.json"
-$env:FINDUNKNOWNSIDS_LOG_LEVEL = "Information"
-$env:FINDUNKNOWNSIDS_MAX_MEMORY = "4096"
-```
-
-## 💡 Usage
-
-### Basic Operations
-
-#### Example 1: Discovery Mode (Safe Analysis)
-```powershell
-# Scan entire domain for orphaned SIDs without making changes
-.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -OutputPath ".\Reports\domain-audit.csv" -Verbose
-```
-
-**Expected Output:**
-```
-🔍 Scanning Active Directory domain: DC=contoso,DC=com
-📊 Objects processed: 1,247 | Orphaned SIDs found: 23
-⏱️  Processing time: 4.2 minutes | Memory usage: 156MB
-📄 Report saved: .\Reports\domain-audit_20250703_104232.csv
-```
-
-**Business Use Case:** Monthly security audits and compliance reporting
-
-#### Example 2: Targeted OU Cleanup with Removal
-```powershell
-# Remove orphaned SIDs from specific OU with automatic backup
-.\Find-UnknownSID.ps1 -SearchBase "OU=Decommissioned,DC=contoso,DC=com" -Remove -Force -OutputPath ".\Reports\cleanup.csv"
-```
-
-**Expected Output:**
-```
-🛡️  Backup created: .\Backup\20250703_104232\
-🔧 Removing orphaned SIDs from 45 objects...
-✅ Successfully removed 67 orphaned SIDs
-📄 Detailed report: .\Reports\cleanup_20250703_104232.csv
-```
-
-**Business Use Case:** Quarterly cleanup of decommissioned user/computer OUs
-
-#### Example 3: Pipeline Integration with Filtering
-```powershell
-# Process multiple OUs with advanced filtering
-$targetOUs = "OU=Users,DC=contoso,DC=com", "OU=Computers,DC=contoso,DC=com"
-$targetOUs | .\Find-UnknownSID.ps1 -IncludeInherited -OutputPath ".\Reports\comprehensive-audit.csv"
-```
-
-### Advanced Scenarios
-
-#### Enterprise Automation with Custom Configuration
-```powershell
-# Automated weekly security maintenance
-$config = @{
-    searchBases = @("OU=Users,DC=contoso,DC=com", "OU=Computers,DC=contoso,DC=com")
-    maxThreads = 20
-    memoryLimitMB = 8192
-    enableEmailReports = $true
-    recipientList = @("security-team@contoso.com")
-}
-
-# Execute with custom performance settings
-.\Find-UnknownSID.ps1 @config -Remove -Force -ConfigPath ".\enterprise-config.json"
-```
-
-**ROI Impact:** Eliminates manual security reviews, ensures consistent AD hygiene, reduces compliance audit time by 75%
-
-#### Disaster Recovery and Rollback Operations
-```powershell
-# Restore ACLs from specific backup (rollback scenario)
-.\Find-UnknownSID.ps1 -Restore -BackupPath ".\Backup\20250703_104232" -Verbose
-
-# Validate restore operation
-.\Find-UnknownSID.ps1 -SearchBase "OU=Users,DC=contoso,DC=com" -OutputPath ".\Reports\post-restore-validation.csv"
-```
-
-#### CI/CD Pipeline Integration
-```yaml
-# Azure DevOps Pipeline Example for security validation
-- task: PowerShell@2
-  displayName: 'AD Security Validation'
-  inputs:
-    targetType: 'inline'
-    script: |
-      $result = .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -OutputPath "security-scan.csv" -PassThru
-      if ($result.OrphanedSIDCount -gt 50) {
-        Write-Error "Critical: Too many orphaned SIDs detected ($($result.OrphanedSIDCount))"
-        exit 1
-      }
-```
-
-#### Scheduled Enterprise Monitoring
-```powershell
-# Enterprise scheduled task with comprehensive error handling and reporting
-try {
-    $correlationId = [System.Guid]::NewGuid()
-    Write-EventLog -LogName Application -Source "AD-Security-Monitor" -EventId 1000 -EntryType Information -Message "Starting AD security scan - CorrelationId: $correlationId"
-
-    $results = .\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -OutputPath ".\Reports\daily-scan.csv" -MaxThreads 15 -MemoryLimitMB 4096
-
-    # Email report to security team
-    if ($results.OrphanedSIDCount -gt 0) {
-        Send-MailMessage -To "security-alerts@contoso.com" -Subject "🚨 AD Security Alert - $($results.OrphanedSIDCount) Orphaned SIDs" -Body "Scan Results: $($results | ConvertTo-Json)"
-    }
-
-    Write-EventLog -LogName Application -Source "AD-Security-Monitor" -EventId 1001 -EntryType Information -Message "AD security scan completed successfully - CorrelationId: $correlationId"
-}
-catch {
-    Write-EventLog -LogName Application -Source "AD-Security-Monitor" -EventId 1002 -EntryType Error -Message "AD security scan failed: $($_.Exception.Message) - CorrelationId: $correlationId"
-    Send-MailMessage -To "security-alerts@contoso.com" -Subject "🚨 AD Security Scan Failure" -Body $_.Exception.Message
-}
-```
-
-### Core Modules
-
-| Module Category | Responsibility | Key Functions |
-|-----------------|---------------|---------------|
-| **Core** | Main orchestration and workflow management | `Initialize-ScriptExecution`, `Start-OrchestrationWorkflow`, `Invoke-MainProcessingLogic` |
-| **SID** | SID validation, processing, and analysis | `Test-OrphanedSID`, `Test-SIDFormat`, `Get-SIDAnalysis`, `Resolve-SIDIdentity` |
-| **ActiveDirectory** | AD connectivity and bulk operations | `Invoke-ADOperationWithRetry`, `Get-ADObjectsSequential`, `Test-ValidDistinguishedName` |
-| **ACL** | Access Control List operations | `Get-ACLForRemoval`, `Invoke-SIDRemoval`, `Set-ModifiedACL` |
-| **Security** | Security validation and risk assessment | `Invoke-SecurityValidation`, `Test-ClassIntegrity`, `Get-SecurityDescriptor` |
-| **Backup** | Backup creation with integrity checks | `New-ACLBackup`, `Test-BackupIntegrity`, `Export-ACLBackup` |
-| **Operations** | Business logic and processing workflows | `Remove-OrphanedSID`, `Invoke-RemovalWorkflow`, `Start-ProcessingWorkflow` |
-| **Logging** | Structured logging with correlation tracking | `Write-StructuredLog`, `Initialize-LoggingFramework`, `Write-SecurityLogEvent` |
-| **Utilities** | Common utility functions and helpers | `Test-Prerequisites`, `Get-SystemInformation`, `Get-SafeFileName` |
-| **ClassManagement** | PowerShell class loading and management | `Import-ProjectClassesSecure`, `Test-ClassIntegrity`, `Initialize-MemoryManager` |
-
-### Module Dependencies
-
-```
-Logging (Foundation)
-├── Core (Orchestration)
-│   ├── ClassManagement
-│   ├── Security
-│   └── Utilities
-├── SID (Processing)
-│   ├── ActiveDirectory
-│   └── ACL
-├── Operations (Business Logic)
-│   ├── Backup
-│   └── Reporting
-└── FileSystem (Infrastructure)
-```
-
-### Design Principles
-
-- **Single Responsibility**: Each module has a clear, focused purpose with enterprise-grade error handling
-- **Loose Coupling**: Minimal dependencies between modules with configuration-driven design
-- **High Cohesion**: Related functions grouped together with consistent interfaces
-- **Error Resilience**: Comprehensive error handling with correlation tracking throughout
-- **Performance Optimization**: Intelligent caching, parallel processing, and memory management
-- **Security by Design**: Built-in validation, protection, and audit capabilities
-- **Enterprise Integration**: Structured logging, monitoring integration, and compliance support
-
-## 🔍 Troubleshooting
-
-### Quick Diagnostics
-```powershell
-# Built-in health check and environment validation
-.\Find-UnknownSID.ps1 -TestConnection -Verbose
-```
-
-### Common Issues
-
-<details>
-<summary>❌ "Active Directory Module Not Found" Error</summary>
-
-**Symptoms:** Script fails with "The ActiveDirectory module is not available"
-
-**Root Causes:**
-1. RSAT (Remote Server Administration Tools) not installed
-2. ActiveDirectory module not imported
-3. Insufficient permissions to access AD module
-
-**Solutions:**
-```powershell
-# Install RSAT on Windows 10/11
-Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
-
-# Install RSAT on Windows Server
+# Windows Server
 Install-WindowsFeature -Name RSAT-AD-PowerShell
 
-# Verify module availability
+# Verify
 Get-Module -ListAvailable ActiveDirectory
-Import-Module ActiveDirectory -Force
 ```
 
-**Related Documentation:** [Active Directory Setup](./Troubleshooting/Common/ActiveDirectory-Module-Setup.md)
+### Permissions
 
-</details>
+| Mode | Active Directory right needed |
+| --- | --- |
+| Discovery | Read on the objects under `-SearchBase` |
+| `-Remove` | Write to the security descriptor (Modify Permissions) on the target objects |
+| `-Restore` | Same as `-Remove` |
 
-<details>
-<summary>⚠️ Memory Issues or Performance Problems</summary>
+Backups and logs are written as the running user, so the account also needs write access to
+`-BackupPath` and `-LogPath`.
 
-**Symptoms:** High memory usage, slow execution, or out-of-memory errors
+## Installation
 
-**Diagnostic Commands:**
 ```powershell
-# Enable memory monitoring and performance logging
-.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -MaxThreads 5 -MemoryLimitMB 2048 -Verbose
-
-# Monitor resource usage
-Get-Process -Name powershell | Select-Object CPU, WorkingSet, VirtualMemorySize
+git clone https://github.com/fadwen/TechbyJeff.git
+Set-Location 'TechbyJeff\Powershell\Active Directory\Find-UnknownSID'
+Get-Help .\Find-UnknownSID.ps1 -Full
 ```
 
-**Optimization Strategies:**
-```powershell
-# Reduce threading for memory-constrained environments
-.\Find-UnknownSID.ps1 -SearchBase "OU=Users,DC=contoso,DC=com" -MaxThreads 3 -MemoryLimitMB 1024
+Keep the folder structure intact. The script dot-sources `Classes/` and `Private/` relative to its
+own location.
 
-# Process OUs separately for very large environments
-$ous = @("OU=Users,DC=contoso,DC=com", "OU=Computers,DC=contoso,DC=com")
-foreach ($ou in $ous) {
-    .\Find-UnknownSID.ps1 -SearchBase $ou -OutputPath ".\Reports\$($ou -replace '[^a-zA-Z0-9]', '_').csv"
-    Start-Sleep -Seconds 30  # Allow memory cleanup
+## Configuration
+
+Most runs need no configuration file. `-ConfigPath` accepts a JSON file whose top-level keys override
+the defaults in `Classes/ScriptConfiguration.ps1`. Only these keys are read; anything else is
+ignored without a warning:
+
+```json
+{
+  "WellKnownSIDPatterns": ["^S-1-5-32-", "^S-1-5-18$"],
+  "ProtectedSIDs": ["S-1-5-32-544", "S-1-5-32-545", "S-1-5-32-546", "S-1-5-18", "S-1-5-19", "S-1-5-20"],
+  "BatchSize": 50,
+  "MemoryCheckInterval": 50,
+  "EnableDetailedLogging": false,
+  "LogLevel": "Information",
+  "LogFilePath": null,
+  "EnableLogFileRotation": false,
+  "MaxLogFileSizeMB": 50
 }
 ```
 
-**Related Documentation:** [Performance Optimization Guide](./Troubleshooting/Performance/Memory-Management.md)
+| Key | Range | Effect |
+| --- | --- | --- |
+| `WellKnownSIDPatterns` | regex list | Identity references matching any pattern are never reported as orphaned |
+| `ProtectedSIDs` | SID list | Never removed, even if unresolvable |
+| `BatchSize` | 1-1000 | Results per streaming batch file in `%TEMP%` (default 50) |
+| `MemoryCheckInterval` | 1-1000 | Operations between memory checks |
+| `LogLevel` | Critical, Error, Warning, Information, Debug, Verbose | Default file log level; `-LogLevel` on the command line wins |
 
-</details>
+Everything else is a command-line parameter: `-MaxMemoryUsageMB` (100-16384, default 1024),
+`-MaxRetries` (1-10, default 3), `-IncludeInherited`, `-LogPath`, `-LogLevel`,
+`-SuppressConsoleOutput`, `-PreserveTempFiles`, `-CorrelationId`. There are no environment variables.
 
-<details>
-<summary>🛡️ Access Denied or Permission Errors</summary>
+## Usage
 
-**Symptoms:** Script fails with "Access is denied" or insufficient rights errors
+### Discovery across several OUs
 
-**Root Causes:**
-1. Insufficient Active Directory permissions
-2. User account not in appropriate AD groups
-3. UAC restrictions or execution policy issues
-
-**Solutions:**
 ```powershell
-# Test AD connectivity and permissions
-Test-ADServiceAccount -Identity $env:USERNAME
-
-# Check current AD permissions
-Get-ADUser $env:USERNAME -Properties MemberOf | Select-Object -ExpandProperty MemberOf
-
-# Run with appropriate credentials
-$credential = Get-Credential
-.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -Credential $credential
+'OU=Users,DC=contoso,DC=com', 'OU=Computers,DC=contoso,DC=com' |
+    .\Find-UnknownSID.ps1 -IncludeInherited -OutputPath '.\Reports\audit.csv'
 ```
 
-**Related Documentation:** [Security Configuration Guide](./Troubleshooting/Security/Permissions-Setup.md)
+`-SearchBase` accepts pipeline input and an array. `-IncludeInherited` also reports ACEs inherited
+from parent containers; expect more rows and a longer run.
 
-</details>
+### Removal with a custom backup location
 
-### Error Code Reference
-| Error Code | Description | Immediate Action | Documentation |
-|------------|-------------|------------------|---------------|
-| **AD001** | ActiveDirectory module unavailable | Install RSAT tools | [Module Setup](./Troubleshooting/Common/) |
-| **MEM001** | Memory limit exceeded | Reduce thread count or increase memory limit | [Memory Management](./Troubleshooting/Performance/) |
-| **PERM001** | Insufficient AD permissions | Verify account permissions and group membership | [Permission Setup](./Troubleshooting/Security/) |
-| **BACKUP001** | Backup operation failed | Check disk space and write permissions | [Backup Operations](./Troubleshooting/Common/) |
-| **WHATIF001** | Unwanted "What if:" messages during normal execution | ✅ RESOLVED: ValidationOnly parameter implemented | [WhatIf Fix](./Documentation/WhatIf-Messages-Fix.md) |
-
-### Self-Diagnostic Tools
 ```powershell
-# Comprehensive environment validation
-.\Find-UnknownSID.ps1 -ValidateEnvironment -IncludePermissionTest -ExportDiagnostics
+.\Find-UnknownSID.ps1 -SearchBase 'OU=Decommissioned,DC=contoso,DC=com' -Remove -Force `
+    -BackupPath 'D:\ADBackups' -OutputPath '.\Reports\cleanup.csv' -CorrelationId 'CHG0012345'
 ```
 
-## 🏗️ Architecture Overview
+Backups land in `D:\ADBackups\<yyyyMMdd_HHmmss>\`, one `.xml` per modified object, named from the
+object's distinguished name with path-unsafe characters replaced by `_`.
 
-### Solution Structure
+### Restore every object in an OU from a backup set
+
+```powershell
+.\Find-UnknownSID.ps1 -Restore -SearchBase 'OU=Decommissioned,DC=contoso,DC=com' `
+    -BackupPath 'D:\ADBackups\20250703_104232' -WhatIf
 ```
+
+When `-SearchBase` is an OU or domain, every backup file under `-BackupPath` whose object sits
+under that container is restored. For a single object the most recent matching backup is used.
+Drop `-WhatIf` and add `-Force` to apply.
+
+### Scheduled task
+
+```powershell
+$report = "C:\Reports\orphaned-sids-$(Get-Date -Format yyyyMMdd).csv"
+$correlationId = "SCHED-$(Get-Date -Format yyyyMMddHHmm)"
+
+& 'C:\Scripts\Find-UnknownSID\Find-UnknownSID.ps1' -SearchBase 'DC=contoso,DC=com' `
+    -OutputPath $report -SuppressConsoleOutput -CorrelationId $correlationId
+
+# The script emits nothing to the pipeline; read the CSV it wrote
+$found = if (Test-Path $report) { @(Import-Csv $report).Count } else { 0 }
+if ($found -gt 0) {
+    Send-MailMessage -To 'security-alerts@contoso.com' -From 'ad-hygiene@contoso.com' `
+        -SmtpServer 'smtp.contoso.com' -Subject "Orphaned SIDs found: $found" `
+        -Body "Report: $report`nCorrelationId: $correlationId"
+}
+```
+
+Exit code is 0 on success and 1 when the end block hits a critical error. There are no other codes.
+
+### CSV columns
+
+One row per orphaned ACE: `ObjectDN`, `ObjectClass`, `OrphanedSID`, `LikelySource`, `Confidence`,
+`AnalysisNotes`, `AccessControlType`, `ActiveDirectoryRights`, `InheritanceType`, `ObjectType`,
+`InheritedObjectType`, `IsInherited`, `ProcessingMethod`, `ActionTaken`, `CorrelationId`,
+`Timestamp`. A `-Restore` run exports one row per object instead.
+
+## Architecture
+
+```text
 Find-UnknownSID/
-├── Find-UnknownSID.ps1        # Main script and entry point
-├── Classes/                    # PowerShell classes and types
-│   ├── ScriptConfiguration.ps1      # Configuration management
-│   ├── OrphanedSIDResult.ps1        # Result data structures
-│   ├── MemoryManager.ps1            # Memory optimization
-│   ├── ProcessingStatistics.ps1     # Performance metrics
-│   ├── SecurityValidationResult.ps1 # Security validation
-│   ├── SIDAnalysisResult.ps1        # SID analysis results
-│   ├── RemovalOperationResult.ps1   # Removal operation results
-│   ├── RestoreOperationResult.ps1   # Restore operation results
-│   └── StreamingResultsManager.ps1  # Large dataset handling
-├── Private/                    # Modular internal components (organized by function)
-│   ├── ACL/                        # Access Control List operations
-│   ├── ActiveDirectory/            # AD connectivity and operations
-│   ├── Backup/                     # Backup and restore functionality
-│   ├── ClassManagement/            # PowerShell class management
-│   ├── Core/                       # Core orchestration and workflow
-│   ├── FileSystem/                 # File system operations
-│   ├── Logging/                    # Structured logging framework
-│   ├── Operations/                 # Business logic operations
-│   ├── Reporting/                  # Result reporting and output
-│   ├── Security/                   # Security validation and controls
-│   ├── SID/                        # SID processing and validation
-│   ├── System/                     # System integration functions
-│   └── Utilities/                  # Common utility functions
-├── Documentation/              # Comprehensive documentation
-│   ├── Backup-and-Restore-Guide.md
-│   ├── Find-UnknownSID-Automation.md
-│   ├── Memory-Security.md
-│   └── Class-Loading-Security-Analysis.md
-├── Troubleshooting/           # Organized troubleshooting guides
-│   ├── Common/                     # General issues and solutions
-│   ├── Security/                   # Security-related problems
-│   ├── Performance/                # Performance optimization
-│   └── Integration/                # Enterprise integration issues
-├── Backup/                    # Automated backup storage
-├── Logs/                      # Execution and audit logs
-└── Tools/                     # Utility scripts and helpers
+├── Find-UnknownSID.ps1          # Entry point: parameters, confirmation gate, load order, summary
+├── Classes/                     # Loaded first, by name from Get-ApprovedClassList
+│   ├── ScriptConfiguration.ps1      # Defaults, protected SIDs, JSON override loader
+│   ├── MemoryManager.ps1            # Threshold checks and garbage collection
+│   ├── StreamingResultsManager.ps1  # Batch files in %TEMP%, CSV export, cleanup
+│   ├── ProcessingStatistics.ps1     # Counters and timing for the summary
+│   ├── OrphanedSIDResult.ps1        # One row of output
+│   ├── SIDAnalysisResult.ps1
+│   ├── SecurityValidationResult.ps1
+│   ├── RemovalOperationResult.ps1
+│   └── RestoreOperationResult.ps1
+├── Private/                     # One function per file, grouped by area
+│   ├── ACL/                         # Get-ACLForRemoval, Invoke-SIDRemoval, Set-ModifiedACL
+│   ├── ActiveDirectory/             # Get-ADObjectFromSearchBase, Get-ADObjectsSequential,
+│   │                                #   Invoke-ADOperationWithRetry, Test-ValidDistinguishedName
+│   ├── Backup/                      # New-ACLBackup, Find-BackupFile, Get-BackupMetadata,
+│   │                                #   Test-BackupValidation, Invoke-RestoreWorkflow, Restore-ACLOperation
+│   ├── ClassManagement/             # Get-ApprovedClassList, Resolve-ClassPath, Import-SecureClasses
+│   ├── Core/                        # Initialize-ScriptExecution, Start-OrchestrationWorkflow,
+│   │                                #   Invoke-MainProcessingLogic, Remove-OrphanedSID, Import-LoggingSystem
+│   ├── FileSystem/                  # Get-SafeFileName, Initialize-LogDirectory, Test-DirectoryAccess
+│   ├── Logging/                     # Write-StructuredLog, Write-SecurityLog, Test-LogLevel, ...
+│   ├── Operations/                  # Invoke-RemovalWorkflow, Invoke-OperationWithRetry
+│   ├── Reporting/                   # Write-ProcessingSummary, Get-LogFileSummary, Export-DiagnosticData
+│   ├── Security/                    # Get-SecurityDescriptor (Get-ObjectAccessRule), Invoke-SecurityValidation,
+│   │                                #   Invoke-RemovalVerification, Test-ClassIntegrity, Test-PathTraversal
+│   ├── SID/                         # Test-SIDFormat, Test-OrphanedSID, Resolve-SIDIdentity,
+│   │                                #   Get-SIDAnalysis, Test-SIDSecurity, New-SIDResult, Invoke-SIDProcessing
+│   ├── System/                      # Initialize-MemoryManager, Invoke-MemoryMonitoring,
+│   │                                #   Invoke-GarbageCollection, Invoke-ResourceDisposal, Get-MemoryStatistics
+│   └── Utilities/                   # Get-StringHash, Test-BackupIntegrity, Validate-BackupSignature
+├── Tests/                       # Pester 3.4 suite: Unit, Integration, Performance
+├── Tools/                       # Generate-ClassHashes, Generate-OrphanedSIDs (lab seeding), Invoke-GitWorkflow
+├── Documentation/               # Guides listed below, plus Archive/ with development history
+├── Troubleshooting/             # Common, Security, Performance, Integration
+├── Backup/                      # Created on first -Remove (git-ignored)
+└── Logs/                        # Created on first run (git-ignored)
 ```
 
-### Core Architecture Principles
-- **Separation of Concerns**: Clear separation between data access, business logic, and presentation
-- **Single Responsibility**: Each module and class serves a specific, well-defined purpose
-- **Dependency Injection**: Loose coupling through configuration-driven design
-- **Security by Design**: Comprehensive validation and protection throughout
-- **Performance Optimization**: Memory management and parallel processing capabilities
-- **Enterprise Integration**: Structured logging, correlation tracking, and audit compliance
+### Processing flow
 
-### Module Dependencies
-```
-Logging.ps1 (Foundation)
-├── SIDValidation.ps1
-│   ├── SIDProcessing.ps1
-│   └── ADOperations.ps1
-├── BackupOperations.ps1
-├── RestoreOperations.ps1
-├── RemovalOperations.ps1
-└── Orchestration.ps1 (Coordination)
-```
+1. `begin`: import the ActiveDirectory module, load the approved classes, dot-source `Private/`,
+   initialise logging, configuration and the memory manager.
+2. `process`: apply the confirmation gate for `-Remove` and `-Restore`, then either run
+   `Invoke-MainProcessingLogic` (discovery and removal) or `Start-OrchestrationWorkflow -OperationType Restore`
+   once per `-SearchBase` value.
+3. `end`: print the summary, export the CSV, dispose the streaming manager and memory manager.
 
-### PowerShell Classes Architecture
-| Class | Purpose | Key Responsibilities |
-|-------|---------|---------------------|
-| **ScriptConfiguration** | Configuration management | Environment settings, validation rules, performance tuning |
-| **OrphanedSIDResult** | Data structure | SID analysis results and metadata |
-| **MemoryManager** | Resource optimization | Memory monitoring, cleanup, and optimization |
-| **ProcessingStatistics** | Performance tracking | Execution metrics, timing, and resource usage |
-| **SecurityValidationResult** | Security validation | Risk assessment and validation outcomes |
-| **SIDAnalysisResult** | Analysis data | Comprehensive SID analysis information |
-| **RemovalOperationResult** | Operation tracking | Removal operation success/failure details |
-| **RestoreOperationResult** | Restore tracking | Backup restoration operation results |
-| **StreamingResultsManager** | Large dataset handling | Efficient processing of large result sets |
+For each object, `Get-ObjectAccessRule` reads the security descriptor (trying `Get-Acl` on the
+`AD:` drive, then the binary `nTSecurityDescriptor`, then a fresh query), `Test-OrphanedSID`
+resolves each identity reference with a per-run cache, and `New-OrphanedSIDResult` builds the
+output row. In `-Remove` mode `Test-SIDSecurity` and `Invoke-SecurityValidation` run before
+`New-ACLBackup` and `Invoke-SIDRemoval`.
 
-## 📊 Performance & Monitoring
+## Troubleshooting
 
-### Performance Characteristics
-| Environment Size | Objects | Execution Time | Memory Usage | Recommended Settings |
-|------------------|---------|----------------|--------------|---------------------|
-| **Small Domain (< 1,000 objects)** | 1-1,000 | 2-5 minutes | <200MB | Default settings |
-| **Medium Domain (1K-10K objects)** | 1K-10K | 10-30 minutes | 200MB-1GB | MaxThreads: 10, MemoryLimit: 2GB |
-| **Large Domain (10K-50K objects)** | 10K-50K | 30-120 minutes | 1-4GB | MaxThreads: 20, MemoryLimit: 8GB |
-| **Enterprise (50K+ objects)** | 50K+ | 2+ hours | 4GB+ | MaxThreads: 30, MemoryLimit: 16GB |
-
-### Monitoring Integration
-- **Windows Event Log**: Structured event logging for enterprise monitoring
-- **Performance Counters**: Memory usage, processing time, and throughput metrics
-- **Correlation Tracking**: Full audit trail with correlation IDs for troubleshooting
-- **SIEM Integration**: JSON-formatted logs compatible with enterprise SIEM systems
-
-### Optimization Guidelines
-```powershell
-# PowerShell 7.x parallel processing optimization
-.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -MaxThreads 25 -MemoryLimitMB 8192
-
-# Memory-efficient processing for very large environments
-.\Find-UnknownSID.ps1 -SearchBase "DC=contoso,DC=com" -StreamResults -OutputPath "results.csv"
-
-# Batch processing for maximum reliability
-$ous = Get-ADOrganizationalUnit -Filter * | Select-Object -First 10
-foreach ($ou in $ous) {
-    .\Find-UnknownSID.ps1 -SearchBase $ou.DistinguishedName -OutputPath ".\Reports\$($ou.Name).csv"
-}
-```
-
-### Backup and Recovery Strategy
-**Timestamped Backup Organization**: Each removal operation creates a unique timestamped subfolder (e.g., `Backup\20250703_104232\`) containing:
-- Individual object ACL backups in JSON format
-- Operation metadata and correlation tracking
-- Automated integrity validation and verification
-- Complete audit trail for compliance requirements
-
-**Recovery Capabilities**:
-- Full domain restoration from backup sets
-- Selective object restoration by distinguished name
-- Integrity validation before and after restore operations
-- Correlation tracking for audit and compliance needs
-
-## 🛡️ Security Considerations
-
-### Built-in Security Features
-- **Protected SID Validation**: Prevents removal of critical system SIDs
-- **Risk Assessment**: Comprehensive validation before any modifications
-- **Backup Requirements**: Mandatory backup creation before SID removal
-- **Audit Logging**: Complete correlation tracking for security events
-- **Access Validation**: Verification of required permissions before operations
-
-### Compliance Support
-- **SOX Compliance**: Complete audit trails and change tracking
-- **HIPAA Support**: Secure handling of directory information
-- **GDPR Considerations**: Privacy-aware logging and data handling
-- **PCI DSS**: Secure credential and sensitive data management
-
-### 🛡️ Compliance & Security Features
-
-**Enterprise-Grade Security Logging**: Comprehensive audit trail system that ensures all security events are captured for regulatory compliance:
-
-- **Compliance-Grade Logging**: Security audit events are **always written to log files** regardless of log level configuration
-- **Audit Trail Integrity**: AD operation attempts/successes/failures logged with full security context
-- **Regulatory Support**: SOX, HIPAA, GDPR, and PCI DSS compliance through complete security event logging
-- **Tamper Resistance**: Security logs cannot be accidentally filtered out by operational log level changes
-- **Emergency Fallback**: Multiple fallback mechanisms ensure security events are captured even during logging failures
-- **Correlation Tracking**: Full correlation ID tracking for security event traceability across operations
+Start with the log file. Every line carries the correlation ID, so one run can be isolated with:
 
 ```powershell
-# Example: Security logs appear regardless of restrictive log level
-.\Find-UnknownSID.ps1 -SearchBase "DC=domain,DC=com" -LogLevel Error
-
-# Security audit entries will appear in log file even with Error level
-# Regular Information logs will be filtered, but security Information logs always appear
+Select-String -Path .\Logs\Find-UnknownSID_*.log -Pattern '<correlation id>'
 ```
 
-**Benefits for Compliance Teams**:
-- Complete audit trail for all AD access operations
-- Security events never hidden behind debug flags or log levels
-- Standard security event formatting for compliance reporting
-- Emergency logging ensures events captured during system issues
+| Symptom | Cause | Where to look |
+| --- | --- | --- |
+| `Active Directory PowerShell module is not available` | RSAT not installed | [Prerequisites](#prerequisites) |
+| `Refusing to remove orphaned SIDs from ACLs without confirmation` | Unattended `-Remove` without `-Force` | [Confirmation gate](#key-features) |
+| `BackupPath parameter is required when using -Restore` | `-Restore` without `-BackupPath` | [Backup and Restore Guide](./Documentation/Backup-and-Restore-Guide.md) |
+| `All security descriptor retrieval methods failed for <DN>` | No read access to the descriptor, or the object vanished mid-run | [Security Descriptor Issues](./Troubleshooting/Security/Security-Descriptor-Issues.md) |
+| `Memory usage threshold exceeded` warnings | `-MaxMemoryUsageMB` lower than the working set | [Memory Management](./Troubleshooting/Performance/Memory-Management.md) |
+| Restore reports `Backup validation failed` | File edited, truncated or from another object | [Backup-Restore Issues](./Troubleshooting/Common/Backup-Restore-Issues.md) |
 
-See [Security Logging Compliance](./Documentation/Security-Logging-Compliance.md) for detailed implementation.
+Guides by area:
 
-## 📚 Documentation
+- [Common](./Troubleshooting/Common/): startup, backup and restore, result objects, orchestration
+- [Security](./Troubleshooting/Security/): SID format and resolution, security descriptors, security logging
+- [Performance](./Troubleshooting/Performance/): memory management, WhatIf behaviour, tuning
+- [Integration](./Troubleshooting/Integration/): scheduling and pipeline use
 
-### Current Documentation (6 Essential Files)
-- **[Quick Test Reference](./Documentation/Quick-Test-Reference.md)**: Complete testing status and execution commands
-- **[Backup and Restore Guide](./Documentation/Backup-and-Restore-Guide.md)**: Comprehensive backup/restore procedures
-- **[Automation Guide](./Documentation/Find-UnknownSID-Automation.md)**: Enterprise automation and scheduling
-- **[Memory Security](./Documentation/Find-UnknownSID-Memory-Security.md)**: Memory management and security considerations
-- **[Class Loading Security](./Documentation/Class-Loading-Security-Analysis.md)**: Secure PowerShell class loading analysis
-- **[Security Logging Compliance](./Documentation/Security-Logging-Compliance.md)**: Compliance framework implementation
+## Performance
 
-### Documentation Archive (74 Historical Files)
-Comprehensive development history and analysis documents have been organized in the [Archive folder](./Documentation/Archive/):
-- **Development History** (45 files): Complete evolution tracking and feature development
-- **Refactoring Reports** (18 files): Detailed analysis and improvement documentation  
-- **Testing Evolution** (11 files): Testing framework development and enhancement records
+Run time is dominated by one LDAP read per object plus one identity lookup per distinct SID. The
+SID lookup is cached for the run, so the second object carrying the same orphaned SID costs
+nothing extra. Measure in your own environment: the summary block in the log reports objects
+processed, duration, objects per second and peak memory.
 
-*See [Archive README](./Documentation/Archive/README.md) for navigation guide and search strategies.*
+Levers, in order of effect:
 
-### Troubleshooting Resources
-- **[Common Issues](./Troubleshooting/Common/)**: Frequently encountered problems and solutions
-- **[Security Setup](./Troubleshooting/Security/)**: Permission and security configuration
-- **[Performance Optimization](./Troubleshooting/Performance/)**: Memory and performance tuning
-- **[Integration Support](./Troubleshooting/Integration/)**: Enterprise system integration guidance
+- Narrow `-SearchBase`, or run one OU at a time.
+- Leave `-IncludeInherited` off unless the audit needs inherited ACEs.
+- Raise `-MaxMemoryUsageMB` if the log shows repeated threshold warnings; lower it on a constrained
+  host.
+- Set `-LogLevel Warning` to shrink the log file on large runs. Security events are still written.
+- Use `-PreserveTempFiles` to keep the batch files in `%TEMP%\Find-UnknownSID-<CorrelationId>\`
+  for inspection after a run.
+
+## Security
+
+- `-Remove` and `-Restore` never run without a confirmation prompt, `-Force`, or `-WhatIf`.
+- Every modified ACL is backed up first as Clixml with the SDDL, a SHA256 hash of the SDDL, the
+  object DN, the correlation ID and the user and computer that made the change.
+- `ProtectedSIDs` and `WellKnownSIDPatterns` are checked before any removal. Objects matching
+  `CriticalObjectPatterns` (Domain Admins, Enterprise Admins, Schema Admins, BUILTIN, the default
+  Users and Computers containers) are flagged high risk in the results.
+- Security events are written to the log file at every `-LogLevel`, with a fallback file under
+  `%TEMP%` if the main log cannot be written.
+- The script runs as the caller; it stores no credentials.
+
+These controls produce evidence an audit can use. They do not by themselves make an environment
+compliant with any regulation.
+
+## Documentation
+
+- [Quick Test Reference](./Documentation/Quick-Test-Reference.md): running the Pester suite and current results
+- [Backup and Restore Guide](./Documentation/Backup-and-Restore-Guide.md): backup format, restore workflow, validation
+- [Automation Guide](./Documentation/Find-UnknownSID-Automation.md): scheduled and pipeline use, exit codes, reading results
+- [Memory and Security Notes](./Documentation/Find-UnknownSID-Memory-Security.md): memory behaviour and the security checks
+- [Class Loading Security Analysis](./Documentation/Class-Loading-Security-Analysis.md): how classes are loaded and what is and is not verified
+- [Security Logging Compliance](./Documentation/Security-Logging-Compliance.md): the always-on security log
+
+[Documentation/Archive](./Documentation/Archive/) holds 74 historical development, refactoring and
+testing documents. They describe the project as it was at the time; see
+[Archive README](./Documentation/Archive/README.md).
+
+## Testing
+
+The suite targets Pester 3.4 on Windows PowerShell 5.1 and does not need a domain. Tests that
+touch AD cmdlets mock them, and stub `Get-ADObject` when RSAT is absent.
+
+```powershell
+Import-Module Pester -RequiredVersion 3.4.0 -Force
+Invoke-Pester -Path .\Tests\Unit
+Invoke-Pester -Path .\Tests\Integration
+Invoke-Pester -Path .\Tests\Performance
+```
+
+Current results are recorded in [Quick Test Reference](./Documentation/Quick-Test-Reference.md).

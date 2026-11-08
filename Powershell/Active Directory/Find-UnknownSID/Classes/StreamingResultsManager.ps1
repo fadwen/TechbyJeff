@@ -10,6 +10,8 @@ class StreamingResultsManager : System.IDisposable {
     [object]$Summary
     [bool]$Disposed
     [bool]$WhatIfMode
+    # When true, Dispose() leaves the temp directory and batch files on disk (-PreserveTempFiles)
+    [bool]$PreserveFiles
 
     # Constructor with WhatIf support (3-argument version) - placed first
     StreamingResultsManager([string]$tempDir, [int]$batchSize, [bool]$whatIfMode) {
@@ -322,8 +324,12 @@ class StreamingResultsManager : System.IDisposable {
                     Write-Verbose "Skipping final summary update - temp directory no longer exists: $($this.TempDirectory)"
                 }
 
-                # Clean up temporary files during disposal
-                $this.Cleanup()
+                # Clean up temporary files during disposal unless the caller asked to keep them
+                if ($this.PreserveFiles) {
+                    Write-Verbose "Preserving temporary result files in: $($this.TempDirectory)"
+                } else {
+                    $this.Cleanup()
+                }
             }
 
             # Clear references (always safe to do)

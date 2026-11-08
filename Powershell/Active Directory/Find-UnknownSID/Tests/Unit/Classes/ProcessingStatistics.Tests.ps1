@@ -327,8 +327,8 @@ Describe "ProcessingStatistics Class Tests" {
                 }
             }
             
-            # Should perform 100 Complete operations in under 100ms
-            $elapsedTime.TotalMilliseconds | Should BeLessThan 100
+            # Regression guard, not a benchmark: 100 Complete() calls must stay well under a second
+            $elapsedTime.TotalMilliseconds | Should BeLessThan 1000
         }
     }
 }

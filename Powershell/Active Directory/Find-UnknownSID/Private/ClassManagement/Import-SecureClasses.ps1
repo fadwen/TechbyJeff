@@ -145,8 +145,8 @@ function Import-SecureClasses {
 
             # Perform security validation
             if ($ValidateIntegrity) {
-                $integrityResult = Test-ClassIntegrity -ClassPath $pathResult.FullPath -CorrelationId $CorrelationId
-                if (-not $integrityResult.IsValid) {
+                $integrityResult = Test-ClassIntegrity -Class $className -CorrelationId $CorrelationId
+                if (-not $integrityResult.IntegrityPassed) {
                     $failedClasses += $className
                     Write-Error "Class integrity validation failed: $className"
                     continue

@@ -15,9 +15,9 @@ function Get-ApprovedClassList {
     return @('Class1', 'Class2', 'Class3')
 }
 
-function Test-ClassIntegrity { 
-    param($ClassPath, $CorrelationId)
-    return @{ Valid = $true; Issues = @() }
+function Test-ClassIntegrity {
+    param($Class, $CorrelationId)
+    return @{ IntegrityPassed = $true; FailedClasses = 0 }
 }
 
 function Write-SecurityLogEvent { 
@@ -107,10 +107,10 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         
         # Mock Test-ClassIntegrity to return success
         Mock Test-ClassIntegrity {
-            param($ClassPath, $CorrelationId)
+            param($Class, $CorrelationId)
             return [PSCustomObject]@{
-                IsValid = $true
-                ClassPath = $ClassPath
+                IntegrityPassed = $true
+                Class = $Class
                 CorrelationId = $CorrelationId
             }
         }
@@ -322,8 +322,8 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         }
         
         It "Should handle integrity validation when enabled" {
-            Mock Test-ClassIntegrity { 
-                return @{ IsValid = $true }
+            Mock Test-ClassIntegrity {
+                return @{ IntegrityPassed = $true }
             }
             
             $result = Import-SecureClasses -ClassNames $script:ValidClassNames -ValidateIntegrity
@@ -333,8 +333,8 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         }
         
         It "Should fail on integrity validation failure" {
-            Mock Test-ClassIntegrity { 
-                return @{ IsValid = $false }
+            Mock Test-ClassIntegrity {
+                return @{ IntegrityPassed = $false }
             }
             
             $result = Import-SecureClasses -ClassNames $script:ValidClassNames -ValidateIntegrity
@@ -509,10 +509,10 @@ Describe "Import-SecureClasses" -Tag @("Unit", "Private", "ClassManagement") {
         
         It "Should support security validation through integrity checking" {
             Mock Test-ClassIntegrity {
-                param($ClassPath, $CorrelationId)
+                param($Class, $CorrelationId)
                 return @{
-                    IsValid = $true
-                    SecurityChecks = @('HashValidation', 'SignatureVerification')
+                    IntegrityPassed = $true
+                    SecurityChecks = @('NameValidation')
                     CorrelationId = $CorrelationId
                 }
             }

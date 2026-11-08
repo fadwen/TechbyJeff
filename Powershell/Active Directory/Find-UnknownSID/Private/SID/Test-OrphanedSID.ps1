@@ -55,6 +55,11 @@
 if (-not $script:SIDValidationCache) {
     $script:SIDValidationCache = @{}
 }
+# Lookup counters feed CacheHitRatio in Get-SIDValidationCacheStat
+if ($null -eq $script:SIDValidationCacheLookups) {
+    $script:SIDValidationCacheLookups = 0
+    $script:SIDValidationCacheHits = 0
+}
 
 function Test-OrphanedSID {
     <#
@@ -183,7 +188,9 @@ function Test-OrphanedSID {
             }
 
             # Check cache first for performance
+            $script:SIDValidationCacheLookups++
             if ($script:SIDValidationCache.ContainsKey($SID)) {
+                $script:SIDValidationCacheHits++
                 Write-StructuredLog "SID validation cache hit for $SID" -Level Debug -Component 'SIDDetection' -CorrelationId $CorrelationId
                 return $script:SIDValidationCache[$SID]
             }
@@ -358,6 +365,8 @@ function Clear-SIDValidationCache {
     if ($script:SIDValidationCache) {
         $count = $script:SIDValidationCache.Count
         $script:SIDValidationCache.Clear()
+        $script:SIDValidationCacheLookups = 0
+        $script:SIDValidationCacheHits = 0
         Write-StructuredLog "Cleared SID validation cache ($count entries)" -Level Information -Component 'SIDDetection' -CorrelationId $CorrelationId
     } else {
         Write-StructuredLog "SID validation cache was already empty" -Level Debug -Component 'SIDDetection' -CorrelationId $CorrelationId
@@ -444,7 +453,7 @@ function Get-SIDValidationCacheStat {
             TotalEntries = $totalEntries
             OrphanedSIDs = $orphanedCount
             ValidSIDs = $validCount
-            CacheHitRatio = if ($totalEntries -gt 0) { [Math]::Round(($validCount + $orphanedCount) / $totalEntries * 100, 2) } else { 0 }
+            CacheHitRatio = if ($script:SIDValidationCacheLookups -gt 0) { [Math]::Round($script:SIDValidationCacheHits / $script:SIDValidationCacheLookups * 100, 2) } else { 0 }
             LastUpdated = Get-Date
         }
     }
