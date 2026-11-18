@@ -18,8 +18,7 @@ These are the rules for writing and reviewing PowerShell in this repository. **M
 
 ## Topic rules
 
-The rules below are the ones that matter in almost every file. Each topic has a file with the
-complete rules, the reasons, and examples:
+Each topic has a file with the complete rules, the reasons, and examples:
 
 | When the work involves | Read |
 | --- | --- |
@@ -40,6 +39,12 @@ GitHub Copilot and Claude Code load the matching file automatically when you wor
 your tooling does not, you MUST read the matching files before creating or changing the file.
 
 ## Core rules
+
+These are the rules that matter in almost every file. They are a selection from the topic files, and
+each one keeps the ID it has there, so the numbers below are not consecutive: STY-04, for example, is
+in the style file. The topic files have gaps of their own, because most of them start each section
+at a new ten. A gap does not mean that a rule is missing, and a rule that is only in a topic file
+counts as much as one listed here.
 
 ### Version
 
@@ -63,7 +68,8 @@ your tooling does not, you MUST read the matching files before creating or chang
 - **STY-03** Lines SHOULD NOT exceed 115 characters. Shorten a long command with splatting, or break
   the line after a pipe, comma, or operator. Backtick line continuation MUST NOT be used.
 - **STY-06** Source MUST be ASCII unless a string literal needs another character: no emoji,
-  typographic quotes, or en and em dashes in code or comments.
+  typographic quotes, or en and em dashes in code or comments. Generated documentation and test
+  output MUST NOT contain emoji either.
 - **STY-12** Name local variables in descriptive camelCase without a type prefix: `$retryCount`, not
   `$RetryCount` or `$intRetryCount`.
 - **STY-13** Automatic variables MUST NOT be assigned or reused as parameter, loop, or test-data
